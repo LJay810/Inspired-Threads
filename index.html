@@ -186,6 +186,8 @@
             display: flex;
             flex-direction: column;
             margin-bottom: 50px;
+            position: relative; /* FIX: Establishes a new stacking context */
+            z-index: 50; /* FIX: Forces the entire filter row to sit above the product grid */
         }
 
         .filter-bar {
@@ -223,6 +225,7 @@
             position: relative;
             display: inline-block;
             outline: none;
+            z-index: 100; /* FIX: Guarantees dropdown sits at the absolute top */
         }
 
         .dropdown-toggle {
@@ -251,7 +254,7 @@
             box-shadow: 0 15px 40px rgba(0,0,0,0.8), 0 0 15px rgba(255,0,127,0.1);
             border: 1px solid var(--accent-pink);
             border-radius: 12px;
-            z-index: 100;
+            z-index: 101; /* FIX: Ensure menu items are above everything */
             top: 100%;
             left: 0;
             margin-top: 10px;
@@ -292,6 +295,8 @@
             gap: 40px; 
             min-height: 500px; /* Prevents layout jump when filtering */
             align-content: start;
+            position: relative;
+            z-index: 1; /* FIX: Pushes cards lower in the stack than the controls */
         }
         
         .product-card { 
@@ -304,6 +309,7 @@
             transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.15s ease-out, border-color 0.15s ease-out, opacity 0.4s ease; 
             opacity: 1;
             transform: scale(1);
+            position: relative;
         }
 
         .product-card.hidden-filter {
@@ -316,6 +322,7 @@
             border-color: var(--accent-pink); 
             transform: translateY(-8px); 
             box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255, 0, 127, 0.15);
+            z-index: 2; /* Keeps hovering cards above other cards, but still below the menu */
         }
 
         .product-image-zone {
