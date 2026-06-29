@@ -1,0 +1,24 @@
+{
+  "name": "inspired-threads",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LJay810/Inspired-Threads.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/LJay810/Inspired-Threads/issues"
+  },
+  "homepage": "https://github.com/LJay810/Inspired-Threads#readme",
+  "dependencies": {
+    "stripe": "^22.3.0"
+  }
+}
