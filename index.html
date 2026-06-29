@@ -120,7 +120,7 @@
             margin-bottom: 50px;
         }
 
-        /* --- HERO (DUAL COLUMN SPLIT FOR DESKTOP) --- */
+        /* --- HERO (DUAL COLUMN SPLIT) --- */
         #home { 
             background: linear-gradient(to right, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.3) 100%), url('inspired threads cover photo.png') center/cover no-repeat; 
             flex-direction: row;
@@ -312,7 +312,7 @@
         }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* --- MOBILE RESPONSIVENESS --- */
+        /* --- MOBILE RESPONSIVENESS (Bulletproof Fix) --- */
         @media (max-width: 900px) {
             
             header { 
@@ -334,45 +334,43 @@
             .nav-tab { flex: 1; padding: 5px 0; font-size: 0.65rem; }
             #indicator { bottom: -16px; top: auto; }
             
-            .page-section { padding: 100px 20px 80px 20px; }
+            .page-section { padding: 120px 20px 80px 20px; }
             
-            /* --- THE LION FIX --- */
+            /* Enhanced Mobile Hero - Perfectly Fit Photo Optimization */
             #home {
                 flex-direction: column;
-                justify-content: flex-end; /* Pushes content completely to the bottom */
-                text-align: center;
-                padding-top: 120px; 
-                padding-bottom: 50px;
-                /* Transparent at top for the lion, dark fade at bottom for the text */
-                background: linear-gradient(to bottom, rgba(3,3,3,0.0) 30%, rgba(3,3,3,0.95) 90%), url('inspired threads cover photo.png') no-repeat; 
-                background-position: 25% top; 
+                justify-content: center; 
+                text-align: left;
+                padding-top: 180px; 
+                padding-bottom: 60px;
+                background: linear-gradient(to top, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.3) 70%), url('inspired threads cover photo.png') no-repeat; 
+                /* MAGIC FIX: Anchors the image to the 20% mark on the left side to perfectly frame the lion */
+                background-position: 20% top; 
                 background-size: cover;
             }
 
-            /* Centers the logo directly above the text */
             .hero-visual {
-                position: static;
-                width: 100%;
-                display: flex;
-                justify-content: center;
-                margin-bottom: 20px;
+                position: absolute;
+                top: 90px; 
+                right: 20px;
+                width: auto;
+                margin: 0;
             }
             
             .main-logo {
-                width: 110px; 
+                width: 100px; 
                 box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
             }
 
             .hero-content {
                 display: flex;
                 flex-direction: column;
-                align-items: center;
                 width: 100%;
-                margin-top: 0; 
+                margin-top: 80px; 
             }
 
-            .hero-title { font-size: 2.1rem; margin-bottom: 10px; }
-            .hero-subtitle { font-size: 1rem; }
+            .hero-title { font-size: 2.2rem; margin-bottom: 15px; }
+            .hero-subtitle { font-size: 1.1rem; }
 
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
         }
@@ -392,12 +390,12 @@
     </header>
 
     <section id="home" class="page-section">
-        <div class="hero-visual reveal">
-            <img src="inspiredthreadsLogo.jpg" class="main-logo" alt="Inspired Threads Logo">
-        </div>
         <div class="hero-content reveal">
             <h1 class="hero-title">Precision Apparel Engineering</h1>
             <p class="hero-subtitle">Custom DTG & Commercial Vinyl Application</p>
+        </div>
+        <div class="hero-visual reveal">
+            <img src="inspiredthreadsLogo.jpg" class="main-logo" alt="Inspired Threads Logo">
         </div>
     </section>
 
