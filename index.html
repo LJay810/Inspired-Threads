@@ -15,7 +15,11 @@
             --accent-pink: #ff007f;
             --accent-pink-hover: #cc0066;
             --border-subtle: rgba(255, 255, 255, 0.08);
+            
+            /* Separated transitions for different UI feel */
             --transition-fluid: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            --transition-snappy: all 0.15s ease-out; /* Fixes the hover delay */
+            
             --font-mono: 'SFMono-Regular', Consolas, Menlo, monospace;
             --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
@@ -117,7 +121,7 @@
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: -0.02em;
-            margin-bottom: 50px;
+            margin-bottom: 20px;
         }
 
         /* --- HERO (DUAL COLUMN SPLIT) --- */
@@ -147,7 +151,7 @@
         }
         
         .main-logo { 
-            width: clamp(240px, 24vw, 400px); /* Slightly bigger on desktop */
+            width: clamp(240px, 24vw, 400px);
             border-radius: 8px; 
             box-shadow: 0 0 50px rgba(255, 0, 127, 0.15); 
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
@@ -176,11 +180,49 @@
             text-shadow: 0 4px 15px rgba(0,0,0,0.9);
         }
 
+        /* --- SHOP CATEGORY FILTERS --- */
+        .shop-controls {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 50px;
+        }
+
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-muted);
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: var(--transition-snappy);
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: rgba(255, 0, 127, 0.1);
+            border-color: var(--accent-pink);
+            color: var(--text-pure);
+            box-shadow: 0 0 20px rgba(255, 0, 127, 0.2);
+        }
+
         /* --- E-COMMERCE SHOP GRID --- */
         .shop-grid { 
             display: grid; 
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
             gap: 40px; 
+            min-height: 500px; /* Prevents layout jump when filtering */
+            align-content: start;
         }
         
         .product-card { 
@@ -188,15 +230,24 @@
             border: 1px solid var(--border-subtle); 
             border-radius: 12px;
             overflow: hidden;
-            transition: var(--transition-fluid); 
             display: flex;
             flex-direction: column;
+            /* FIXED DELAY: Split transitions so transform is smooth, but glow/border is instant */
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.15s ease-out, border-color 0.15s ease-out, opacity 0.4s ease; 
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .product-card.hidden-filter {
+            display: none !important;
+            opacity: 0;
+            transform: scale(0.95);
         }
         
         .product-card:hover { 
             border-color: var(--accent-pink); 
             transform: translateY(-8px); 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255, 0, 127, 0.15);
         }
 
         .product-image-zone {
@@ -219,6 +270,15 @@
             display: flex;
             flex-direction: column;
             flex-grow: 1;
+        }
+
+        .product-tag {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--accent-pink);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 10px;
         }
 
         .product-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.02em; }
@@ -245,7 +305,7 @@
             letter-spacing: 0.1em;
             border-radius: 6px;
             cursor: pointer;
-            transition: var(--transition-fluid);
+            transition: var(--transition-snappy);
         }
 
         .stripe-btn:hover { 
@@ -268,7 +328,7 @@
             text-transform: uppercase;
             margin-bottom: 10px;
             color: var(--text-muted);
-            transition: var(--transition-fluid);
+            transition: var(--transition-snappy);
         }
         .form-group input, .form-group textarea {
             width: 100%;
@@ -279,7 +339,7 @@
             padding: 12px 0;
             font-size: 1.05rem;
             font-family: inherit;
-            transition: var(--transition-fluid);
+            transition: var(--transition-snappy);
         }
         
         .form-group input:focus, .form-group textarea:focus {
@@ -302,7 +362,7 @@
             letter-spacing: 0.15em;
             border-radius: 6px;
             cursor: pointer;
-            transition: var(--transition-fluid);
+            transition: var(--transition-snappy);
             display: block;
             margin-top: 20px;
         }
@@ -312,9 +372,8 @@
         }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* --- MOBILE RESPONSIVENESS (Bulletproof Fix) --- */
+        /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 900px) {
-            
             header { 
                 padding: 15px 10px; 
                 justify-content: center; 
@@ -336,10 +395,9 @@
             
             .page-section { padding: 120px 20px 80px 20px; }
             
-            /* Enhanced Mobile Hero */
             #home {
                 flex-direction: column;
-                justify-content: flex-start; /* Aligns text to Top Left symmetrically */
+                justify-content: flex-start;
                 text-align: left;
                 padding-top: 110px; 
                 padding-bottom: 60px;
@@ -348,35 +406,23 @@
                 background-size: cover;
             }
 
-            .hero-visual {
-                position: absolute;
-                top: 100px; 
-                right: 20px;
-                width: auto;
-                margin: 0;
-            }
-            
-            .main-logo {
-                width: 130px; /* Slightly bigger on mobile */
-                box-shadow: 0 0 30px rgba(255, 0, 127, 0.3);
-            }
+            .hero-visual { position: absolute; top: 100px; right: 20px; width: auto; margin: 0; }
+            .main-logo { width: 130px; box-shadow: 0 0 30px rgba(255, 0, 127, 0.3); }
 
             .hero-content {
                 display: flex;
                 flex-direction: column;
-                align-items: flex-start; /* Aligns text cleanly left */
+                align-items: flex-start;
                 width: 100%; 
-                padding-right: 150px; /* MAGIC FIX: Hard barrier pushing text away from the 130px logo */
+                padding-right: 150px; 
                 box-sizing: border-box;
                 margin-top: 0; 
             }
 
-            .hero-title { 
-                font-size: 1.9rem; /* Scaled down slightly to guarantee clean word wrapping */
-                margin-bottom: 15px; 
-                overflow-wrap: break-word; /* Prevents bleed on extremely narrow phones */
-            }
+            .hero-title { font-size: 1.9rem; margin-bottom: 15px; overflow-wrap: break-word; }
             .hero-subtitle { font-size: 1.1rem; }
+            
+            .filter-bar { justify-content: center; }
 
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
         }
@@ -406,12 +452,24 @@
     </section>
 
     <section id="shop" class="page-section">
-        <h2 class="section-header reveal">Featured Collection</h2>
+        <div class="shop-controls reveal">
+            <h2 class="section-header">Featured Collection</h2>
+            <div class="filter-bar">
+                <button class="filter-btn active" data-filter="all">All Specs</button>
+                <button class="filter-btn" data-filter="t-shirt">T-Shirt Prints</button>
+                <button class="filter-btn" data-filter="outerwear">Outerwear</button>
+                <button class="filter-btn" data-filter="headwear">Headwear</button>
+                <button class="filter-btn" data-filter="decals">Decals</button>
+                <button class="filter-btn" data-filter="corporate">Corporate</button>
+            </div>
+        </div>
+
         <div class="shop-grid">
             
-            <div class="product-card reveal">
+            <div class="product-card reveal" data-category="t-shirt">
                 <div class="product-image-zone">[ PRODUCT IMAGE 1 ]</div>
                 <div class="product-details">
+                    <span class="product-tag">T-Shirt Prints</span>
                     <h3 class="product-title">Signature DTG Graphic</h3>
                     <p class="product-desc">High-fidelity, full-color fabric print processed for maximum wash durability and vivid color output.</p>
                     <div class="checkout-row">
@@ -421,9 +479,10 @@
                 </div>
             </div>
 
-            <div class="product-card reveal" style="transition-delay: 0.1s;">
+            <div class="product-card reveal" data-category="outerwear" style="transition-delay: 0.1s;">
                 <div class="product-image-zone">[ PRODUCT IMAGE 2 ]</div>
                 <div class="product-details">
+                    <span class="product-tag">Outerwear</span>
                     <h3 class="product-title">Heavyweight Vinyl Hoodie</h3>
                     <p class="product-desc">Premium 10oz cotton blend featuring commercial-grade vinyl heat press. Designed for sharp, high-contrast vectors.</p>
                     <div class="checkout-row">
@@ -433,9 +492,10 @@
                 </div>
             </div>
 
-            <div class="product-card reveal" style="transition-delay: 0.2s;">
+            <div class="product-card reveal" data-category="headwear" style="transition-delay: 0.2s;">
                 <div class="product-image-zone">[ PRODUCT IMAGE 3 ]</div>
                 <div class="product-details">
+                    <span class="product-tag">Headwear</span>
                     <h3 class="product-title">Embroidered Snapback</h3>
                     <p class="product-desc">Structured 6-panel hat featuring raised thread detail. High durability for daily wear.</p>
                     <div class="checkout-row">
@@ -445,9 +505,10 @@
                 </div>
             </div>
 
-            <div class="product-card reveal" style="transition-delay: 0.3s;">
+            <div class="product-card reveal" data-category="t-shirt" style="transition-delay: 0.3s;">
                 <div class="product-image-zone">[ PRODUCT IMAGE 4 ]</div>
                 <div class="product-details">
+                    <span class="product-tag">T-Shirt Prints</span>
                     <h3 class="product-title">Custom Graphic Longsleeve</h3>
                     <p class="product-desc">Breathable ring-spun cotton with arm-length vinyl detailing or DTG chest placement.</p>
                     <div class="checkout-row">
@@ -457,9 +518,10 @@
                 </div>
             </div>
 
-            <div class="product-card reveal" style="transition-delay: 0.4s;">
+            <div class="product-card reveal" data-category="decals" style="transition-delay: 0.4s;">
                 <div class="product-image-zone">[ PRODUCT IMAGE 5 ]</div>
                 <div class="product-details">
+                    <span class="product-tag">Decals</span>
                     <h3 class="product-title">Die-Cut Decal Pack</h3>
                     <p class="product-desc">Weather-resistant, UV-coated commercial vinyl stickers. Precision cut to your exact vector paths.</p>
                     <div class="checkout-row">
@@ -469,9 +531,10 @@
                 </div>
             </div>
 
-            <div class="product-card reveal" style="transition-delay: 0.5s;">
+            <div class="product-card reveal" data-category="corporate" style="transition-delay: 0.5s;">
                 <div class="product-image-zone">[ PRODUCT IMAGE 6 ]</div>
                 <div class="product-details">
+                    <span class="product-tag">Corporate</span>
                     <h3 class="product-title">Bulk Order / Corporate</h3>
                     <p class="product-desc">Initial deposit for custom corporate branding, team apparel, or bulk organizational garments.</p>
                     <div class="checkout-row">
@@ -580,7 +643,42 @@
 
         revealElements.forEach(el => revealOnScroll.observe(el));
 
-        // --- 3. FORMSPREE BACKGROUND SUBMISSION ENGINE ---
+        // --- 3. SHOP FILTERING ENGINE ---
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const productCards = document.querySelectorAll('.product-card');
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Update active state on buttons
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const filterValue = btn.getAttribute('data-filter');
+
+                // Animate out
+                productCards.forEach(card => {
+                    card.style.opacity = '0';
+                    card.style.transform = 'scale(0.95)';
+                });
+
+                // Wait for fade out, then swap display and fade in
+                setTimeout(() => {
+                    productCards.forEach(card => {
+                        if (filterValue === 'all' || card.getAttribute('data-category') === filterValue) {
+                            card.classList.remove('hidden-filter');
+                            // Force reflow
+                            void card.offsetWidth;
+                            card.style.opacity = '1';
+                            card.style.transform = 'scale(1)';
+                        } else {
+                            card.classList.add('hidden-filter');
+                        }
+                    });
+                }, 300); // 300ms matches the CSS transition time
+            });
+        });
+
+        // --- 4. FORMSPREE BACKGROUND SUBMISSION ENGINE ---
         document.getElementById('contactForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
