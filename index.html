@@ -120,42 +120,43 @@
             margin-bottom: 50px;
         }
 
-        /* --- HERO (DUAL COLUMN SPLIT FOR DESKTOP) --- */
+        /* --- HERO (REVERTED TO CENTERED DESKTOP) --- */
         #home { 
-            background: linear-gradient(to right, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.3) 100%), url('inspired threads cover photo.png') center/cover no-repeat; 
-            flex-direction: row;
-            justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(3,3,3,0.3) 0%, rgba(3,3,3,0.95) 100%), url('inspired threads cover photo.png') center/cover no-repeat; 
+            flex-direction: column; /* Stacked naturally */
+            justify-content: center;
             align-items: center; 
-            text-align: left; 
+            text-align: center; 
             max-width: 100%;
             border-bottom: none;
             position: relative;
         }
 
-        .hero-content {
-            flex: 1;
-            max-width: 750px;
-            z-index: 2;
-        }
-
         .hero-visual {
-            flex: 1;
             display: flex;
-            justify-content: flex-end;
+            justify-content: center;
             align-items: center;
             z-index: 2;
+            margin-bottom: 30px;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
         
         .main-logo { 
-            width: clamp(200px, 20vw, 350px); 
+            width: clamp(150px, 15vw, 220px); /* Clean, scaled size */
             border-radius: 8px; 
-            box-shadow: 0 0 50px rgba(212, 175, 55, 0.15); 
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            mix-blend-mode: lighten; /* MAGIC FIX: Removes the black background from the JPG */
         }
 
         .main-logo:hover {
-            transform: scale(1.03) translateY(-5px);
-            box-shadow: 0 15px 60px rgba(212, 175, 55, 0.25); 
+            transform: scale(1.05) translateY(-5px);
         }
 
         .hero-title {
@@ -336,20 +337,19 @@
             
             .page-section { padding: 100px 20px 80px 20px; }
             
-            /* --- THE LION FIX --- */
+            /* --- MOBILE HERO WITH SPECIFIC BACKGROUND IMAGE --- */
             #home {
                 flex-direction: column;
-                justify-content: flex-end; /* Pushes content completely to the bottom */
+                justify-content: flex-end; 
                 text-align: center;
                 padding-top: 120px; 
                 padding-bottom: 50px;
-                /* Transparent at top for the lion, dark fade at bottom for the text */
+                /* Specifically pulls the Mobile background image here */
                 background: linear-gradient(to bottom, rgba(3,3,3,0.0) 30%, rgba(3,3,3,0.95) 90%), url('inspired threads cover photoMobile.png') no-repeat; 
-                background-position: 25% top; 
+                background-position: center top; 
                 background-size: cover;
             }
 
-            /* Centers the logo directly above the text */
             .hero-visual {
                 position: static;
                 width: 100%;
@@ -360,7 +360,7 @@
             
             .main-logo {
                 width: 110px; 
-                box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+                mix-blend-mode: lighten; /* Ensures transparency on mobile too */
             }
 
             .hero-content {
