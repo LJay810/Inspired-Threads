@@ -3,47 +3,267 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Inspired Threads | Advanced Apparel Engineering</title>
+    <title>Inspired Threads | Custom Apparel</title>
     <style>
+        /* --- ADVANCED DESIGN SYSTEM --- */
         :root {
-            --bg: #050505;
-            --surface: #0a0a0a;
-            --text-main: #ffffff;
+            --bg-main: #030303;
+            --bg-surface: #0a0a0a;
+            --bg-card: #121212;
+            --text-pure: #ffffff;
             --text-muted: #8e9aa8;
-            --accent: #d4af37;
-            --border: rgba(255, 255, 255, 0.09);
-            --transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            --accent-gold: #d4af37;
+            --accent-gold-hover: #b5952f;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --transition-fluid: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            --font-mono: 'SFMono-Regular', Consolas, Menlo, monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; scroll-behavior: smooth; }
-        body { background: var(--bg); color: var(--text-main); font-family: 'SFMono-Regular', Consolas, Menlo, monospace; }
-
-        /* --- ADVANCED NAVIGATION --- */
-        header { position: fixed; top: 0; width: 100%; padding: 25px 60px; display: flex; justify-content: space-between; align-items: center; background: rgba(5,5,5,0.85); backdrop-filter: blur(20px); z-index: 1000; border-bottom: 1px solid var(--border); }
-        .nav-container { position: relative; display: flex; gap: 40px; }
-        .nav-tab { background: none; border: none; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.25em; cursor: pointer; transition: var(--transition); padding-bottom: 10px; }
-        .nav-tab.active { color: var(--text-main); }
         
-        /* The Animated Slider */
-        #indicator { position: absolute; bottom: 0; height: 2px; background: var(--accent); transition: var(--transition); pointer-events: none; }
+        body { 
+            background: var(--bg-main); 
+            color: var(--text-pure); 
+            font-family: var(--font-sans); 
+            line-height: 1.6; 
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
 
-        /* --- HERO SECTION --- */
-        .page-section { min-height: 100vh; padding: 140px 60px; display: flex; flex-direction: column; justify-content: center; border-bottom: 1px solid var(--border); }
-        .hero { background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('inspired threads cover photo.jpg') center/cover; align-items: center; text-align: center; }
-        .main-logo { width: 320px; margin-bottom: 30px; border-radius: 4px; box-shadow: 0 0 30px rgba(212,175,55,0.2); }
+        /* --- FIXED DYNAMIC HEADER --- */
+        header { 
+            position: fixed; 
+            top: 0; 
+            width: 100%; 
+            padding: 20px 60px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: rgba(3, 3, 3, 0.85); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 1000; 
+            border-bottom: 1px solid var(--border-subtle); 
+        }
+        
+        .brand-text {
+            font-family: var(--font-mono);
+            font-weight: 700; 
+            letter-spacing: 0.25em; 
+            text-transform: uppercase;
+            color: var(--text-pure);
+        }
 
-        /* --- SHOP GRID --- */
-        .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 60px; }
-        .product-card { background: var(--surface); padding: 40px; border: 1px solid var(--border); transition: var(--transition); }
-        .product-card:hover { border-color: var(--accent); transform: translateY(-5px); }
-        h2 { font-size: 2rem; text-transform: uppercase; letter-spacing: -0.01em; margin-bottom: 10px; }
+        .nav-container { position: relative; display: flex; gap: 8px; }
+        
+        .nav-tab { 
+            background: none; 
+            border: none; 
+            color: var(--text-muted); 
+            font-family: var(--font-mono);
+            font-size: 0.75rem; 
+            font-weight: 600;
+            text-transform: uppercase; 
+            letter-spacing: 0.15em; 
+            cursor: pointer; 
+            padding: 10px 24px;
+            transition: var(--transition-fluid); 
+        }
+        
+        .nav-tab:hover, .nav-tab.active { color: var(--text-pure); }
+        
+        /* Animated Scroll Indicator */
+        #indicator { 
+            position: absolute; 
+            bottom: -21px; 
+            height: 2px; 
+            background: var(--accent-gold); 
+            transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), left 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
+            pointer-events: none; 
+        }
+
+        /* --- PAGE SECTIONS --- */
+        .page-section { 
+            min-height: 100vh; 
+            padding: 120px 60px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            border-bottom: 1px solid var(--border-subtle); 
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            font-size: 2.5rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+            margin-bottom: 40px;
+        }
+
+        /* --- HERO --- */
+        #home { 
+            background: linear-gradient(to bottom, rgba(3,3,3,0.4), rgba(3,3,3,0.95)), url('inspired threads cover photo.jpg') center/cover no-repeat; 
+            align-items: center; 
+            text-align: center; 
+            max-width: 100%;
+            border-bottom: none;
+        }
+        
+        .main-logo { 
+            width: clamp(200px, 20vw, 350px); 
+            margin-bottom: 40px; 
+            border-radius: 4px; 
+            box-shadow: 0 0 40px rgba(212, 175, 55, 0.15); 
+        }
+
+        .hero-title {
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+        }
+
+        /* --- E-COMMERCE SHOP GRID --- */
+        .shop-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
+            gap: 40px; 
+        }
+        
+        .product-card { 
+            background: var(--bg-card); 
+            border: 1px solid var(--border-subtle); 
+            border-radius: 8px;
+            overflow: hidden;
+            transition: var(--transition-fluid); 
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .product-card:hover { 
+            border-color: var(--accent-gold); 
+            transform: translateY(-8px); 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* Placeholder for product images */
+        .product-image-zone {
+            height: 250px;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            letter-spacing: 0.1em;
+        }
+
+        .product-details {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+
+        .product-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .product-desc {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 30px;
+            flex-grow: 1;
+        }
+
+        .checkout-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-subtle);
+            padding-top: 20px;
+        }
+
+        .price-tag {
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-pure);
+        }
+
+        /* Stripe-Ready Button */
+        .stripe-btn {
+            background: var(--text-pure);
+            color: var(--bg-main);
+            border: none;
+            padding: 12px 24px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition-fluid);
+        }
+
+        .stripe-btn:hover {
+            background: var(--accent-gold);
+            color: var(--bg-main);
+        }
+
+        /* --- FOOTER / CONTACT --- */
+        .contact-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+        }
+
+        .contact-info p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .location-tag {
+            font-family: var(--font-mono);
+            color: var(--accent-gold);
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            display: block;
+            margin-top: 40px;
+        }
+
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 768px) {
+            header { padding: 15px; justify-content: center; }
+            .brand-text { display: none; }
+            header nav { 
+                position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; 
+                background: rgba(3,3,3,0.95); border-top: 1px solid var(--border-subtle); 
+                display: flex; justify-content: space-around; padding: 0;
+            }
+            .nav-tab { flex: 1; padding: 0; font-size: 0.65rem; }
+            #indicator { bottom: 63px; top: auto; }
+            .page-section { padding: 100px 20px; }
+            .contact-layout { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <div style="font-weight: 800; letter-spacing: 0.3em;">INSPIRED THREADS</div>
-        <nav class="nav-container" id="nav">
+        <div class="brand-text">INSPIRED THREADS</div>
+        <nav class="nav-container">
             <div id="indicator"></div>
             <button class="nav-tab active" onclick="scrollToSection('home', this)">Home</button>
             <button class="nav-tab" onclick="scrollToSection('shop', this)">Shop</button>
@@ -52,46 +272,132 @@
         </nav>
     </header>
 
-    <section id="home" class="page-section hero">
-        <img src="inspiredthreadsLogo.jpg" class="main-logo">
-        <h1 style="font-size: 3rem;">Precision Apparel Engineering</h1>
+    <section id="home" class="page-section">
+        <img src="inspiredthreadsLogo.jpg" class="main-logo" alt="Inspired Threads Logo">
+        <h1 class="hero-title">Precision Apparel Engineering</h1>
+        <p style="color: var(--text-muted); font-size: 1.2rem; margin-top: 10px; font-weight: 300;">Custom DTG & Commercial Vinyl Application</p>
     </section>
 
     <section id="shop" class="page-section">
-        <h2>Curated Collection</h2>
+        <h2 class="section-header">Featured Collection</h2>
         <div class="shop-grid">
-            <div class="product-card"><h3>Signature DTG</h3><p>High-fidelity fabric prints.</p></div>
-            <div class="product-card"><h3>Custom Vinyl</h3><p>Professional grade precision.</p></div>
-            <div class="product-card"><h3>Batch Orders</h3><p>Enterprise branding solutions.</p></div>
+            
+            <!-- PRODUCT 1 -->
+            <div class="product-card">
+                <div class="product-image-zone">[ PRODUCT IMAGE A ]</div>
+                <div class="product-details">
+                    <h3 class="product-title">Signature DTG Graphic</h3>
+                    <p class="product-desc">High-fidelity, full-color fabric print processed for maximum wash durability and vivid color output.</p>
+                    <div class="checkout-row">
+                        <span class="price-tag">$28.00</span>
+                        <button class="stripe-btn">Purchase</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRODUCT 2 -->
+            <div class="product-card">
+                <div class="product-image-zone">[ PRODUCT IMAGE B ]</div>
+                <div class="product-details">
+                    <h3 class="product-title">Custom Vinyl Hoodie</h3>
+                    <p class="product-desc">Heavyweight blend featuring commercial-grade vinyl heat press. Designed for sharp, high-contrast vectors.</p>
+                    <div class="checkout-row">
+                        <span class="price-tag">$55.00</span>
+                        <button class="stripe-btn">Purchase</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRODUCT 3 -->
+            <div class="product-card">
+                <div class="product-image-zone">[ PRODUCT IMAGE C ]</div>
+                <div class="product-details">
+                    <h3 class="product-title">Bulk Order Deposit</h3>
+                    <p class="product-desc">Initial deposit for custom corporate branding, team apparel, or bulk organizational garments.</p>
+                    <div class="checkout-row">
+                        <span class="price-tag">$100.00</span>
+                        <button class="stripe-btn">Consult</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </section>
 
     <section id="about" class="page-section">
-        <h2>Our Craft</h2>
-        <p>We blend art with technical heat-press workflows to ensure longevity and aesthetic dominance.</p>
+        <h2 class="section-header">The Standard</h2>
+        <div style="max-width: 800px;">
+            <p style="font-size: 1.15rem; color: var(--text-muted); margin-bottom: 20px;">
+                Inspired Threads operates on the principle that every garment is a canvas requiring technical precision. By utilizing advanced Direct-to-Garment (DTG) printing and commercial vinyl heat-press workflows, we bypass standard retail limitations to produce truly custom, durable apparel.
+            </p>
+            <p style="font-size: 1.15rem; color: var(--text-muted);">
+                Whether you need a single highly-detailed graphic tee or a full production run for your business, we engineer clothing built to factory thresholds.
+            </p>
+        </div>
     </section>
 
     <section id="contact" class="page-section">
-        <h2>Commission Inquiry</h2>
-        <p>Submit your design parameters for a formal consultation.</p>
+        <h2 class="section-header">Intake Facility</h2>
+        <div class="contact-layout">
+            <div class="contact-info">
+                <p>Submit your design parameters, garment preferences, and quantity requirements.</p>
+                <p>We process intake submissions to calculate precise quote thresholds for custom vector cuts and DTG fluid requirements.</p>
+                
+                <span class="location-tag">Base of Operations: Port Huron, MI</span>
+            </div>
+            
+            <div class="form-placeholder" style="background: var(--bg-card); padding: 40px; border: 1px solid var(--border-subtle); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <p style="font-family: var(--font-mono); color: var(--text-muted); font-size: 0.8rem; letter-spacing: 0.1em; text-align: center;">[ INTAKE FORM MODULE ALLOCATED HERE ]<br><br>Will integrate Formspree architecture upon approval.</p>
+            </div>
+        </div>
     </section>
 
     <script>
         const indicator = document.getElementById('indicator');
+        const tabs = document.querySelectorAll('.nav-tab');
+        const sections = document.querySelectorAll('.page-section');
+
+        // 1. Move the gold line to the active tab
+        function updateIndicator(tab) {
+            if (!tab) return;
+            indicator.style.width = tab.offsetWidth + 'px';
+            indicator.style.left = tab.offsetLeft + 'px';
+        }
+
+        // 2. Handle Clicks
         function scrollToSection(id, btn) {
             document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-            btn.classList.add('active');
-            updateIndicator(btn);
         }
 
-        function updateIndicator(btn) {
-            indicator.style.width = btn.offsetWidth + 'px';
-            indicator.style.left = btn.offsetLeft + 'px';
+        // 3. Handle Scroll Spy (The missing piece)
+        function onScroll() {
+            let currentSection = '';
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                // Offset triggers the change when the section is 1/3 down the screen
+                if (pageYOffset >= (sectionTop - window.innerHeight / 3)) {
+                    currentSection = section.getAttribute('id');
+                }
+            });
+
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.getAttribute('onclick').includes(currentSection)) {
+                    tab.classList.add('active');
+                    updateIndicator(tab);
+                }
+            });
         }
 
-        // Initialize indicator on load
-        window.onload = () => updateIndicator(document.querySelector('.nav-tab.active'));
+        // Listeners
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', () => updateIndicator(document.querySelector('.nav-tab.active')));
+        
+        // Init on load
+        window.onload = () => {
+            onScroll(); // Determine starting position
+        };
     </script>
 </body>
 </html>
