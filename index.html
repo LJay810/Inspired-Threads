@@ -365,11 +365,17 @@
                 display: flex;
                 flex-direction: column;
                 align-items: flex-start; /* Aligns text cleanly left */
-                width: 65%; /* Ensures text doesn't overlap the logo on the right */
+                width: 100%; 
+                padding-right: 150px; /* MAGIC FIX: Hard barrier pushing text away from the 130px logo */
+                box-sizing: border-box;
                 margin-top: 0; 
             }
 
-            .hero-title { font-size: 2.2rem; margin-bottom: 15px; }
+            .hero-title { 
+                font-size: 1.9rem; /* Scaled down slightly to guarantee clean word wrapping */
+                margin-bottom: 15px; 
+                overflow-wrap: break-word; /* Prevents bleed on extremely narrow phones */
+            }
             .hero-subtitle { font-size: 1.1rem; }
 
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
