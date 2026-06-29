@@ -113,29 +113,58 @@
             margin-bottom: 40px;
         }
 
-        /* --- HERO (WITH PARALLAX) --- */
+        /* --- HERO (DUAL COLUMN SPLIT) --- */
         #home { 
-            /* background-attachment: fixed creates the parallax effect */
-            background: linear-gradient(to bottom, rgba(3,3,3,0.4), rgba(3,3,3,0.95)), url('inspired threads cover photo.png') center/cover no-repeat; 
-            background-attachment: fixed;
+            background: linear-gradient(to right, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.4) 100%), url('inspired threads cover photo.png') center/cover no-repeat; 
+            /* background-attachment: fixed; removed to allow natural scroll */
+            flex-direction: row;
+            justify-content: space-between;
             align-items: center; 
-            text-align: center; 
+            text-align: left; 
             max-width: 100%;
             border-bottom: none;
         }
+
+        .hero-content {
+            flex: 1;
+            max-width: 700px;
+            z-index: 2;
+        }
+
+        .hero-visual {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end; /* Pushes logo to the far right */
+            align-items: center;
+            z-index: 2;
+        }
         
         .main-logo { 
-            width: clamp(200px, 20vw, 350px); 
-            margin-bottom: 40px; 
-            border-radius: 4px; 
-            box-shadow: 0 0 40px rgba(212, 175, 55, 0.15); 
+            width: clamp(250px, 25vw, 400px); 
+            border-radius: 8px; 
+            box-shadow: 0 0 50px rgba(212, 175, 55, 0.2); 
+            transition: var(--transition-fluid);
+        }
+
+        .main-logo:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 70px rgba(212, 175, 55, 0.3); 
         }
 
         .hero-title {
-            font-size: clamp(2rem, 5vw, 4rem);
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
             font-weight: 800;
             letter-spacing: -0.02em;
             text-transform: uppercase;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+
+        .hero-subtitle {
+            color: var(--text-muted);
+            font-size: clamp(1.1rem, 2vw, 1.4rem);
+            font-weight: 300;
+            letter-spacing: 0.05em;
         }
 
         /* --- E-COMMERCE SHOP GRID --- */
@@ -268,9 +297,28 @@
             header nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 65px; background: rgba(3,3,3,0.95); border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-around; padding: 0; }
             .nav-tab { flex: 1; padding: 0; font-size: 0.65rem; }
             #indicator { bottom: 63px; top: auto; }
+            
             .page-section { padding: 80px 20px 100px 20px; }
+            
+            /* Stacks the hero section symmetrically on mobile */
+            #home {
+                flex-direction: column-reverse;
+                text-align: center;
+                justify-content: center;
+                padding-top: 100px;
+            }
+            .hero-visual {
+                justify-content: center;
+                margin-bottom: 40px;
+                width: 100%;
+            }
+            .hero-content {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
             .contact-layout { grid-template-columns: 1fr; }
-            #home { background-attachment: scroll; } /* Disable parallax on mobile for performance */
         }
     </style>
 </head>
@@ -288,9 +336,13 @@
     </header>
 
     <section id="home" class="page-section">
-        <img src="inspiredthreadsLogo.jpg" class="main-logo reveal" alt="Inspired Threads Logo">
-        <h1 class="hero-title reveal">Precision Apparel Engineering</h1>
-        <p class="reveal" style="color: var(--text-muted); font-size: 1.2rem; margin-top: 10px; font-weight: 300;">Custom DTG & Commercial Vinyl Application</p>
+        <div class="hero-content reveal">
+            <h1 class="hero-title">Precision Apparel Engineering</h1>
+            <p class="hero-subtitle">Custom DTG & Commercial Vinyl Application</p>
+        </div>
+        <div class="hero-visual reveal">
+            <img src="inspiredthreadsLogo.jpg" class="main-logo" alt="Inspired Threads Logo">
+        </div>
     </section>
 
     <section id="shop" class="page-section">
