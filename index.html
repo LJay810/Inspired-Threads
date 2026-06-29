@@ -225,10 +225,10 @@
         .variant-select {
             background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); color: var(--text-pure);
             padding: 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.8rem; outline: none; cursor: pointer;
-            transition: var(--transition-snappy); appearance: none;
+            transition: var(--transition-snappy); appearance: none; font-weight: 600;
         }
         .variant-select:focus { border-color: var(--accent-pink); }
-        .variant-select option { background: var(--bg-card); color: var(--text-pure); }
+        .variant-select option { background: var(--bg-card); color: var(--text-pure) !important; font-weight: 400; }
 
         .checkout-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 25px; }
         .price-tag { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--text-pure); }
@@ -403,7 +403,7 @@
                         <select class="variant-select item-color">
                             <option value="Black" selected>Black</option>
                             <option value="White">White</option>
-                            <option value="Gray">Heather Gray</option>
+                            <option value="Gray">Athletic Gray</option>
                         </select>
                     </div>
                     <div class="checkout-row">
@@ -429,8 +429,8 @@
                         </select>
                         <select class="variant-select item-color">
                             <option value="Black" selected>Black</option>
-                            <option value="Navy">Navy</option>
-                            <option value="Pink">Neon Pink</option>
+                            <option value="Navy">Navy Blue</option>
+                            <option value="Pink">Hot Pink</option>
                         </select>
                     </div>
                     <div class="checkout-row">
@@ -456,7 +456,7 @@
                         <select class="variant-select item-color">
                             <option value="Black" selected>Black</option>
                             <option value="Gray">Athletic Gray</option>
-                            <option value="White">White</option>
+                            <option value="White">White</option> 
                             <option value="LightPink">Light Pink</option>
                             <option value="Sand">Sand</option>
                             <option value="Red">Red</option>
@@ -470,7 +470,7 @@
                             <option value="Purple">Purple</option>
                             <option value="SageGreen">Sage Green</option>
                             <option value="Orange">Orange</option>
-                            <option value="BurntOrange">Burnt Orange</option>
+                            
                         </select>
                     </div>
                     <div class="checkout-row">
@@ -692,10 +692,53 @@
             if(defaultFilterBtn) applyFilter('dtf', defaultFilterBtn);
         });
 
-        // --- 4. SHOPPING CART ENGINE ---
+        // --- 4. DYNAMIC COLOR SWATCH ENGINE ---
+        const gildanColors = {
+            "Black": "#101820",
+            "Gray": "#97999b",
+            "White": "#ffffff",
+            "LightPink": "#E4C6D4",
+            "Sand": "#cabfad",
+            "Red": "#d50032",
+            "RoyalBlue": "#224d8f",
+            "ForestGreen": "#273b33",
+            "KellyGreen": "#00805E",
+            "NavyBlue": "#263147",
+            "Violet": "#563d82",
+            "HotPink": "#AA0061",
+            "Yellow": "#EEAD1A",
+            "Purple": "#464e7e",
+            "SageGreen": "#819e87",
+            "Orange": "#f4633a",
+            "Navy": "#263147",
+            "Pink": "#e16f8f"
+        };
+
+        document.querySelectorAll('.item-color').forEach(select => {
+            select.addEventListener('change', function() {
+                const hex = gildanColors[this.value] || "var(--accent-pink)";
+                this.style.borderColor = hex;
+                this.style.color = hex;
+                
+                // Prevent dark colors from vanishing into the black website background
+                const darkColors = ["Black", "NavyBlue", "Navy", "ForestGreen"];
+                if (darkColors.includes(this.value)) {
+                    this.style.boxShadow = `0 0 15px rgba(255, 255, 255, 0.15)`;
+                    this.style.color = "#ffffff"; // Force text to white so it remains readable
+                    this.style.borderColor = "#555555"; // Lighten border slightly so it's visible
+                } else {
+                    this.style.boxShadow = `0 0 15px ${hex}50`;
+                }
+            });
+            
+            // Trigger immediately on page load to apply default colors
+            select.dispatchEvent(new Event('change'));
+        });
+
+        // --- 5. SHOPPING CART ENGINE ---
         let cart = [];
         
-        // Initialize Stripe (Replace with your actual Publishable Key)
+        // Initialize Stripe 
         const stripe = Stripe('pk_live_51TnjXXFWt379RB9CQuAZ3roCVW8l892C9ffUstWDP6TjNAtlmYZ4gWWnad9kPpqGveHGqA54LAjtGE3eKNfYy6FM00dGd8t5Hr');
         
         function toggleCart() {
@@ -809,7 +852,7 @@
         }
 
 
-        // --- 5. FORMSPREE ENGINE ---
+        // --- 6. FORMSPREE ENGINE ---
         document.getElementById('contactForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
