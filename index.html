@@ -120,43 +120,42 @@
             margin-bottom: 50px;
         }
 
-        /* --- HERO (REVERTED TO CENTERED DESKTOP) --- */
+        /* --- HERO (DUAL COLUMN SPLIT) --- */
         #home { 
-            background: linear-gradient(to bottom, rgba(3,3,3,0.3) 0%, rgba(3,3,3,0.95) 100%), url('inspired threads cover photo.png') center/cover no-repeat; 
-            flex-direction: column; /* Stacked naturally */
-            justify-content: center;
+            background: linear-gradient(to right, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.3) 100%), url('inspired threads cover photo.png') center/cover no-repeat; 
+            flex-direction: row;
+            justify-content: space-between;
             align-items: center; 
-            text-align: center; 
+            text-align: left; 
             max-width: 100%;
             border-bottom: none;
             position: relative;
         }
 
-        .hero-visual {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        .hero-content {
+            flex: 1;
+            max-width: 750px;
             z-index: 2;
-            margin-bottom: 30px;
         }
 
-        .hero-content {
-            max-width: 800px;
-            z-index: 2;
+        .hero-visual {
+            flex: 1;
             display: flex;
-            flex-direction: column;
+            justify-content: flex-end;
             align-items: center;
+            z-index: 2;
         }
         
         .main-logo { 
-            width: clamp(150px, 15vw, 220px); /* Clean, scaled size */
+            width: clamp(200px, 20vw, 350px); 
             border-radius: 8px; 
+            box-shadow: 0 0 50px rgba(212, 175, 55, 0.15); 
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-            mix-blend-mode: lighten; /* MAGIC FIX: Removes the black background from the JPG */
         }
 
         .main-logo:hover {
-            transform: scale(1.05) translateY(-5px);
+            transform: scale(1.03) translateY(-5px);
+            box-shadow: 0 15px 60px rgba(212, 175, 55, 0.25); 
         }
 
         .hero-title {
@@ -313,7 +312,7 @@
         }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* --- MOBILE RESPONSIVENESS --- */
+        /* --- MOBILE RESPONSIVENESS (Bulletproof Fix) --- */
         @media (max-width: 900px) {
             
             header { 
@@ -335,44 +334,43 @@
             .nav-tab { flex: 1; padding: 5px 0; font-size: 0.65rem; }
             #indicator { bottom: -16px; top: auto; }
             
-            .page-section { padding: 100px 20px 80px 20px; }
+            .page-section { padding: 120px 20px 80px 20px; }
             
-            /* --- MOBILE HERO WITH SPECIFIC BACKGROUND IMAGE --- */
+            /* Enhanced Mobile Hero - Perfectly Fit Photo Optimization */
             #home {
                 flex-direction: column;
-                justify-content: flex-end; 
-                text-align: center;
-                padding-top: 120px; 
-                padding-bottom: 50px;
-                /* Specifically pulls the Mobile background image here */
-                background: linear-gradient(to bottom, rgba(3,3,3,0.0) 30%, rgba(3,3,3,0.95) 90%), url('inspired threads cover photoMobile.png') no-repeat; 
-                background-position: center top; 
+                justify-content: center; 
+                text-align: left;
+                padding-top: 180px; 
+                padding-bottom: 60px;
+                background: linear-gradient(to top, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.3) 70%), url('inspired threads cover photo.png') no-repeat; 
+                /* MAGIC FIX: Anchors the image to the 20% mark on the left side to perfectly frame the lion */
+                background-position: 20% top; 
                 background-size: cover;
             }
 
             .hero-visual {
-                position: static;
-                width: 100%;
-                display: flex;
-                justify-content: center;
-                margin-bottom: 20px;
+                position: absolute;
+                top: 90px; 
+                right: 20px;
+                width: auto;
+                margin: 0;
             }
             
             .main-logo {
-                width: 110px; 
-                mix-blend-mode: lighten; /* Ensures transparency on mobile too */
+                width: 100px; 
+                box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
             }
 
             .hero-content {
                 display: flex;
                 flex-direction: column;
-                align-items: center;
                 width: 100%;
-                margin-top: 0; 
+                margin-top: 80px; 
             }
 
-            .hero-title { font-size: 2.1rem; margin-bottom: 10px; }
-            .hero-subtitle { font-size: 1rem; }
+            .hero-title { font-size: 2.2rem; margin-bottom: 15px; }
+            .hero-subtitle { font-size: 1.1rem; }
 
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
         }
@@ -392,12 +390,12 @@
     </header>
 
     <section id="home" class="page-section">
-        <div class="hero-visual reveal">
-            <img src="inspiredthreadsLogo.jpg" class="main-logo" alt="Inspired Threads Logo">
-        </div>
         <div class="hero-content reveal">
             <h1 class="hero-title">Precision Apparel Engineering</h1>
             <p class="hero-subtitle">Custom DTG & Commercial Vinyl Application</p>
+        </div>
+        <div class="hero-visual reveal">
+            <img src="inspiredthreadsLogo.jpg" class="main-logo" alt="Inspired Threads Logo">
         </div>
     </section>
 
