@@ -147,7 +147,7 @@
         }
         
         .main-logo { 
-            width: clamp(200px, 20vw, 350px); 
+            width: clamp(240px, 24vw, 400px); /* Slightly bigger on desktop */
             border-radius: 8px; 
             box-shadow: 0 0 50px rgba(212, 175, 55, 0.15); 
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
@@ -336,37 +336,37 @@
             
             .page-section { padding: 120px 20px 80px 20px; }
             
-            /* Enhanced Mobile Hero - Perfectly Fit Photo Optimization */
+            /* Enhanced Mobile Hero */
             #home {
                 flex-direction: column;
-                justify-content: center; 
+                justify-content: flex-start; /* Aligns text to Top Left symmetrically */
                 text-align: left;
-                padding-top: 180px; 
+                padding-top: 110px; 
                 padding-bottom: 60px;
                 background: linear-gradient(to top, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.3) 70%), url('inspired threads cover photoMobile.png') no-repeat; 
-                /* MAGIC FIX: Anchors the image to the 20% mark on the left side to perfectly frame the lion */
                 background-position: 20% top; 
                 background-size: cover;
             }
 
             .hero-visual {
                 position: absolute;
-                top: 90px; 
+                top: 100px; 
                 right: 20px;
                 width: auto;
                 margin: 0;
             }
             
             .main-logo {
-                width: 100px; 
+                width: 130px; /* Slightly bigger on mobile */
                 box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
             }
 
             .hero-content {
                 display: flex;
                 flex-direction: column;
-                width: 100%;
-                margin-top: 80px; 
+                align-items: flex-start; /* Aligns text cleanly left */
+                width: 65%; /* Ensures text doesn't overlap the logo on the right */
+                margin-top: 0; 
             }
 
             .hero-title { font-size: 2.2rem; margin-bottom: 15px; }
