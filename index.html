@@ -315,7 +315,6 @@
         /* --- MOBILE RESPONSIVENESS (Bulletproof Fix) --- */
         @media (max-width: 900px) {
             
-            /* Solidify the top header so it forms a clean barrier */
             header { 
                 padding: 15px 10px; 
                 justify-content: center; 
@@ -337,21 +336,22 @@
             
             .page-section { padding: 120px 20px 80px 20px; }
             
-            /* The Text-Clipping Fix */
+            /* Enhanced Mobile Hero - Perfectly Fit Photo Optimization */
             #home {
                 flex-direction: column;
-                justify-content: center; /* Prevents flexbox from pushing content out the top */
+                justify-content: center; 
                 text-align: left;
-                padding-top: 180px; /* Hard barrier pushing text down safely below header */
+                padding-top: 180px; 
                 padding-bottom: 60px;
-                background: linear-gradient(to top, rgba(3,3,3,0.98) 15%, rgba(3,3,3,0.3) 70%), url('inspired threads cover photo.png') no-repeat; 
-                background-position: center top; 
+                background: linear-gradient(to top, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.3) 70%), url('inspired threads cover photo.png') no-repeat; 
+                /* MAGIC FIX: Anchors the image to the 20% mark on the left side to perfectly frame the lion */
+                background-position: 20% top; 
                 background-size: cover;
             }
 
             .hero-visual {
                 position: absolute;
-                top: 90px; /* Safely placed below the solid header */
+                top: 90px; 
                 right: 20px;
                 width: auto;
                 margin: 0;
@@ -366,7 +366,7 @@
                 display: flex;
                 flex-direction: column;
                 width: 100%;
-                margin-top: 80px; /* Pushes text securely below the logo */
+                margin-top: 80px; 
             }
 
             .hero-title { font-size: 2.2rem; margin-bottom: 15px; }
