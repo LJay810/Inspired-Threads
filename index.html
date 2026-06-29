@@ -17,9 +17,8 @@
             --accent-pink-hover: #cc0066;
             --border-subtle: rgba(255, 255, 255, 0.08);
             
-            /* Separated transitions for different UI feel */
             --transition-fluid: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            --transition-snappy: all 0.15s ease-out; /* Fixes the hover delay */
+            --transition-snappy: all 0.15s ease-out;
             
             --font-mono: 'SFMono-Regular', Consolas, Menlo, monospace;
             --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -77,7 +76,7 @@
             color: var(--text-pure);
         }
 
-        .nav-container { position: relative; display: flex; gap: 15px; }
+        .nav-container { position: relative; display: flex; gap: 15px; align-items: center;}
         
         .nav-tab { 
             background: none; 
@@ -94,6 +93,14 @@
         }
         
         .nav-tab:hover, .nav-tab.active { color: var(--text-pure); }
+
+        .cart-btn {
+            border: 1px solid var(--accent-pink);
+            color: var(--accent-pink);
+            border-radius: 20px;
+            padding: 8px 18px;
+        }
+        .cart-btn:hover { background: rgba(255,0,127,0.1); }
         
         #indicator { 
             position: absolute; 
@@ -125,7 +132,7 @@
             margin-bottom: 20px;
         }
 
-        /* --- HERO (DUAL COLUMN SPLIT) --- */
+        /* --- HERO --- */
         #home { 
             background: linear-gradient(to right, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.3) 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat; 
             flex-direction: row;
@@ -137,19 +144,8 @@
             position: relative;
         }
 
-        .hero-content {
-            flex: 1;
-            max-width: 750px;
-            z-index: 2;
-        }
-
-        .hero-visual {
-            flex: 1;
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            z-index: 2;
-        }
+        .hero-content { flex: 1; max-width: 750px; z-index: 2; }
+        .hero-visual { flex: 1; display: flex; justify-content: flex-end; align-items: center; z-index: 2; }
         
         .main-logo { 
             width: clamp(240px, 24vw, 400px);
@@ -157,29 +153,10 @@
             box-shadow: 0 0 50px rgba(255, 0, 127, 0.15); 
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
         }
+        .main-logo:hover { transform: scale(1.03) translateY(-5px); box-shadow: 0 15px 60px rgba(255, 0, 127, 0.25); }
 
-        .main-logo:hover {
-            transform: scale(1.03) translateY(-5px);
-            box-shadow: 0 15px 60px rgba(255, 0, 127, 0.25); 
-        }
-
-        .hero-title {
-            font-size: clamp(2.5rem, 6vw, 4.5rem);
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            text-transform: uppercase;
-            line-height: 1.1;
-            margin-bottom: 24px;
-            text-shadow: 0 10px 30px rgba(0,0,0,0.8); 
-        }
-
-        .hero-subtitle {
-            color: var(--text-muted);
-            font-size: clamp(1.1rem, 2vw, 1.4rem);
-            font-weight: 300;
-            letter-spacing: 0.05em;
-            text-shadow: 0 4px 15px rgba(0,0,0,0.9);
-        }
+        .hero-title { font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; line-height: 1.1; margin-bottom: 24px; text-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .hero-subtitle { color: var(--text-muted); font-size: clamp(1.1rem, 2vw, 1.4rem); font-weight: 300; letter-spacing: 0.05em; text-shadow: 0 4px 15px rgba(0,0,0,0.9); }
 
         /* --- SHOP CATEGORY FILTERS --- */
         .shop-controls {
@@ -187,218 +164,126 @@
             flex-direction: column;
             margin-bottom: 50px;
             position: relative; 
-            z-index: 50; /* Forces the entire filter row to sit above the product grid */
+            z-index: 50; 
         }
 
-        .filter-bar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-top: 20px;
-            align-items: center;
-        }
+        .filter-bar { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px; align-items: center; }
 
         .filter-btn {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-subtle);
-            color: var(--text-muted);
-            padding: 10px 24px;
-            border-radius: 30px;
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            cursor: pointer;
-            transition: var(--transition-snappy);
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); color: var(--text-muted);
+            padding: 10px 24px; border-radius: 30px; font-family: var(--font-mono); font-size: 0.75rem;
+            font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: var(--transition-snappy);
         }
-
         .filter-btn:hover, .filter-btn.active {
-            background: rgba(255, 0, 127, 0.1);
-            border-color: var(--accent-pink);
-            color: var(--text-pure);
-            box-shadow: 0 0 20px rgba(255, 0, 127, 0.2);
+            background: rgba(255, 0, 127, 0.1); border-color: var(--accent-pink); color: var(--text-pure); box-shadow: 0 0 20px rgba(255, 0, 127, 0.2);
         }
 
         /* --- DROPDOWN FILTERS --- */
-        .dropdown {
-            position: relative;
-            display: inline-block;
-            outline: none;
-            z-index: 100; /* Guarantees dropdown sits at the absolute top */
-        }
-
-        .dropdown-toggle {
-            cursor: pointer;
-            padding-right: 35px; /* Spacing for the arrow */
-            position: relative;
-            user-select: none;
-        }
-
-        .dropdown-toggle::after {
-            content: '▼';
-            font-size: 0.6rem;
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--accent-pink);
-        }
-
+        .dropdown { position: relative; display: inline-block; outline: none; z-index: 100; }
+        .dropdown-toggle { cursor: pointer; padding-right: 35px; position: relative; user-select: none; }
+        .dropdown-toggle::after { content: '▼'; font-size: 0.6rem; position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--accent-pink); }
         .dropdown-content {
-            display: none; /* Hidden by default */
-            position: absolute;
-            background: rgba(15, 15, 15, 0.98);
-            backdrop-filter: blur(15px);
-            min-width: 260px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.8), 0 0 15px rgba(255,0,127,0.1);
-            border: 1px solid var(--accent-pink);
-            border-radius: 12px;
-            z-index: 101; /* Ensure menu items are above everything */
-            top: 100%;
-            left: 0;
-            margin-top: 10px; /* Keeps the visual gap */
-            padding: 10px;
-            flex-direction: column;
-            gap: 5px;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            display: none; position: absolute; background: rgba(15, 15, 15, 0.98); backdrop-filter: blur(15px);
+            min-width: 260px; box-shadow: 0 15px 40px rgba(0,0,0,0.8), 0 0 15px rgba(255,0,127,0.1);
+            border: 1px solid var(--accent-pink); border-radius: 12px; z-index: 101; top: 100%; left: 0;
+            margin-top: 10px; padding: 10px; flex-direction: column; gap: 5px; opacity: 0; transform: translateY(-10px); transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         }
-
-        /* FIX: Invisible bridge to prevent hover loss in the gap */
-        .dropdown-content::before {
-            content: '';
-            position: absolute;
-            top: -15px; /* Reaches up across the 10px margin */
-            left: 0;
-            width: 100%;
-            height: 15px;
-            background: transparent; 
-        }
-
-        .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content {
-            display: flex;
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .dropdown-content .filter-btn {
-            border: none;
-            background: transparent;
-            text-align: left;
-            border-radius: 6px;
-            padding: 12px 15px;
-            width: 100%;
-        }
-
-        .dropdown-content .filter-btn:hover, .dropdown-content .filter-btn.active {
-            background: rgba(255, 0, 127, 0.15);
-            border-color: transparent;
-            box-shadow: none;
-            color: var(--text-pure);
-        }
+        .dropdown-content::before { content: ''; position: absolute; top: -15px; left: 0; width: 100%; height: 15px; background: transparent; }
+        .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content { display: flex; opacity: 1; transform: translateY(0); }
+        .dropdown-content .filter-btn { border: none; background: transparent; text-align: left; border-radius: 6px; padding: 12px 15px; width: 100%; }
+        .dropdown-content .filter-btn:hover, .dropdown-content .filter-btn.active { background: rgba(255, 0, 127, 0.15); border-color: transparent; box-shadow: none; color: var(--text-pure); }
 
         /* --- E-COMMERCE SHOP GRID --- */
         .shop-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); 
-            gap: 40px; 
-            min-height: 500px; /* Prevents layout jump when filtering */
-            align-content: start;
-            position: relative;
-            z-index: 1; /* Pushes cards lower in the stack than the controls */
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 40px; 
+            min-height: 500px; align-content: start; position: relative; z-index: 1; 
         }
         
         .product-card { 
-            background: var(--bg-card); 
-            border: 1px solid var(--border-subtle); 
-            border-radius: 12px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.15s ease-out, border-color 0.15s ease-out, opacity 0.4s ease; 
-            opacity: 1;
-            transform: scale(1);
-            position: relative;
+            background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden;
+            display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.15s ease-out, border-color 0.15s ease-out, opacity 0.4s ease; 
+            opacity: 1; transform: scale(1); position: relative;
         }
-
-        .product-card.hidden-filter {
-            display: none !important;
-            opacity: 0;
-            transform: scale(0.95);
-        }
-        
+        .product-card.hidden-filter { display: none !important; opacity: 0; transform: scale(0.95); }
         .product-card:hover { 
-            border-color: var(--accent-pink); 
-            transform: translateY(-8px); 
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255, 0, 127, 0.15);
-            z-index: 2; /* Keeps hovering cards above other cards, but still below the menu */
+            border-color: var(--accent-pink); transform: translateY(-8px); box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255, 0, 127, 0.15); z-index: 2; 
         }
 
         .product-image-zone {
-            height: 280px;
-            background: #151515;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-bottom: 1px solid var(--border-subtle);
-            color: var(--text-muted);
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            letter-spacing: 0.1em;
-            background-size: cover;
-            background-position: center;
+            height: 280px; background: #151515; display: flex; align-items: center; justify-content: center;
+            border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.1em;
         }
 
-        .product-details {
-            padding: 35px;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-        }
-
-        .product-tag {
-            font-family: var(--font-mono);
-            font-size: 0.65rem;
-            color: var(--accent-pink);
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            margin-bottom: 10px;
-        }
-
+        .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; }
+        .product-tag { font-family: var(--font-mono); font-size: 0.65rem; color: var(--accent-pink); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 10px; }
         .product-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.02em; }
-        .product-desc { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 35px; flex-grow: 1; }
+        .product-desc { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; flex-grow: 1; }
         
-        .checkout-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-top: 1px solid var(--border-subtle);
-            padding-top: 25px;
+        /* Product Options (Size/Color) */
+        .variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
+        .variant-select {
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); color: var(--text-pure);
+            padding: 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.8rem; outline: none; cursor: pointer;
+            transition: var(--transition-snappy); appearance: none;
         }
+        .variant-select:focus { border-color: var(--accent-pink); }
+        .variant-select option { background: var(--bg-card); color: var(--text-pure); }
 
+        .checkout-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 25px; }
         .price-tag { font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--text-pure); }
-
+        
         .stripe-btn {
-            background: var(--text-pure);
-            color: var(--bg-main);
-            border: none;
-            padding: 14px 28px;
-            font-size: 0.8rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: var(--transition-snappy);
+            background: var(--text-pure); color: var(--bg-main); border: none; padding: 14px 28px;
+            font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
+            border-radius: 6px; cursor: pointer; transition: var(--transition-snappy);
         }
+        .stripe-btn:hover { background: var(--accent-pink); color: var(--text-pure); transform: scale(1.05); }
 
-        .stripe-btn:hover { 
-            background: var(--accent-pink); 
-            color: var(--text-pure);
-            transform: scale(1.05);
+        /* --- CART DRAWER SYSTEM --- */
+        .cart-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7);
+            z-index: 1999; backdrop-filter: blur(5px); opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
         }
+        .cart-overlay.open { opacity: 1; pointer-events: all; }
+
+        .cart-drawer {
+            position: fixed; top: 0; right: -450px; width: 450px; max-width: 100%; height: 100vh;
+            background: var(--bg-surface); border-left: 1px solid var(--accent-pink); z-index: 2000;
+            padding: 40px; display: flex; flex-direction: column; transition: right 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: -10px 0 50px rgba(0,0,0,0.9);
+        }
+        .cart-drawer.open { right: 0; }
+        
+        .cart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;}
+        .cart-header h2 { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
+        .close-cart { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: var(--transition-snappy); }
+        .close-cart:hover { color: var(--accent-pink); transform: scale(1.1); }
+
+        .cart-items { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px; }
+        
+        .cart-item {
+            background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .cart-item-details h4 { font-size: 0.95rem; text-transform: uppercase; margin-bottom: 5px; }
+        .cart-item-meta { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-pink); margin-bottom: 5px; }
+        .cart-item-price { font-family: var(--font-mono); font-weight: 700; }
+        
+        .remove-item { background: none; border: none; color: var(--text-muted); cursor: pointer; transition: color 0.2s; font-size: 1.2rem; }
+        .remove-item:hover { color: #ef4444; }
+
+        .cart-footer { border-top: 1px solid var(--border-subtle); padding-top: 25px; margin-top: 20px; }
+        .cart-total-row { display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 800; margin-bottom: 20px; text-transform: uppercase;}
+        
+        .checkout-btn {
+            background: var(--accent-pink); color: var(--text-pure); border: none; width: 100%; padding: 18px;
+            font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 6px; cursor: pointer; transition: var(--transition-snappy);
+        }
+        .checkout-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 10px 25px rgba(255, 0, 127, 0.3); }
+
+        /* Scrollbar styling for cart */
+        .cart-items::-webkit-scrollbar { width: 6px; }
+        .cart-items::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
 
         /* --- CONTACT FORM --- */
         .contact-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 80px; }
@@ -406,110 +291,30 @@
         .location-tag { font-family: var(--font-mono); color: var(--accent-pink); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-top: 50px; }
         
         .form-group { margin-bottom: 30px; position: relative; }
-        .form-group label {
-            display: block;
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-            color: var(--text-muted);
-            transition: var(--transition-snappy);
-        }
-        .form-group input, .form-group textarea {
-            width: 100%;
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid var(--border-subtle);
-            color: var(--text-pure);
-            padding: 12px 0;
-            font-size: 1.05rem;
-            font-family: inherit;
-            transition: var(--transition-snappy);
-        }
+        .form-group label { display: block; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; color: var(--text-muted); transition: var(--transition-snappy); }
+        .form-group input, .form-group textarea { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border-subtle); color: var(--text-pure); padding: 12px 0; font-size: 1.05rem; font-family: inherit; transition: var(--transition-snappy); }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-bottom-color: var(--accent-pink); }
+        .form-group input:focus + label, .form-group textarea:focus + label { color: var(--accent-pink); }
         
-        .form-group input:focus, .form-group textarea:focus {
-            outline: none;
-            border-bottom-color: var(--accent-pink);
-        }
-        .form-group input:focus + label, .form-group textarea:focus + label {
-            color: var(--accent-pink);
-        }
-        
-        .submit-btn {
-            background: var(--accent-pink);
-            color: var(--text-pure);
-            border: none;
-            padding: 18px 0;
-            width: 100%;
-            font-size: 0.9rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: var(--transition-snappy);
-            display: block;
-            margin-top: 20px;
-        }
-        .submit-btn:hover { 
-            background: var(--accent-pink-hover); 
-            box-shadow: 0 10px 25px rgba(255, 0, 127, 0.3);
-        }
-        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .submit-btn { background: var(--accent-pink); color: var(--text-pure); border: none; padding: 18px 0; width: 100%; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 6px; cursor: pointer; transition: var(--transition-snappy); display: block; margin-top: 20px; }
+        .submit-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 10px 25px rgba(255, 0, 127, 0.3); }
 
         /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 900px) {
-            header { 
-                padding: 15px 10px; 
-                justify-content: center; 
-                background: rgba(3, 3, 3, 0.98); 
-                border-bottom: 1px solid var(--border-subtle);
-                backdrop-filter: blur(10px);
-            }
+            header { padding: 15px 10px; justify-content: center; background: rgba(3, 3, 3, 0.98); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(10px); flex-wrap: wrap;}
             .brand-text { display: none; }
-            
-            header nav { 
-                position: relative; 
-                width: 100%; 
-                display: flex; 
-                justify-content: space-around; 
-                padding: 0; 
-            }
+            header nav { width: 100%; display: flex; justify-content: space-around; padding: 0; }
             .nav-tab { flex: 1; padding: 5px 0; font-size: 0.65rem; }
+            .cart-btn { font-size: 0.65rem; padding: 5px 10px; margin-left: 5px;}
             #indicator { bottom: -16px; top: auto; }
-            
             .page-section { padding: 120px 20px 80px 20px; }
-            
-            #home {
-                flex-direction: column;
-                justify-content: flex-start;
-                text-align: left;
-                padding-top: 110px; 
-                padding-bottom: 60px;
-                background: linear-gradient(to top, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.3) 70%), url('inspiredthreadsLogo.jpg') no-repeat; 
-                background-position: 20% top; 
-                background-size: cover;
-            }
-
+            #home { flex-direction: column; justify-content: flex-start; text-align: left; padding-top: 110px; padding-bottom: 60px; background: linear-gradient(to top, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.3) 70%), url('inspiredthreadsLogo.jpg') no-repeat; background-position: 20% top; background-size: cover; }
             .hero-visual { position: absolute; top: 100px; right: 20px; width: auto; margin: 0; }
             .main-logo { width: 130px; box-shadow: 0 0 30px rgba(255, 0, 127, 0.3); }
-
-            .hero-content {
-                display: flex;
-                flex-direction: column;
-                align-items: flex-start;
-                width: 100%; 
-                padding-right: 150px; 
-                box-sizing: border-box;
-                margin-top: 0; 
-            }
-
+            .hero-content { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding-right: 150px; box-sizing: border-box; margin-top: 0; }
             .hero-title { font-size: 1.9rem; margin-bottom: 15px; overflow-wrap: break-word; }
-            .hero-subtitle { font-size: 1.1rem; }
-            
             .filter-bar { justify-content: center; }
-
+            .cart-drawer { width: 100%; right: -100%; padding: 20px;}
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
         }
     </style>
@@ -524,8 +329,27 @@
             <button class="nav-tab" onclick="scrollToSection('shop')">Shop</button>
             <button class="nav-tab" onclick="scrollToSection('about')">About</button>
             <button class="nav-tab" onclick="scrollToSection('contact')">Contact</button>
+            <button class="nav-tab cart-btn" onclick="toggleCart()">Cart (<span id="cartNavCount">0</span>)</button>
         </nav>
     </header>
+
+    <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+    <div class="cart-drawer" id="cartDrawer">
+        <div class="cart-header">
+            <h2>Your Cart</h2>
+            <button class="close-cart" onclick="toggleCart()">✕</button>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total-row">
+                <span>Total:</span>
+                <span id="cartTotal">$0.00</span>
+            </div>
+            <button class="checkout-btn" onclick="processCheckout()">Secure Checkout via Stripe</button>
+        </div>
+    </div>
 
     <section id="home" class="page-section">
         <div class="hero-content reveal">
@@ -541,8 +365,7 @@
         <div class="shop-controls reveal">
             <h2 class="section-header">Featured Collection</h2>
             <div class="filter-bar">
-                <button class="filter-btn active" data-filter="all">All Specs</button>
-                <button class="filter-btn" data-filter="dtf">DTF Transfers</button>
+                <button class="filter-btn active" data-filter="dtf" id="defaultFilter">DTF Transfers</button>
                 
                 <div class="dropdown" tabindex="0">
                     <div class="filter-btn dropdown-toggle">Thread Choice</div>
@@ -563,79 +386,156 @@
         <div class="shop-grid">
             
             <div class="product-card reveal" data-category="thread-tshirt">
-                <div class="product-image-zone">[ PRODUCT IMAGE 1 ]</div>
+                <div class="product-image-zone">[ T-SHIRT TEMPLATE ]</div>
                 <div class="product-details">
-                    <span class="product-tag">T-Shirt Prints</span>
-                    <h3 class="product-title">Signature DTG Graphic</h3>
-                    <p class="product-desc">High-fidelity, full-color fabric print processed for maximum wash durability and vivid color output.</p>
+                    <span class="product-tag">Thread Choice</span>
+                    <h3 class="product-title">Premium Graphic Tee</h3>
+                    <p class="product-desc">Custom base template ready for DTG or Vinyl application. Premium ring-spun cotton blend.</p>
+                    <div class="variant-grid">
+                        <select class="variant-select item-size">
+                            <option value="Small">Small</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="Large">Large</option>
+                            <option value="XL">XL</option>
+                            <option value="XXL">XXL</option>
+                        </select>
+                        <select class="variant-select item-color">
+                            <option value="Black" selected>Black</option>
+                            <option value="White">White</option>
+                            <option value="Gray">Heather Gray</option>
+                        </select>
+                    </div>
                     <div class="checkout-row">
                         <span class="price-tag">$28.00</span>
-                        <button class="stripe-btn">Purchase</button>
+                        <button class="stripe-btn add-cart-btn" data-name="Premium Graphic Tee" data-price="28.00" data-has-variants="true">Add to Cart</button>
                     </div>
                 </div>
             </div>
 
-            <div class="product-card reveal" data-category="thread-hoodie" style="transition-delay: 0.1s;">
-                <div class="product-image-zone">[ PRODUCT IMAGE 2 ]</div>
+            <div class="product-card reveal" data-category="thread-hoodie">
+                <div class="product-image-zone">[ HOODIE TEMPLATE ]</div>
                 <div class="product-details">
-                    <span class="product-tag">Outerwear</span>
-                    <h3 class="product-title">Heavyweight Vinyl Hoodie</h3>
-                    <p class="product-desc">Premium 10oz cotton blend featuring commercial-grade vinyl heat press. Designed for sharp, high-contrast vectors.</p>
+                    <span class="product-tag">Thread Choice</span>
+                    <h3 class="product-title">Heavyweight Hoodie</h3>
+                    <p class="product-desc">10oz cotton blend fleece block. Designed for sharp vector cuts and vivid chest graphics.</p>
+                    <div class="variant-grid">
+                        <select class="variant-select item-size">
+                            <option value="Small">Small</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Large" selected>Large</option>
+                            <option value="XL">XL</option>
+                            <option value="XXL">XXL</option>
+                        </select>
+                        <select class="variant-select item-color">
+                            <option value="Black" selected>Black</option>
+                            <option value="Navy">Navy</option>
+                            <option value="Pink">Neon Pink</option>
+                        </select>
+                    </div>
                     <div class="checkout-row">
                         <span class="price-tag">$55.00</span>
-                        <button class="stripe-btn">Purchase</button>
+                        <button class="stripe-btn add-cart-btn" data-name="Heavyweight Hoodie" data-price="55.00" data-has-variants="true">Add to Cart</button>
                     </div>
                 </div>
             </div>
 
-            <div class="product-card reveal" data-category="dtf" style="transition-delay: 0.2s;">
-                <div class="product-image-zone">[ PRODUCT IMAGE 3 ]</div>
+            <div class="product-card reveal" data-category="thread-crewneck">
+                <div class="product-image-zone">[ CREWNECK TEMPLATE ]</div>
                 <div class="product-details">
-                    <span class="product-tag">Headwear</span>
-                    <h3 class="product-title">Embroidered Snapback</h3>
-                    <p class="product-desc">Structured 6-panel hat featuring raised thread detail. High durability for daily wear.</p>
+                    <span class="product-tag">Thread Choice</span>
+                    <h3 class="product-title">Fleece Crew Neck</h3>
+                    <p class="product-desc">Relaxed fit crewneck template. Optimal surface area for central graphics and sleeve detailing.</p>
+                    <div class="variant-grid">
+                        <select class="variant-select item-size">
+                            <option value="Small">Small</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="Large">Large</option>
+                            <option value="XL">XL</option>
+                        </select>
+                        <select class="variant-select item-color">
+                            <option value="Black" selected>Black</option>
+                            <option value="Gray">Athletic Gray</option>
+                        </select>
+                    </div>
                     <div class="checkout-row">
-                        <span class="price-tag">$32.00</span>
-                        <button class="stripe-btn">Purchase</button>
+                        <span class="price-tag">$45.00</span>
+                        <button class="stripe-btn add-cart-btn" data-name="Fleece Crew Neck" data-price="45.00" data-has-variants="true">Add to Cart</button>
                     </div>
                 </div>
             </div>
 
-            <div class="product-card reveal" data-category="thread-crewneck" style="transition-delay: 0.3s;">
-                <div class="product-image-zone">[ PRODUCT IMAGE 4 ]</div>
+            <div class="product-card reveal" data-category="thread-tanktop">
+                <div class="product-image-zone">[ TANK TOP TEMPLATE ]</div>
                 <div class="product-details">
-                    <span class="product-tag">T-Shirt Prints</span>
-                    <h3 class="product-title">Custom Graphic Longsleeve</h3>
-                    <p class="product-desc">Breathable ring-spun cotton with arm-length vinyl detailing or DTG chest placement.</p>
+                    <span class="product-tag">Thread Choice</span>
+                    <h3 class="product-title">Athletic Tank</h3>
+                    <p class="product-desc">Breathable, moisture-wicking material. High durability print application.</p>
+                    <div class="variant-grid">
+                        <select class="variant-select item-size">
+                            <option value="Small">Small</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Large" selected>Large</option>
+                        </select>
+                        <select class="variant-select item-color">
+                            <option value="Black" selected>Black</option>
+                            <option value="White">White</option>
+                        </select>
+                    </div>
                     <div class="checkout-row">
-                        <span class="price-tag">$38.00</span>
-                        <button class="stripe-btn">Purchase</button>
+                        <span class="price-tag">$22.00</span>
+                        <button class="stripe-btn add-cart-btn" data-name="Athletic Tank" data-price="22.00" data-has-variants="true">Add to Cart</button>
                     </div>
                 </div>
             </div>
 
-            <div class="product-card reveal" data-category="cup-wraps" style="transition-delay: 0.4s;">
-                <div class="product-image-zone">[ PRODUCT IMAGE 5 ]</div>
+            <div class="product-card reveal" data-category="dtf">
+                <div class="product-image-zone">[ DTF TRANSFER TEMPLATE ]</div>
                 <div class="product-details">
-                    <span class="product-tag">Decals</span>
-                    <h3 class="product-title">Die-Cut Decal Pack</h3>
-                    <p class="product-desc">Weather-resistant, UV-coated commercial vinyl stickers. Precision cut to your exact vector paths.</p>
+                    <span class="product-tag">DTF Transfers</span>
+                    <h3 class="product-title">Custom DTF Sheet</h3>
+                    <p class="product-desc">Upload your gang sheet for vibrant, durable Direct-to-Film transfers ready to press.</p>
+                    <div class="checkout-row">
+                        <span class="price-tag">$18.00</span>
+                        <button class="stripe-btn add-cart-btn" data-name="Custom DTF Sheet" data-price="18.00" data-has-variants="false">Add to Cart</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="product-card reveal" data-category="cup-wraps">
+                <div class="product-image-zone">[ CUP WRAP TEMPLATE ]</div>
+                <div class="product-details">
+                    <span class="product-tag">Cup Wraps</span>
+                    <h3 class="product-title">UV-DTF Wrap</h3>
+                    <p class="product-desc">Permanent adhesive UV-cured decals sized perfectly for 16oz or 20oz glass cans and tumblers.</p>
                     <div class="checkout-row">
                         <span class="price-tag">$12.00</span>
-                        <button class="stripe-btn">Purchase</button>
+                        <button class="stripe-btn add-cart-btn" data-name="UV-DTF Wrap" data-price="12.00" data-has-variants="false">Add to Cart</button>
                     </div>
                 </div>
             </div>
 
-            <div class="product-card reveal" data-category="corporate" style="transition-delay: 0.5s;">
-                <div class="product-image-zone">[ PRODUCT IMAGE 6 ]</div>
+            <div class="product-card reveal" data-category="loaded-binders">
+                <div class="product-image-zone">[ BINDER TEMPLATE ]</div>
+                <div class="product-details">
+                    <span class="product-tag">Accessories</span>
+                    <h3 class="product-title">Custom Loaded Binder</h3>
+                    <p class="product-desc">Organizational binder featuring high-grade vinyl wrap graphics of your choice.</p>
+                    <div class="checkout-row">
+                        <span class="price-tag">$35.00</span>
+                        <button class="stripe-btn add-cart-btn" data-name="Custom Loaded Binder" data-price="35.00" data-has-variants="false">Add to Cart</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="product-card reveal" data-category="corporate">
+                <div class="product-image-zone">[ TOTE BAG TEMPLATE ]</div>
                 <div class="product-details">
                     <span class="product-tag">Corporate</span>
-                    <h3 class="product-title">Bulk Order / Corporate</h3>
-                    <p class="product-desc">Initial deposit for custom corporate branding, team apparel, or bulk organizational garments.</p>
+                    <h3 class="product-title">Graphic Tote Bag</h3>
+                    <p class="product-desc">Heavy canvas construction perfect for corporate giveaways or bulk organizational branding.</p>
                     <div class="checkout-row">
-                        <span class="price-tag">$100.00</span>
-                        <button class="stripe-btn" onclick="scrollToSection('contact')">Consult</button>
+                        <span class="price-tag">$15.00</span>
+                        <button class="stripe-btn add-cart-btn" data-name="Graphic Tote Bag" data-price="15.00" data-has-variants="false">Add to Cart</button>
                     </div>
                 </div>
             </div>
@@ -691,7 +591,7 @@
     <script>
         // --- 1. DYNAMIC NAVIGATION ENGINE ---
         const indicator = document.getElementById('indicator');
-        const tabs = document.querySelectorAll('.nav-tab');
+        const tabs = document.querySelectorAll('.nav-tab:not(.cart-btn)'); // Exclude cart button from indicator logic
         const sections = document.querySelectorAll('.page-section');
 
         function updateIndicator(tab) {
@@ -715,7 +615,7 @@
 
             tabs.forEach(tab => {
                 tab.classList.remove('active');
-                if (tab.getAttribute('onclick').includes(currentSection)) {
+                if (tab.getAttribute('onclick') && tab.getAttribute('onclick').includes(currentSection)) {
                     tab.classList.add('active');
                     updateIndicator(tab);
                 }
@@ -728,58 +628,133 @@
         // --- 2. INTERSECTION OBSERVER (SCROLL ANIMATIONS) ---
         const revealElements = document.querySelectorAll('.reveal');
         const revealOptions = { threshold: 0.1, rootMargin: "0px 0px -50px 0px" };
-        
-        const revealOnScroll = new IntersectionObserver(function(entries, observer) {
+        const revealOnScroll = new IntersectionObserver((entries, observer) => {
             entries.forEach(entry => {
                 if (!entry.isIntersecting) return;
                 entry.target.classList.add('active');
-                observer.unobserve(entry.target); // Run once
+                observer.unobserve(entry.target); 
             });
         }, revealOptions);
-
         revealElements.forEach(el => revealOnScroll.observe(el));
 
         // --- 3. SHOP FILTERING ENGINE ---
         const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
         const productCards = document.querySelectorAll('.product-card');
 
+        function applyFilter(filterValue, activeBtn) {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            activeBtn.classList.add('active');
+
+            productCards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.95)';
+            });
+
+            setTimeout(() => {
+                productCards.forEach(card => {
+                    if (card.getAttribute('data-category') === filterValue) {
+                        card.classList.remove('hidden-filter');
+                        void card.offsetWidth; // Force reflow
+                        card.style.opacity = '1';
+                        card.style.transform = 'scale(1)';
+                    } else {
+                        card.classList.add('hidden-filter');
+                    }
+                });
+            }, 300);
+        }
+
         filterBtns.forEach(btn => {
             btn.addEventListener('click', () => {
-                // Update active state on buttons
-                filterBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-
-                const filterValue = btn.getAttribute('data-filter');
-
-                // Animate out
-                productCards.forEach(card => {
-                    card.style.opacity = '0';
-                    card.style.transform = 'scale(0.95)';
-                });
-
-                // Wait for fade out, then swap display and fade in
-                setTimeout(() => {
-                    productCards.forEach(card => {
-                        if (filterValue === 'all' || card.getAttribute('data-category') === filterValue) {
-                            card.classList.remove('hidden-filter');
-                            // Force reflow
-                            void card.offsetWidth;
-                            card.style.opacity = '1';
-                            card.style.transform = 'scale(1)';
-                        } else {
-                            card.classList.add('hidden-filter');
-                        }
-                    });
-                }, 300); // 300ms matches the CSS transition time
+                applyFilter(btn.getAttribute('data-filter'), btn);
             });
         });
 
-        // --- 4. FORMSPREE BACKGROUND SUBMISSION ENGINE ---
+        // Initialize Shop with default filter (DTF) so it isn't empty without the "All Specs" tab
+        window.addEventListener('DOMContentLoaded', () => {
+            const defaultFilterBtn = document.getElementById('defaultFilter');
+            if(defaultFilterBtn) applyFilter('dtf', defaultFilterBtn);
+        });
+
+        // --- 4. SHOPPING CART ENGINE ---
+        let cart = [];
+        
+        function toggleCart() {
+            document.getElementById('cartDrawer').classList.toggle('open');
+            document.getElementById('cartOverlay').classList.toggle('open');
+        }
+
+        function updateCartUI() {
+            const cartItemsContainer = document.getElementById('cartItems');
+            const cartTotal = document.getElementById('cartTotal');
+            const cartNavCount = document.getElementById('cartNavCount');
+            
+            cartNavCount.innerText = cart.length;
+            cartItemsContainer.innerHTML = '';
+            let total = 0;
+
+            if (cart.length === 0) {
+                cartItemsContainer.innerHTML = '<p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>';
+            } else {
+                cart.forEach((item, index) => {
+                    total += item.price;
+                    const metaText = item.size ? `${item.size} / ${item.color}` : 'Standard Specifications';
+                    
+                    cartItemsContainer.innerHTML += `
+                        <div class="cart-item">
+                            <div class="cart-item-details">
+                                <h4>${item.name}</h4>
+                                <div class="cart-item-meta">${metaText}</div>
+                                <div class="cart-item-price">$${item.price.toFixed(2)}</div>
+                            </div>
+                            <button class="remove-item" onclick="removeFromCart(${index})">✕</button>
+                        </div>
+                    `;
+                });
+            }
+            cartTotal.innerText = `$${total.toFixed(2)}`;
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCartUI();
+        }
+
+        // Add to Cart Listeners
+        document.querySelectorAll('.add-cart-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const card = e.target.closest('.product-card');
+                const name = btn.getAttribute('data-name');
+                const price = parseFloat(btn.getAttribute('data-price'));
+                const hasVariants = btn.getAttribute('data-has-variants') === 'true';
+                
+                let size = null, color = null;
+                
+                if (hasVariants) {
+                    size = card.querySelector('.item-size').value;
+                    color = card.querySelector('.item-color').value;
+                }
+
+                cart.push({ id: Date.now(), name, price, size, color });
+                updateCartUI();
+                toggleCart(); // Slide cart open to confirm addition
+            });
+        });
+
+        function processCheckout() {
+            if(cart.length === 0) {
+                alert("Please add items to your cart before checking out.");
+                return;
+            }
+            alert("This will direct to your Stripe Checkout Session containing " + cart.length + " item(s).");
+            // Add Stripe API Integration Here Later
+        }
+
+
+        // --- 5. FORMSPREE ENGINE ---
         document.getElementById('contactForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
-            
-            // Loading State
             submitBtn.innerText = "TRANSMITTING...";
             submitBtn.disabled = true;
 
@@ -791,40 +766,24 @@
             };
 
             try {
-                // Live Formspree endpoint
                 const response = await fetch('https://formspree.io/f/xqevlawz', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                     body: JSON.stringify(formData)
                 });
-
                 if (response.ok) {
                     submitBtn.innerText = "INTAKE RECEIVED";
-                    submitBtn.style.background = "#22c55e"; // Success Green
+                    submitBtn.style.background = "#22c55e";
                     document.getElementById('contactForm').reset();
-                    setTimeout(() => {
-                        submitBtn.style.background = "";
-                        submitBtn.innerText = "Transmit Intake Request";
-                        submitBtn.disabled = false;
-                    }, 4000);
-                } else {
-                    throw new Error("Formspree rejected package");
-                }
+                    setTimeout(() => { submitBtn.style.background = ""; submitBtn.innerText = "Transmit Intake Request"; submitBtn.disabled = false; }, 4000);
+                } else throw new Error();
             } catch (error) {
                 submitBtn.innerText = "TRANSMISSION FAILED";
-                submitBtn.style.background = "#ef4444"; // Error Red
-                setTimeout(() => {
-                    submitBtn.style.background = "";
-                    submitBtn.innerText = "Transmit Intake Request";
-                    submitBtn.disabled = false;
-                }, 4000);
+                submitBtn.style.background = "#ef4444";
+                setTimeout(() => { submitBtn.style.background = ""; submitBtn.innerText = "Transmit Intake Request"; submitBtn.disabled = false; }, 4000);
             }
         });
 
-        // Initialize UI on load
         window.onload = () => { onScroll(); };
     </script>
 </body>
