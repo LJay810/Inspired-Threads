@@ -193,6 +193,7 @@
             flex-wrap: wrap;
             gap: 15px;
             margin-top: 20px;
+            align-items: center;
         }
 
         .filter-btn {
@@ -217,6 +218,73 @@
             box-shadow: 0 0 20px rgba(255, 0, 127, 0.2);
         }
 
+        /* --- DROPDOWN FILTERS --- */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+            outline: none;
+        }
+
+        .dropdown-toggle {
+            cursor: pointer;
+            padding-right: 35px; /* Spacing for the arrow */
+            position: relative;
+            user-select: none;
+        }
+
+        .dropdown-toggle::after {
+            content: '▼';
+            font-size: 0.6rem;
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent-pink);
+        }
+
+        .dropdown-content {
+            display: none; /* Hidden by default */
+            position: absolute;
+            background: rgba(15, 15, 15, 0.98);
+            backdrop-filter: blur(15px);
+            min-width: 260px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.8), 0 0 15px rgba(255,0,127,0.1);
+            border: 1px solid var(--accent-pink);
+            border-radius: 12px;
+            z-index: 100;
+            top: 100%;
+            left: 0;
+            margin-top: 10px;
+            padding: 10px;
+            flex-direction: column;
+            gap: 5px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .dropdown-content .filter-btn {
+            border: none;
+            background: transparent;
+            text-align: left;
+            border-radius: 6px;
+            padding: 12px 15px;
+            width: 100%;
+        }
+
+        .dropdown-content .filter-btn:hover, .dropdown-content .filter-btn.active {
+            background: rgba(255, 0, 127, 0.15);
+            border-color: transparent;
+            box-shadow: none;
+            color: var(--text-pure);
+        }
+
         /* --- E-COMMERCE SHOP GRID --- */
         .shop-grid { 
             display: grid; 
@@ -233,7 +301,6 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            /* FIXED DELAY: Split transitions so transform is smooth, but glow/border is instant */
             transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.15s ease-out, border-color 0.15s ease-out, opacity 0.4s ease; 
             opacity: 1;
             transform: scale(1);
@@ -457,17 +524,28 @@
             <h2 class="section-header">Featured Collection</h2>
             <div class="filter-bar">
                 <button class="filter-btn active" data-filter="all">All Specs</button>
-                <button class="filter-btn" data-filter="t-shirt">T-Shirt Prints</button>
-                <button class="filter-btn" data-filter="outerwear">Outerwear</button>
-                <button class="filter-btn" data-filter="headwear">Headwear</button>
-                <button class="filter-btn" data-filter="decals">Decals</button>
-                <button class="filter-btn" data-filter="corporate">Corporate</button>
+                <button class="filter-btn" data-filter="dtf">DTF Transfers</button>
+                
+                <!-- NEW THREAD CHOICE DROPDOWN -->
+                <div class="dropdown" tabindex="0">
+                    <div class="filter-btn dropdown-toggle">Thread Choice</div>
+                    <div class="dropdown-content">
+                        <button class="filter-btn" data-filter="thread-tshirt">T-Shirt's</button>
+                        <button class="filter-btn" data-filter="thread-crewneck">Crew Neck Sweatshirt's</button>
+                        <button class="filter-btn" data-filter="thread-hoodie">Hoodie's</button>
+                        <button class="filter-btn" data-filter="thread-tanktop">Tank Top's</button>
+                    </div>
+                </div>
+
+                <button class="filter-btn" data-filter="cup-wraps">Cup Wraps</button>
+                <button class="filter-btn" data-filter="loaded-binders">Loaded Binders</button>
+                <button class="filter-btn" data-filter="corporate">Graphic Tote Bags</button>
             </div>
         </div>
 
         <div class="shop-grid">
             
-            <div class="product-card reveal" data-category="t-shirt">
+            <div class="product-card reveal" data-category="thread-tshirt">
                 <div class="product-image-zone">[ PRODUCT IMAGE 1 ]</div>
                 <div class="product-details">
                     <span class="product-tag">T-Shirt Prints</span>
@@ -480,7 +558,7 @@
                 </div>
             </div>
 
-            <div class="product-card reveal" data-category="outerwear" style="transition-delay: 0.1s;">
+            <div class="product-card reveal" data-category="thread-hoodie" style="transition-delay: 0.1s;">
                 <div class="product-image-zone">[ PRODUCT IMAGE 2 ]</div>
                 <div class="product-details">
                     <span class="product-tag">Outerwear</span>
@@ -493,7 +571,7 @@
                 </div>
             </div>
 
-            <div class="product-card reveal" data-category="headwear" style="transition-delay: 0.2s;">
+            <div class="product-card reveal" data-category="dtf" style="transition-delay: 0.2s;">
                 <div class="product-image-zone">[ PRODUCT IMAGE 3 ]</div>
                 <div class="product-details">
                     <span class="product-tag">Headwear</span>
@@ -506,7 +584,7 @@
                 </div>
             </div>
 
-            <div class="product-card reveal" data-category="t-shirt" style="transition-delay: 0.3s;">
+            <div class="product-card reveal" data-category="thread-crewneck" style="transition-delay: 0.3s;">
                 <div class="product-image-zone">[ PRODUCT IMAGE 4 ]</div>
                 <div class="product-details">
                     <span class="product-tag">T-Shirt Prints</span>
@@ -519,7 +597,7 @@
                 </div>
             </div>
 
-            <div class="product-card reveal" data-category="decals" style="transition-delay: 0.4s;">
+            <div class="product-card reveal" data-category="cup-wraps" style="transition-delay: 0.4s;">
                 <div class="product-image-zone">[ PRODUCT IMAGE 5 ]</div>
                 <div class="product-details">
                     <span class="product-tag">Decals</span>
@@ -645,7 +723,8 @@
         revealElements.forEach(el => revealOnScroll.observe(el));
 
         // --- 3. SHOP FILTERING ENGINE ---
-        const filterBtns = document.querySelectorAll('.filter-btn');
+        // UPDATED: Now only selects buttons with data-filter attributes so the dropdown wrapper doesn't break logic
+        const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
         const productCards = document.querySelectorAll('.product-card');
 
         filterBtns.forEach(btn => {
