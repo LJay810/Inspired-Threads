@@ -186,8 +186,8 @@
             display: flex;
             flex-direction: column;
             margin-bottom: 50px;
-            position: relative; /* FIX: Establishes a new stacking context */
-            z-index: 50; /* FIX: Forces the entire filter row to sit above the product grid */
+            position: relative; 
+            z-index: 50; /* Forces the entire filter row to sit above the product grid */
         }
 
         .filter-bar {
@@ -225,7 +225,7 @@
             position: relative;
             display: inline-block;
             outline: none;
-            z-index: 100; /* FIX: Guarantees dropdown sits at the absolute top */
+            z-index: 100; /* Guarantees dropdown sits at the absolute top */
         }
 
         .dropdown-toggle {
@@ -254,16 +254,27 @@
             box-shadow: 0 15px 40px rgba(0,0,0,0.8), 0 0 15px rgba(255,0,127,0.1);
             border: 1px solid var(--accent-pink);
             border-radius: 12px;
-            z-index: 101; /* FIX: Ensure menu items are above everything */
+            z-index: 101; /* Ensure menu items are above everything */
             top: 100%;
             left: 0;
-            margin-top: 10px;
+            margin-top: 10px; /* Keeps the visual gap */
             padding: 10px;
             flex-direction: column;
             gap: 5px;
             opacity: 0;
             transform: translateY(-10px);
             transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* FIX: Invisible bridge to prevent hover loss in the gap */
+        .dropdown-content::before {
+            content: '';
+            position: absolute;
+            top: -15px; /* Reaches up across the 10px margin */
+            left: 0;
+            width: 100%;
+            height: 15px;
+            background: transparent; 
         }
 
         .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content {
@@ -296,7 +307,7 @@
             min-height: 500px; /* Prevents layout jump when filtering */
             align-content: start;
             position: relative;
-            z-index: 1; /* FIX: Pushes cards lower in the stack than the controls */
+            z-index: 1; /* Pushes cards lower in the stack than the controls */
         }
         
         .product-card { 
@@ -533,7 +544,6 @@
                 <button class="filter-btn active" data-filter="all">All Specs</button>
                 <button class="filter-btn" data-filter="dtf">DTF Transfers</button>
                 
-                <!-- NEW THREAD CHOICE DROPDOWN -->
                 <div class="dropdown" tabindex="0">
                     <div class="filter-btn dropdown-toggle">Thread Choice</div>
                     <div class="dropdown-content">
@@ -730,7 +740,6 @@
         revealElements.forEach(el => revealOnScroll.observe(el));
 
         // --- 3. SHOP FILTERING ENGINE ---
-        // UPDATED: Now only selects buttons with data-filter attributes so the dropdown wrapper doesn't break logic
         const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
         const productCards = document.querySelectorAll('.product-card');
 
