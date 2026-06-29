@@ -29,7 +29,6 @@
             line-height: 1.6; 
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
-            /* Premium fade-in on load */
             animation: fadeIn 1s ease-out forwards;
         }
 
@@ -166,7 +165,7 @@
             text-transform: uppercase;
             line-height: 1.1;
             margin-bottom: 24px;
-            text-shadow: 0 10px 30px rgba(0,0,0,0.8); /* Ensures legibility against bright backgrounds */
+            text-shadow: 0 10px 30px rgba(0,0,0,0.8); 
         }
 
         .hero-subtitle {
@@ -283,7 +282,6 @@
             transition: var(--transition-fluid);
         }
         
-        /* Premium Form Focus State */
         .form-group input:focus, .form-group textarea:focus {
             outline: none;
             border-bottom-color: var(--accent-gold);
@@ -314,85 +312,64 @@
         }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* --- MOBILE RESPONSIVENESS (Expanded Breakpoint for Tablets/Large Phones) --- */
+        /* --- MOBILE RESPONSIVENESS (Bulletproof Fix) --- */
         @media (max-width: 900px) {
-            /* Clears the top header entirely so the image is unobstructed */
+            
+            /* Solidify the top header so it forms a clean barrier */
             header { 
-                background: transparent; 
-                backdrop-filter: none; 
-                -webkit-backdrop-filter: none; 
-                border: none; 
-                padding: 0;
-                pointer-events: none; 
+                padding: 15px 10px; 
+                justify-content: center; 
+                background: rgba(3, 3, 3, 0.98); 
+                border-bottom: 1px solid var(--border-subtle);
+                backdrop-filter: blur(10px);
             }
             .brand-text { display: none; }
             
-            /* Native App Style Bottom Bar */
             header nav { 
-                pointer-events: auto; 
-                position: fixed; 
-                bottom: 0; 
-                left: 0; 
+                position: relative; 
                 width: 100%; 
-                height: 75px; /* Taller for easier thumb tapping */
-                background: rgba(8, 8, 8, 0.98); 
-                backdrop-filter: blur(25px);
-                -webkit-backdrop-filter: blur(25px);
-                border-top: 1px solid var(--border-subtle); 
                 display: flex; 
                 justify-content: space-around; 
-                align-items: center;
-                padding: 0 10px; 
-                padding-bottom: env(safe-area-inset-bottom); /* Fixes iPhone home bar overlap */
+                padding: 0; 
             }
-            .nav-tab { 
-                flex: 1; 
-                padding: 15px 0; 
-                font-size: 0.65rem; 
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
+            .nav-tab { flex: 1; padding: 5px 0; font-size: 0.65rem; }
+            #indicator { bottom: -16px; top: auto; }
             
-            /* Moves the slider line to the top of the bottom nav */
-            #indicator { 
-                bottom: auto; 
-                top: -1px; 
-            }
+            .page-section { padding: 120px 20px 80px 20px; }
             
-            .page-section { padding: 60px 20px 120px 20px; }
-            
-            /* Enhanced Mobile Hero - Frames the Lion perfectly */
+            /* The Text-Clipping Fix */
             #home {
                 flex-direction: column;
-                justify-content: flex-end; 
+                justify-content: center; /* Prevents flexbox from pushing content out the top */
                 text-align: left;
-                padding-bottom: 140px;
-                background: linear-gradient(to top, rgba(3,3,3,0.98) 15%, rgba(3,3,3,0.1) 70%), url('inspired threads cover photo.png') no-repeat; 
-                /* MAGIC FIX: Anchors the top of the image to the top of the screen */
-                background-position: center 15%; 
+                padding-top: 180px; /* Hard barrier pushing text down safely below header */
+                padding-bottom: 60px;
+                background: linear-gradient(to top, rgba(3,3,3,0.98) 15%, rgba(3,3,3,0.3) 70%), url('inspired threads cover photo.png') no-repeat; 
+                background-position: center top; 
                 background-size: cover;
             }
 
             .hero-visual {
                 position: absolute;
-                top: 25px;
+                top: 90px; /* Safely placed below the solid header */
                 right: 20px;
                 width: auto;
                 margin: 0;
             }
             
             .main-logo {
-                width: 110px; 
+                width: 100px; 
                 box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
             }
 
             .hero-content {
-                display: block;
+                display: flex;
+                flex-direction: column;
                 width: 100%;
+                margin-top: 80px; /* Pushes text securely below the logo */
             }
 
-            .hero-title { font-size: 2.3rem; margin-bottom: 15px; }
+            .hero-title { font-size: 2.2rem; margin-bottom: 15px; }
             .hero-subtitle { font-size: 1.1rem; }
 
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
