@@ -12,8 +12,8 @@
             --bg-card: #121212;
             --text-pure: #ffffff;
             --text-muted: #8e9aa8;
-            --accent-gold: #d4af37;
-            --accent-gold-hover: #b5952f;
+            --accent-pink: #ff007f;
+            --accent-pink-hover: #cc0066;
             --border-subtle: rgba(255, 255, 255, 0.08);
             --transition-fluid: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
             --font-mono: 'SFMono-Regular', Consolas, Menlo, monospace;
@@ -94,10 +94,10 @@
             position: absolute; 
             bottom: -21px; 
             height: 2px; 
-            background: var(--accent-gold); 
+            background: var(--accent-pink); 
             transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), left 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
             pointer-events: none;
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5); 
+            box-shadow: 0 0 10px rgba(255, 0, 127, 0.5); 
         }
 
         /* --- PAGE SECTIONS --- */
@@ -122,7 +122,7 @@
 
         /* --- HERO (DUAL COLUMN SPLIT) --- */
         #home { 
-            background: linear-gradient(to right, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.3) 100%), url('inspired threads cover photo.png') center/cover no-repeat; 
+            background: linear-gradient(to right, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.3) 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat; 
             flex-direction: row;
             justify-content: space-between;
             align-items: center; 
@@ -149,13 +149,13 @@
         .main-logo { 
             width: clamp(240px, 24vw, 400px); /* Slightly bigger on desktop */
             border-radius: 8px; 
-            box-shadow: 0 0 50px rgba(212, 175, 55, 0.15); 
+            box-shadow: 0 0 50px rgba(255, 0, 127, 0.15); 
             transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .main-logo:hover {
             transform: scale(1.03) translateY(-5px);
-            box-shadow: 0 15px 60px rgba(212, 175, 55, 0.25); 
+            box-shadow: 0 15px 60px rgba(255, 0, 127, 0.25); 
         }
 
         .hero-title {
@@ -194,7 +194,7 @@
         }
         
         .product-card:hover { 
-            border-color: var(--accent-gold); 
+            border-color: var(--accent-pink); 
             transform: translateY(-8px); 
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
@@ -249,15 +249,15 @@
         }
 
         .stripe-btn:hover { 
-            background: var(--accent-gold); 
-            color: var(--bg-main);
+            background: var(--accent-pink); 
+            color: var(--text-pure);
             transform: scale(1.05);
         }
 
         /* --- CONTACT FORM --- */
         .contact-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 80px; }
         .contact-info p { color: var(--text-muted); font-size: 1.15rem; margin-bottom: 24px; }
-        .location-tag { font-family: var(--font-mono); color: var(--accent-gold); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-top: 50px; }
+        .location-tag { font-family: var(--font-mono); color: var(--accent-pink); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-top: 50px; }
         
         .form-group { margin-bottom: 30px; position: relative; }
         .form-group label {
@@ -284,15 +284,15 @@
         
         .form-group input:focus, .form-group textarea:focus {
             outline: none;
-            border-bottom-color: var(--accent-gold);
+            border-bottom-color: var(--accent-pink);
         }
         .form-group input:focus + label, .form-group textarea:focus + label {
-            color: var(--accent-gold);
+            color: var(--accent-pink);
         }
         
         .submit-btn {
-            background: var(--accent-gold);
-            color: var(--bg-main);
+            background: var(--accent-pink);
+            color: var(--text-pure);
             border: none;
             padding: 18px 0;
             width: 100%;
@@ -307,8 +307,8 @@
             margin-top: 20px;
         }
         .submit-btn:hover { 
-            background: var(--accent-gold-hover); 
-            box-shadow: 0 10px 25px rgba(212, 175, 55, 0.3);
+            background: var(--accent-pink-hover); 
+            box-shadow: 0 10px 25px rgba(255, 0, 127, 0.3);
         }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -343,7 +343,7 @@
                 text-align: left;
                 padding-top: 110px; 
                 padding-bottom: 60px;
-                background: linear-gradient(to top, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.3) 70%), url('inspired threads cover photoMobile.png') no-repeat; 
+                background: linear-gradient(to top, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.3) 70%), url('inspiredthreadsLogo.jpg') no-repeat; 
                 background-position: 20% top; 
                 background-size: cover;
             }
@@ -358,7 +358,7 @@
             
             .main-logo {
                 width: 130px; /* Slightly bigger on mobile */
-                box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+                box-shadow: 0 0 30px rgba(255, 0, 127, 0.3);
             }
 
             .hero-content {
