@@ -692,7 +692,54 @@
             if(defaultFilterBtn) applyFilter('dtf', defaultFilterBtn);
         });
 
-        // --- 4. SHOPPING CART ENGINE ---
+        // --- 4. DYNAMIC IMAGE SWAP ENGINE (CREW NECK) ---
+        const crewneckCard = document.querySelector('.product-card[data-category="thread-crewneck"]');
+        const crewneckColorSelect = crewneckCard.querySelector('.item-color');
+        const crewneckImageZone = crewneckCard.querySelector('.product-image-zone');
+
+        // Template Dictionary: Paste the exact image file name between the quotes for each color.
+        const crewneckImages = {
+            "Black": "IMG_8033.JPEG",
+            "White": "IMG_8034.JPEG",
+            "Gray": "", 
+            "LightPink": "",
+            "Sand": "",
+            "Red": "",
+            "RoyalBlue": "",
+            "ForestGreen": "",
+            "KellyGreen": "",
+            "NavyBlue": "",
+            "Violet": "",
+            "HotPink": "",
+            "Yellow": "",
+            "Purple": "",
+            "SageGreen": "",
+            "Orange": ""
+        };
+
+        if(crewneckColorSelect && crewneckImageZone) {
+            crewneckColorSelect.addEventListener('change', function() {
+                const selectedColor = this.value;
+                const imageFile = crewneckImages[selectedColor];
+                
+                if (imageFile) {
+                    // Apply image and CSS rules to make it fit perfectly
+                    crewneckImageZone.style.backgroundImage = `url('${imageFile}')`;
+                    crewneckImageZone.style.backgroundSize = 'cover';
+                    crewneckImageZone.style.backgroundPosition = 'top center';
+                    crewneckImageZone.innerHTML = ''; // Hide the placeholder text
+                } else {
+                    // Revert to default text template if no image is linked in the dictionary above
+                    crewneckImageZone.style.backgroundImage = 'none';
+                    crewneckImageZone.innerHTML = '[ CREWNECK TEMPLATE ]';
+                }
+            });
+            
+            // Trigger immediately to load the default selected color image (Black)
+            crewneckColorSelect.dispatchEvent(new Event('change'));
+        }
+
+        // --- 5. SHOPPING CART ENGINE ---
         let cart = [];
         
         // Initialize Stripe (Replace with your actual Publishable Key)
@@ -809,7 +856,7 @@
         }
 
 
-        // --- 5. FORMSPREE ENGINE ---
+        // --- 6. FORMSPREE ENGINE ---
         document.getElementById('contactForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
