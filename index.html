@@ -211,10 +211,10 @@
         }
 
         .product-image-zone {
-            height: 280px; /* SHRUNK BACK DOWN TO 280PX SO THE CARD FITS YOUR VIEWPORT */
+            height: 280px; 
             background: #151515; display: flex; align-items: center; justify-content: center;
             border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.1em;
-            transition: background-color 0.3s ease; /* Smooth transition when images load in */
+            transition: background-color 0.3s ease; 
         }
 
         .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; }
@@ -694,12 +694,13 @@
             if(defaultFilterBtn) applyFilter('dtf', defaultFilterBtn);
         });
 
-        // --- 4. DYNAMIC IMAGE SWAP ENGINE (CREW NECK) ---
+        // --- 4. DYNAMIC IMAGE SWAP ENGINE ---
+        
+        // --- 4A. CREW NECK ---
         const crewneckCard = document.querySelector('.product-card[data-category="thread-crewneck"]');
-        const crewneckColorSelect = crewneckCard.querySelector('.item-color');
-        const crewneckImageZone = crewneckCard.querySelector('.product-image-zone');
+        const crewneckColorSelect = crewneckCard ? crewneckCard.querySelector('.item-color') : null;
+        const crewneckImageZone = crewneckCard ? crewneckCard.querySelector('.product-image-zone') : null;
 
-        // Template Dictionary: Paste the exact image file name between the quotes for each color.
         const crewneckImages = {
             "Black": "BlackCrewNeck.png",
             "White": "WhiteCrewNeck.png",
@@ -725,23 +726,114 @@
                 const imageFile = crewneckImages[selectedColor];
                 
                 if (imageFile) {
-                    // Apply image and CSS rules to make it fit perfectly inside the viewport
                     crewneckImageZone.style.backgroundImage = `url('${imageFile}')`;
                     crewneckImageZone.style.backgroundSize = 'contain'; 
                     crewneckImageZone.style.backgroundPosition = 'center';
                     crewneckImageZone.style.backgroundRepeat = 'no-repeat';
-                    crewneckImageZone.style.backgroundColor = '#ffffff'; // Creates a clean, premium white box effect
-                    crewneckImageZone.innerHTML = ''; // Hide the placeholder text
+                    crewneckImageZone.style.backgroundColor = '#ffffff'; 
+                    crewneckImageZone.innerHTML = ''; 
                 } else {
-                    // Revert to default dark template if no image is available
                     crewneckImageZone.style.backgroundImage = 'none';
                     crewneckImageZone.style.backgroundColor = '#151515';
                     crewneckImageZone.innerHTML = '[ CREWNECK TEMPLATE ]';
                 }
             });
-            
-            // Trigger immediately to load the default selected color image (Black)
             crewneckColorSelect.dispatchEvent(new Event('change'));
+        }
+
+        // --- 4B. T-SHIRT ---
+        const tshirtCard = document.querySelector('.product-card[data-category="thread-tshirt"]');
+        const tshirtColorSelect = tshirtCard ? tshirtCard.querySelector('.item-color') : null;
+        const tshirtImageZone = tshirtCard ? tshirtCard.querySelector('.product-image-zone') : null;
+
+        const tshirtImages = {
+            "Black": "",
+            "White": "",
+            "Gray": ""
+        };
+
+        if(tshirtColorSelect && tshirtImageZone) {
+            tshirtColorSelect.addEventListener('change', function() {
+                const selectedColor = this.value;
+                const imageFile = tshirtImages[selectedColor];
+                
+                if (imageFile) {
+                    tshirtImageZone.style.backgroundImage = `url('${imageFile}')`;
+                    tshirtImageZone.style.backgroundSize = 'contain'; 
+                    tshirtImageZone.style.backgroundPosition = 'center';
+                    tshirtImageZone.style.backgroundRepeat = 'no-repeat';
+                    tshirtImageZone.style.backgroundColor = '#ffffff'; 
+                    tshirtImageZone.innerHTML = ''; 
+                } else {
+                    tshirtImageZone.style.backgroundImage = 'none';
+                    tshirtImageZone.style.backgroundColor = '#151515';
+                    tshirtImageZone.innerHTML = '[ T-SHIRT TEMPLATE ]';
+                }
+            });
+            tshirtColorSelect.dispatchEvent(new Event('change'));
+        }
+
+        // --- 4C. HOODIE ---
+        const hoodieCard = document.querySelector('.product-card[data-category="thread-hoodie"]');
+        const hoodieColorSelect = hoodieCard ? hoodieCard.querySelector('.item-color') : null;
+        const hoodieImageZone = hoodieCard ? hoodieCard.querySelector('.product-image-zone') : null;
+
+        const hoodieImages = {
+            "Black": "",
+            "Navy": "",
+            "Pink": ""
+        };
+
+        if(hoodieColorSelect && hoodieImageZone) {
+            hoodieColorSelect.addEventListener('change', function() {
+                const selectedColor = this.value;
+                const imageFile = hoodieImages[selectedColor];
+                
+                if (imageFile) {
+                    hoodieImageZone.style.backgroundImage = `url('${imageFile}')`;
+                    hoodieImageZone.style.backgroundSize = 'contain'; 
+                    hoodieImageZone.style.backgroundPosition = 'center';
+                    hoodieImageZone.style.backgroundRepeat = 'no-repeat';
+                    hoodieImageZone.style.backgroundColor = '#ffffff'; 
+                    hoodieImageZone.innerHTML = ''; 
+                } else {
+                    hoodieImageZone.style.backgroundImage = 'none';
+                    hoodieImageZone.style.backgroundColor = '#151515';
+                    hoodieImageZone.innerHTML = '[ HOODIE TEMPLATE ]';
+                }
+            });
+            hoodieColorSelect.dispatchEvent(new Event('change'));
+        }
+
+        // --- 4D. TANK TOP ---
+        const tanktopCard = document.querySelector('.product-card[data-category="thread-tanktop"]');
+        const tanktopColorSelect = tanktopCard ? tanktopCard.querySelector('.item-color') : null;
+        const tanktopImageZone = tanktopCard ? tanktopCard.querySelector('.product-image-zone') : null;
+
+        const tanktopImages = {
+            "Black": "",
+            "White": ""
+        };
+
+        if(tanktopColorSelect && tanktopImageZone) {
+            tanktopColorSelect.addEventListener('change', function() {
+                const selectedColor = this.value;
+                const imageFile = tanktopImages[selectedColor];
+                
+                if (imageFile) {
+                    tanktopImageZone.style.backgroundImage = `url('${imageFile}')`;
+                    tanktopImageZone.style.backgroundSize = 'contain'; 
+                    tanktopImageZone.style.backgroundPosition = 'center';
+                    tanktopImageZone.style.backgroundRepeat = 'no-repeat';
+                    tanktopImageZone.style.backgroundColor = '#ffffff'; 
+                    tanktopImageZone.innerHTML = ''; 
+                } else {
+                    tanktopImageZone.style.backgroundImage = 'none';
+                    tanktopImageZone.style.backgroundColor = '#151515';
+                    tanktopImageZone.innerHTML = '[ TANK TOP TEMPLATE ]';
+                }
+            });
+            tanktopColorSelect.dispatchEvent(new Event('change'));
         }
 
         // --- 5. SHOPPING CART ENGINE ---
