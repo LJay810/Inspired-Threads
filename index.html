@@ -214,7 +214,6 @@
             height: 400px; /* INCREASED HEIGHT TO FIT PORTRAIT IMAGES */
             background: #151515; display: flex; align-items: center; justify-content: center;
             border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.1em;
-            transition: background-color 0.3s ease; /* Smooth transition when colors/backgrounds change */
         }
 
         .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; }
@@ -727,15 +726,12 @@
                 if (imageFile) {
                     // Apply image and CSS rules to make it fit perfectly
                     crewneckImageZone.style.backgroundImage = `url('${imageFile}')`;
-                    crewneckImageZone.style.backgroundSize = 'contain'; // Fixes the zoom/FOV issue
-                    crewneckImageZone.style.backgroundPosition = 'center';
-                    crewneckImageZone.style.backgroundRepeat = 'no-repeat';
-                    crewneckImageZone.style.backgroundColor = '#ffffff'; // Blends the edges of the JPEG
+                    crewneckImageZone.style.backgroundSize = 'cover';
+                    crewneckImageZone.style.backgroundPosition = 'top center';
                     crewneckImageZone.innerHTML = ''; // Hide the placeholder text
                 } else {
-                    // Revert to default text template
+                    // Revert to default text template if no image is linked in the dictionary above
                     crewneckImageZone.style.backgroundImage = 'none';
-                    crewneckImageZone.style.backgroundColor = '#151515'; // Revert to dark theme
                     crewneckImageZone.innerHTML = '[ CREWNECK TEMPLATE ]';
                 }
             });
