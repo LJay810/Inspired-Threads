@@ -406,6 +406,21 @@
                             <option value="Black" selected>Black</option>
                             <option value="White">White</option>
                             <option value="Gray">Heather Gray</option>
+                            <option value="RoyalBlue">Royal Blue</option>
+                            <option value="LightBlue">Light Blue</option>
+                            <option value="NavyBlue">Navy Blue</option>
+                            <option value="Violet">Violet</option>
+                            <option value="Purple">Purple</option>
+                            <option value="Sand">Sand</option>
+                            <option value="HotPink">Hot Pink</option>
+                            <option value="LightPink">Light Pink</option>
+                            <option value="IrishGreen">Irish Green</option>
+                            <option value="SageGreen">Sage Green</option>
+                            <option value="Orange">Orange</option>
+                            <option value="Yellow">Yellow</option>
+                            <option value="Red">Red</option>
+                            <option value="ForestGreen">Forest Green</option>
+                            <option value="BurntOrange">Burnt Orange</option>
                         </select>
                     </div>
                     <div class="checkout-row">
@@ -688,7 +703,7 @@
             });
         });
 
-        // Initialize Shop with default filter (DTF) so it isn't empty without the "All Specs" tab
+        // Initialize Shop with default filter (DTF) so it isnt empty without the "All Specs" tab
         window.addEventListener('DOMContentLoaded', () => {
             const defaultFilterBtn = document.getElementById('defaultFilter');
             if(defaultFilterBtn) applyFilter('dtf', defaultFilterBtn);
@@ -747,9 +762,24 @@
         const tshirtImageZone = tshirtCard ? tshirtCard.querySelector('.product-image-zone') : null;
 
         const tshirtImages = {
-            "Black": "",
-            "White": "",
-            "Gray": ""
+            "Black": "IMG_8033.JPEG",
+            "White": "IMG_8034.JPEG",
+            "Gray": "GreyTShirt.png",
+            "RoyalBlue": "RoyalBlueT.png",
+            "LightBlue": "LightBlueT.png",
+            "NavyBlue": "NavyBlueShirt.png",
+            "Violet": "VioletT.png",
+            "Purple": "PurpleT.png",
+            "Sand": "SandT.png",
+            "HotPink": "HotPinkT.png",
+            "LightPink": "LightPink.png",
+            "IrishGreen": "IrishGreenT.png",
+            "SageGreen": "SageGreenT.JPEG",
+            "Orange": "OrangeT.png",
+            "Yellow": "YellowT.png",
+            "Red": "RedT.png",
+            "ForestGreen": "ForestGreen.png",
+            "BurntOrange": "BurntOrange.png"
         };
 
         if(tshirtColorSelect && tshirtImageZone) {
