@@ -901,7 +901,9 @@
         }
 
         // --- 5. SHOPPING CART ENGINE ---
-        let cart = [];
+        
+        // --- NEW: Initialize cart from localStorage ---
+        let cart = JSON.parse(localStorage.getItem('inspiredThreadsCart')) || [];
         
         // Initialize Stripe (Replace with your actual Publishable Key)
         const stripe = Stripe('pk_live_51TnjXXFWt379RB9CQuAZ3roCVW8l892C9ffUstWDP6TjNAtlmYZ4gWWnad9kPpqGveHGqA54LAjtGE3eKNfYy6FM00dGd8t5Hr');
@@ -947,6 +949,10 @@
 
         function removeFromCart(index) {
             cart.splice(index, 1);
+            
+            // --- NEW: Update storage after deletion ---
+            localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+            
             updateCartUI();
         }
 
@@ -974,6 +980,9 @@
                 } else {
                     cart.push({ id: Date.now(), name, price, priceId, size, color, quantity: 1 });
                 }
+                
+                // --- NEW: Save state to non-volatile storage ---
+                localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
                 
                 updateCartUI();
                 if(!document.getElementById('cartDrawer').classList.contains('open')) {
@@ -1050,7 +1059,26 @@
             }
         });
 
-        window.onload = () => { onScroll(); };
+        window.onload = () => { 
+            onScroll();  
+            
+            // --- NEW: Check URL for Stripe Success Redirect ---
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === 'true') {
+                // Clear the local storage and cart array completely
+                localStorage.removeItem('inspiredThreadsCart');
+                cart = []; 
+                
+                // Clean the URL so if they refresh, it doesn't trigger again
+                window.history.replaceState(null, '', window.location.pathname);
+                
+                // Optional: alert the user
+                alert("Payment Successful! Your cart has been cleared.");
+            }
+
+            // --- NEW: Render the saved cart on page load ---
+            updateCartUI(); 
+        };
     </script>
 </body>
 </html>
