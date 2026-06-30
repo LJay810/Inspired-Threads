@@ -211,9 +211,10 @@
         }
 
         .product-image-zone {
-            height: 400px; /* INCREASED HEIGHT TO FIT PORTRAIT IMAGES */
+            height: 280px; /* SHRUNK BACK DOWN TO 280PX SO THE CARD FITS YOUR VIEWPORT */
             background: #151515; display: flex; align-items: center; justify-content: center;
             border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.1em;
+            transition: background-color 0.3s ease; /* Smooth transition when images load in */
         }
 
         .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; }
@@ -724,14 +725,17 @@
                 const imageFile = crewneckImages[selectedColor];
                 
                 if (imageFile) {
-                    // Apply image and CSS rules to make it fit perfectly
+                    // Apply image and CSS rules to make it fit perfectly inside the viewport
                     crewneckImageZone.style.backgroundImage = `url('${imageFile}')`;
-                    crewneckImageZone.style.backgroundSize = 'cover';
-                    crewneckImageZone.style.backgroundPosition = 'top center';
+                    crewneckImageZone.style.backgroundSize = 'contain'; 
+                    crewneckImageZone.style.backgroundPosition = 'center';
+                    crewneckImageZone.style.backgroundRepeat = 'no-repeat';
+                    crewneckImageZone.style.backgroundColor = '#ffffff'; // Creates a clean, premium white box effect
                     crewneckImageZone.innerHTML = ''; // Hide the placeholder text
                 } else {
-                    // Revert to default text template if no image is linked in the dictionary above
+                    // Revert to default dark template if no image is available
                     crewneckImageZone.style.backgroundImage = 'none';
+                    crewneckImageZone.style.backgroundColor = '#151515';
                     crewneckImageZone.innerHTML = '[ CREWNECK TEMPLATE ]';
                 }
             });
