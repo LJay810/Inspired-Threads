@@ -240,6 +240,26 @@
         .product-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.02em; }
         .product-desc { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; flex-grow: 1; }
         
+        /* --- INVENTORY TELEMETRY --- */
+        .stock-badge {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-pure);
+            background: rgba(255, 0, 127, 0.15);
+            border: 1px solid var(--accent-pink);
+            padding: 6px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            letter-spacing: 0.1em;
+            margin-bottom: 20px;
+            width: fit-content;
+        }
+        .stock-badge.sold-out {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-subtle);
+            color: var(--text-muted);
+        }
+
         /* Product Options (Size/Color) */
         .variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
         .variant-select {
@@ -642,6 +662,34 @@
                         `;
                     }
 
+                    // --- NEW INVENTORY LOGIC GATE ---
+                    let stockHTML = '';
+                    let checkoutButtonHTML = '';
+                    const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
+                    const isSoldOut = stockCount !== null && stockCount <= 0;
+
+                    if (stockCount !== null) {
+                        if (isSoldOut) {
+                            stockHTML = `<div class="stock-badge sold-out">STATUS: OUT OF STOCK</div>`;
+                        } else {
+                            stockHTML = `<div class="stock-badge">INVENTORY COUNTER: ${stockCount}</div>`;
+                        }
+                    }
+
+                    if (isSoldOut) {
+                        checkoutButtonHTML = `<span style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
+                    } else {
+                        checkoutButtonHTML = `
+                            <button class="stripe-btn add-cart-btn" 
+                                data-name="${product.name}" 
+                                data-price="${product.price}" 
+                                data-price-id="${product.priceId}" 
+                                data-has-variants="${hasVariants}">
+                                Add to Cart
+                            </button>
+                        `;
+                    }
+
                     // Construct the final card
                     const cardHTML = `
                         <div class="product-card reveal active" data-category="${category}">
@@ -649,17 +697,12 @@
                             <div class="product-details">
                                 <span class="product-tag">${category.replace('-', ' ').toUpperCase()}</span>
                                 <h3 class="product-title">${product.name}</h3>
+                                ${stockHTML}
                                 <p class="product-desc">${product.description || 'Premium apparel blank ready for technical application.'}</p>
                                 ${variantHTML}
                                 <div class="checkout-row">
                                     <span class="price-tag">$${product.price}</span>
-                                    <button class="stripe-btn add-cart-btn" 
-                                        data-name="${product.name}" 
-                                        data-price="${product.price}" 
-                                        data-price-id="${product.priceId}" 
-                                        data-has-variants="${hasVariants}">
-                                        Add to Cart
-                                    </button>
+                                    ${checkoutButtonHTML}
                                 </div>
                             </div>
                         </div>
@@ -828,13 +871,18 @@
                 
             } catch (error) {
                 console.error("Checkout Error:", error);
-                checkoutBtn.innerText = "TRANSMISSION FAILED - RETRY";
-                checkoutBtn.disabled = false;
+                
+                // NEW: Display the specific out-of-stock error from the backend
+                checkoutBtn.innerText = error.message; 
                 checkoutBtn.style.background = "#ef4444";
+                checkoutBtn.style.fontSize = "0.7rem"; // shrink slightly to fit longer messages
+                
                 setTimeout(() => {
                     checkoutBtn.style.background = "";
                     checkoutBtn.innerText = "Secure Checkout via Stripe";
-                }, 3000);
+                    checkoutBtn.disabled = false;
+                    checkoutBtn.style.fontSize = "0.9rem";
+                }, 4000);
             }
         }
 

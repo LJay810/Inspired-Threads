@@ -7,16 +7,34 @@ export default async function handler(req, res) {
 
     try {
         const cartItems = req.body.items;
+        const lineItems = [];
 
-        // Map frontend cart items to Stripe line items
-        const lineItems = cartItems.map(item => {
-            return {
+        // --- DEFENSE LEVEL 1: THE PRE-FLIGHT CHECK ---
+        for (const item of cartItems) {
+            // Fetch the live product data directly from Stripe's internal servers
+            const price = await stripe.prices.retrieve(item.priceId, { expand: ['product'] });
+            const product = price.product;
+
+            // Check if this item has the limited stock metadata
+            if (product.metadata && product.metadata.stock !== undefined) {
+                const currentStock = parseInt(product.metadata.stock);
+                
+                // If the cart asks for more than what is currently available, kill the process
+                if (currentStock < item.quantity) {
+                    return res.status(400).json({
+                        error: `STOCK ALERT: ${product.name} only has ${currentStock} left.`
+                    });
+                }
+            }
+
+            // If it passes the check, add it to the final checkout list
+            lineItems.push({
                 price: item.priceId,
                 quantity: item.quantity,
                 // Pass size/color variants to the Stripe receipt
                 adjustable_quantity: { enabled: true, minimum: 1 },
-            };
-        });
+            });
+        }
 
         // Store the exact variants (Size/Color) as metadata so you see it on your Stripe dashboard
         const orderMetadata = cartItems.reduce((acc, item, index) => {
