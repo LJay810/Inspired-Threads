@@ -594,8 +594,9 @@
                     const category = product.metadata ? product.metadata.category : 'dtf';
                     
                     let variantHTML = '';
-                    let defaultImage = product.image || '';
-                    let imageZoneHTML = `<div class="product-image-zone" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;"></div>`;
+                    // Fallback to a template placeholder string if she didn't upload an image yet
+                    let defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
+                    let imageZoneHTML = `<div class="product-image-zone" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
 
                     // Generate Dropdowns if Metadata flag is true
                     if (hasVariants && variantConfig[category]) {
@@ -618,11 +619,17 @@
                         `;
                     } else if (category === 'loaded-binders') {
                          // Custom handling for binders to maintain the gallery layout
+                         const totalImages = product.images || [];
+                         let thumbnailsHTML = '';
+                         totalImages.forEach(imgUrl => {
+                             thumbnailsHTML += `<img src="${imgUrl}" alt="Binder View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
+                         });
+
                          imageZoneHTML = `
                             <div class="binder-gallery">
-                                <img src="${defaultImage}" class="main-binder-img" alt="${product.name}" onclick="openLightbox(this.src)">
+                                <img src="${defaultImage || 'placeholder.jpg'}" class="main-binder-img" alt="${product.name}" onclick="openLightbox(this.src)">
                                 <div class="binder-thumbnails">
-                                    <img src="${defaultImage}" onclick="this.parentElement.previousElementSibling.src=this.src">
+                                    ${thumbnailsHTML}
                                 </div>
                             </div>
                         `;

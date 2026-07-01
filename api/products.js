@@ -18,7 +18,7 @@ export default async function handler(req, res) {
             id: product.id,
             name: product.name,
             description: product.description,
-            image: product.images[0] || '', // Gets the first image uploaded to Stripe
+            images: product.images, // <--- CHANGED: Passes the entire array of image URLs from Stripe
             metadata: product.metadata, // Crucial for the hasVariants and category logic
             price: (product.default_price.unit_amount / 100).toFixed(2), 
             priceId: product.default_price.id
