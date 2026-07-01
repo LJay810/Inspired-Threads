@@ -404,15 +404,7 @@
             <div class="filter-bar">
                 <button class="filter-btn active hover-target" data-filter="dtf" id="defaultFilter">DTF Transfers</button>
                 
-                <div class="dropdown" tabindex="0">
-                    <div class="filter-btn dropdown-toggle hover-target">Thread Choice</div>
-                    <div class="dropdown-content">
-                        <button class="filter-btn hover-target" data-filter="thread-tshirt">T-Shirt's</button>
-                        <button class="filter-btn hover-target" data-filter="thread-crewneck">Crew Neck Sweatshirt's</button>
-                        <button class="filter-btn hover-target" data-filter="thread-hoodie">Hoodie's</button>
-                        <button class="filter-btn hover-target" data-filter="thread-tanktop">Tank Top's</button>
-                    </div>
-                </div>
+                <button class="filter-btn hover-target" data-filter="thread">Thread Choice</button>
                
                 <button class="filter-btn hover-target" data-filter="loaded-binders">Loaded Binders</button>
                 <button class="filter-btn hover-target" data-filter="corporate">Graphic Tote Bags</button>
@@ -981,7 +973,7 @@
 
             setTimeout(() => {
                 productCards.forEach(card => {
-                    if (card.getAttribute('data-category') === filterValue) {
+                    if (card.getAttribute('data-category').includes(filterValue)) {
                         card.classList.remove('hidden-filter');
                         void card.offsetWidth; 
                         card.style.opacity = '1';
