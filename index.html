@@ -223,7 +223,7 @@
         }
         .main-binder-img {
             width: 100%; height: 240px; object-fit: contain; padding: 10px; transition: opacity 0.3s ease;
-            cursor: zoom-in; /* Indicates it can be expanded */
+            cursor: zoom-in;
         }
         .binder-thumbnails {
             display: flex; height: 90px; gap: 8px; padding: 10px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border-subtle);
@@ -302,7 +302,6 @@
         }
         .checkout-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 10px 25px rgba(255, 0, 127, 0.3); }
 
-        /* Scrollbar styling for cart */
         .cart-items::-webkit-scrollbar { width: 6px; }
         .cart-items::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
 
@@ -433,323 +432,7 @@
         </div>
 
         <div class="shop-grid">
-            
-            <div class="product-card reveal" data-category="thread-tshirt">
-                <div class="product-image-zone">[ T-SHIRT TEMPLATE ]</div>
-                <div class="product-details">
-                    <span class="product-tag">Thread Choice</span>
-                    <h3 class="product-title">Premium Graphic Tee</h3>
-                    <p class="product-desc">Custom base template ready for DTG or Vinyl application. Premium ring-spun cotton blend.</p>
-                    <div class="variant-grid">
-                        <select class="variant-select item-size">
-                            <option value="Small">Small</option>
-                            <option value="Medium" selected>Medium</option>
-                            <option value="Large">Large</option>
-                            <option value="XL">XL</option>
-                            <option value="XXL">XXL</option>
-                        </select>
-                        <select class="variant-select item-color">
-                            <option value="Black" selected>Black</option>
-                            <option value="White">White</option>
-                            <option value="Gray">Heather Gray</option>
-                            <option value="RoyalBlue">Royal Blue</option>
-                            <option value="LightBlue">Light Blue</option>
-                            <option value="NavyBlue">Navy Blue</option>
-                            <option value="Violet">Violet</option>
-                            <option value="Purple">Purple</option>
-                            <option value="Sand">Sand</option>
-                            <option value="HotPink">Hot Pink</option>
-                            <option value="LightPink">Light Pink</option>
-                            <option value="IrishGreen">Irish Green</option>
-                            <option value="SageGreen">Sage Green</option>
-                            <option value="Orange">Orange</option>
-                            <option value="Yellow">Yellow</option>
-                            <option value="Red">Red</option>
-                            <option value="ForestGreen">Forest Green</option>
-                            <option value="BurntOrange">Burnt Orange</option>
-                        </select>
-                    </div>
-                    <div class="checkout-row">
-                        <span class="price-tag">$28.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Premium Graphic Tee" data-price="28.00" data-has-variants="true">Add to Cart</button>
-                    </div>
-                </div>
             </div>
-
-            <div class="product-card reveal" data-category="thread-hoodie">
-                <div class="product-image-zone">[ HOODIE TEMPLATE ]</div>
-                <div class="product-details">
-                    <span class="product-tag">Thread Choice</span>
-                    <h3 class="product-title">Heavyweight Hoodie</h3>
-                    <p class="product-desc">10oz cotton blend fleece block. Designed for sharp vector cuts and vivid chest graphics.</p>
-                    <div class="variant-grid">
-                        <select class="variant-select item-size">
-                            <option value="Small">Small</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Large" selected>Large</option>
-                            <option value="XL">XL</option>
-                            <option value="XXL">XXL</option>
-                        </select>
-                        <select class="variant-select item-color">
-                            <option value="Black" selected>Black</option>
-                            <option value="Navy">Navy</option>
-                            <option value="Pink">Pink</option>
-                            <option value="Red">Red</option>
-                            <option value="White">White</option>
-                            <option value="Sport Grey">Sport Grey</option>
-                            <option value="Sand">Sand</option>
-                            <option value="Charcoal">Charcoal</option>
-                            <option value="Purple">Purple</option>
-                            <option value="ForestGreen">Forest Green</option>
-                            <option value="Orange">Orange</option>
-                            <option value="Maroon">Maroon</option>
-                            <option value="Mint Green">Mint Green</option>
-                        </select>
-                    </div>
-                    <div class="checkout-row">
-                        <span class="price-tag">$55.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Heavyweight Hoodie" data-price="55.00" data-has-variants="true">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="thread-crewneck">
-                <div class="product-image-zone">[ CREWNECK TEMPLATE ]</div>
-                <div class="product-details">
-                    <span class="product-tag">Thread Choice</span>
-                    <h3 class="product-title">Fleece Crew Neck</h3>
-                    <p class="product-desc">Relaxed fit crewneck template. Optimal surface area for central graphics and sleeve detailing.</p>
-                    <div class="variant-grid">
-                        <select class="variant-select item-size">
-                            <option value="Small">Small</option>
-                            <option value="Medium" selected>Medium</option>
-                            <option value="Large">Large</option>
-                            <option value="XL">XL</option>
-                        </select>
-                        <select class="variant-select item-color">
-                            <option value="Black" selected>Black</option>
-                            <option value="Gray">Athletic Gray</option>
-                            <option value="White">White</option> 
-                            <option value="LightPink">Light Pink</option>
-                            <option value="Sand">Sand</option>
-                            <option value="Red">Red</option>
-                            <option value="RoyalBlue">Royal Blue</option>
-                            <option value="ForestGreen">Forest Green</option>
-                            <option value="KellyGreen">Kelly Green</option>
-                            <option value="NavyBlue">Navy Blue</option>
-                            <option value="Violet">Violet</option>
-                            <option value="HotPink">Hot Pink</option>
-                            <option value="Yellow">Yellow</option>
-                            <option value="Purple">Purple</option>
-                            <option value="SageGreen">Sage Green</option>
-                            <option value="Orange">Orange</option>
-                            
-                        </select>
-                    </div>
-                    <div class="checkout-row">
-                        <span class="price-tag">$25.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Fleece Crew Neck" data-price="25.00" data-price-id="price_1TnlEZFWt379RB9CQtXk0dk7" data-has-variants="true">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="thread-tanktop">
-                <div class="product-image-zone">[ TANK TOP TEMPLATE ]</div>
-                <div class="product-details">
-                    <span class="product-tag">Thread Choice</span>
-                    <h3 class="product-title">Athletic Tank</h3>
-                    <p class="product-desc">Breathable, moisture-wicking material. High durability print application.</p>
-                    <div class="variant-grid">
-                        <select class="variant-select item-size">
-                            <option value="Small">Small</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Large" selected>Large</option>
-                        </select>
-                        <select class="variant-select item-color">
-                            <option value="Black" selected>Black</option>
-                            <option value="White">White</option>
-                            <option value="Grey">Grey</option>
-                            <option value="HotPink">Hot Pink</option>
-                            <option value="TahitiBlue">Tahiti Blue</option>
-                            <option value="MilitaryGreen">Military Green</option>
-                            <option value="Indigo">Indigo</option>
-                            <option value="Red">Red</option>
-                            <option value="RoyalBlue">Royal Blue</option>
-                        </select>
-                    </div>
-                    <div class="checkout-row">
-                        <span class="price-tag">$22.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Athletic Tank" data-price="22.00" data-has-variants="true">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="dtf">
-                <div class="product-image-zone">[ DTF TRANSFER TEMPLATE ]</div>
-                <div class="product-details">
-                    <span class="product-tag">DTF Transfers</span>
-                    <h3 class="product-title">Custom DTF Sheet</h3>
-                    <p class="product-desc">Upload your gang sheet for vibrant, durable Direct-to-Film transfers ready to press.</p>
-                    <div class="checkout-row">
-                        <span class="price-tag">$18.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Custom DTF Sheet" data-price="18.00" data-has-variants="false">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="cup-wraps">
-                <div class="product-image-zone">[ CUP WRAP TEMPLATE ]</div>
-                <div class="product-details">
-                    <span class="product-tag">Cup Wraps</span>
-                    <h3 class="product-title">UV-DTF Wrap</h3>
-                    <p class="product-desc">Permanent adhesive UV-cured decals sized perfectly for 16oz or 20oz glass cans and tumblers.</p>
-                    <div class="checkout-row">
-                        <span class="price-tag">$12.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="UV-DTF Wrap" data-price="12.00" data-has-variants="false">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="loaded-binders">
-                <div class="binder-gallery">
-                    <img src="IMG_8061.jpeg" class="main-binder-img" alt="Binder 1 Main View" onclick="openLightbox(this.src)">
-                    <div class="binder-thumbnails">
-                        <img src="IMG_8061.jpeg" alt="View 1" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="IMG_8062.jpeg" alt="View 2" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="IMG_8063.jpeg" alt="View 3" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="IMG_8067.jpeg" alt="View 4" onclick="this.parentElement.previousElementSibling.src=this.src">
-                    </div>
-                </div>
-                <div class="product-details">
-                    <span class="product-tag">Accessories</span>
-                    <h3 class="product-title">Loaded Binder Vol. 1</h3>
-                    <p class="product-desc">Organizational binder featuring high-grade vinyl wrap graphics. Select thumbnails above to view all angles.</p>
-                    <div class="checkout-row">
-                        <span class="price-tag">$35.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Loaded Binder Vol. 1" data-price="35.00" data-has-variants="false">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="loaded-binders">
-                <div class="binder-gallery">
-                    <img src="IMG_8065.jpeg" class="main-binder-img" alt="Binder 2 Main View" onclick="openLightbox(this.src)">
-                    <div class="binder-thumbnails">
-                        <img src="IMG_8065.jpeg" alt="View 1" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="IMG_8084.jpeg" alt="View 2" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="IMG_8082.jpeg" alt="View 3" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="IMG_8071.jpeg" alt="View 4" onclick="this.parentElement.previousElementSibling.src=this.src">
-                    </div>
-                </div>
-                <div class="product-details">
-                    <span class="product-tag">Accessories</span>
-                    <h3 class="product-title">Loaded Binder Vol. 2</h3>
-                    <p class="product-desc">Organizational binder featuring high-grade vinyl wrap graphics. Select thumbnails above to view all angles.</p>
-                    <div class="checkout-row">
-                        <span class="price-tag">$35.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Loaded Binder Vol. 2" data-price="35.00" data-has-variants="false">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="loaded-binders">
-                <div class="binder-gallery">
-                    <img src="IMG_8069.jpeg" class="main-binder-img" alt="Binder 3 Main View" onclick="openLightbox(this.src)">
-                    <div class="binder-thumbnails">
-                        <img src="BINDER_3_IMAGE_1" alt="View 1" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_3_IMAGE_2" alt="View 2" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_3_IMAGE_3" alt="View 3" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_3_IMAGE_4.jpg" alt="View 4" onclick="this.parentElement.previousElementSibling.src=this.src">
-                    </div>
-                </div>
-                <div class="product-details">
-                    <span class="product-tag">Accessories</span>
-                    <h3 class="product-title">Loaded Binder Vol. 3</h3>
-                    <p class="product-desc">Organizational binder featuring high-grade vinyl wrap graphics. Select thumbnails above to view all angles.</p>
-                    <div class="checkout-row">
-                        <span class="price-tag">$35.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Loaded Binder Vol. 3" data-price="35.00" data-has-variants="false">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="loaded-binders">
-                <div class="binder-gallery">
-                    <img src="BINDER_4_IMAGE_1.jpg" class="main-binder-img" alt="Binder 4 Main View" onclick="openLightbox(this.src)">
-                    <div class="binder-thumbnails">
-                        <img src="BINDER_4_IMAGE_1.jpg" alt="View 1" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_4_IMAGE_2.jpg" alt="View 2" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_4_IMAGE_3.jpg" alt="View 3" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_4_IMAGE_4.jpg" alt="View 4" onclick="this.parentElement.previousElementSibling.src=this.src">
-                    </div>
-                </div>
-                <div class="product-details">
-                    <span class="product-tag">Accessories</span>
-                    <h3 class="product-title">Loaded Binder Vol. 4</h3>
-                    <p class="product-desc">Organizational binder featuring high-grade vinyl wrap graphics. Select thumbnails above to view all angles.</p>
-                    <div class="checkout-row">
-                        <span class="price-tag">$35.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Loaded Binder Vol. 4" data-price="35.00" data-has-variants="false">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="loaded-binders">
-                <div class="binder-gallery">
-                    <img src="BINDER_5_IMAGE_1.jpg" class="main-binder-img" alt="Binder 5 Main View" onclick="openLightbox(this.src)">
-                    <div class="binder-thumbnails">
-                        <img src="BINDER_5_IMAGE_1.jpg" alt="View 1" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_5_IMAGE_2.jpg" alt="View 2" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_5_IMAGE_3.jpg" alt="View 3" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_5_IMAGE_4.jpg" alt="View 4" onclick="this.parentElement.previousElementSibling.src=this.src">
-                    </div>
-                </div>
-                <div class="product-details">
-                    <span class="product-tag">Accessories</span>
-                    <h3 class="product-title">Loaded Binder Vol. 5</h3>
-                    <p class="product-desc">Organizational binder featuring high-grade vinyl wrap graphics. Select thumbnails above to view all angles.</p>
-                    <div class="checkout-row">
-                        <span class="price-tag">$35.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Loaded Binder Vol. 5" data-price="35.00" data-has-variants="false">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="loaded-binders">
-                <div class="binder-gallery">
-                    <img src="BINDER_6_IMAGE_1.jpg" class="main-binder-img" alt="Binder 6 Main View" onclick="openLightbox(this.src)">
-                    <div class="binder-thumbnails">
-                        <img src="BINDER_6_IMAGE_1.jpg" alt="View 1" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_6_IMAGE_2.jpg" alt="View 2" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_6_IMAGE_3.jpg" alt="View 3" onclick="this.parentElement.previousElementSibling.src=this.src">
-                        <img src="BINDER_6_IMAGE_4.jpg" alt="View 4" onclick="this.parentElement.previousElementSibling.src=this.src">
-                    </div>
-                </div>
-                <div class="product-details">
-                    <span class="product-tag">Accessories</span>
-                    <h3 class="product-title">Loaded Binder Vol. 6</h3>
-                    <p class="product-desc">Organizational binder featuring high-grade vinyl wrap graphics. Select thumbnails above to view all angles.</p>
-                    <div class="checkout-row">
-                        <span class="price-tag">$35.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Loaded Binder Vol. 6" data-price="35.00" data-has-variants="false">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="product-card reveal" data-category="corporate">
-                <div class="product-image-zone">[ TOTE BAG TEMPLATE ]</div>
-                <div class="product-details">
-                    <span class="product-tag">Corporate</span>
-                    <h3 class="product-title">Graphic Tote Bag</h3>
-                    <p class="product-desc">Heavy canvas construction perfect for corporate giveaways or bulk organizational branding.</p>
-                    <div class="checkout-row">
-                        <span class="price-tag">$15.00</span>
-                        <button class="stripe-btn add-cart-btn" data-name="Graphic Tote Bag" data-price="15.00" data-has-variants="false">Add to Cart</button>
-                    </div>
-                </div>
-            </div>
-
-        </div>
     </section>
 
     <section id="about" class="page-section">
@@ -800,7 +483,7 @@
     <script>
         // --- 1. DYNAMIC NAVIGATION ENGINE ---
         const indicator = document.getElementById('indicator');
-        const tabs = document.querySelectorAll('.nav-tab:not(.cart-btn)'); // Exclude cart button from indicator logic
+        const tabs = document.querySelectorAll('.nav-tab:not(.cart-btn)');
         const sections = document.querySelectorAll('.page-section');
 
         function updateIndicator(tab) {
@@ -846,14 +529,197 @@
         }, revealOptions);
         revealElements.forEach(el => revealOnScroll.observe(el));
 
-        // --- 3. SHOP FILTERING ENGINE ---
-        const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
-        const productCards = document.querySelectorAll('.product-card');
+        // --- 3. DYNAMIC STRIPE INVENTORY & VARIANT ENGINE ---
+        
+        // Configuration Dictionary: Centralized mapping for all variant colors and images
+        const variantConfig = {
+            'thread-tshirt': {
+                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL'],
+                colors: {
+                    'Black': 'IMG_8033.JPEG', 'White': 'IMG_8034.JPEG', 'Gray': 'GreyTShirt.png', 
+                    'RoyalBlue': 'RoyalBlueT.png', 'LightBlue': 'LightBlueT.png', 'NavyBlue': 'NavyBlueShirt.png', 
+                    'Violet': 'VioletT.png', 'Purple': 'PurpleT.png', 'Sand': 'SandT.png', 
+                    'HotPink': 'HotPinkT.png', 'LightPink': 'LightPink.png', 'IrishGreen': 'IrishGreenT.png', 
+                    'SageGreen': 'SageGreenT.JPEG', 'Orange': 'OrangeT.png', 'Yellow': 'YellowT.png', 
+                    'Red': 'RedT.png', 'ForestGreen': 'ForestGreen.png', 'BurntOrange': 'BurntOrange.png'
+                }
+            },
+            'thread-hoodie': {
+                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL'],
+                colors: {
+                    'Black': 'BlackHoodie.png', 'Navy': 'NavyHoodie.png', 'Pink': 'PinkHoodie.png', 
+                    'Red': 'RedHoodie.png', 'White': 'WhiteHoodie.png', 'Sport Grey': 'SportGreyHoodie.png', 
+                    'Sand': 'SandHoodie.png', 'Charcoal': 'CharcoalHoodie.png', 'Purple': 'PurpleHoodie.png', 
+                    'ForestGreen': 'ForestGreenHoodie.png', 'Orange': 'OrangeHoodie.png', 'Maroon': 'MaroonHoodie.png', 
+                    'Mint Green': 'MintGreenHoodie.png'
+                }
+            },
+            'thread-crewneck': {
+                sizes: ['Small', 'Medium', 'Large', 'XL'],
+                colors: {
+                    'Black': 'BlackCrewNeck.png', 'White': 'WhiteCrewNeck.png', 'Gray': 'AthleticGreyCrewNeck.png', 
+                    'LightPink': 'LightPinkCrewNeck.png', 'Sand': 'SandCrewNeck.png', 'Red': 'RedCrewNeck.png', 
+                    'RoyalBlue': 'RoyalBlueCrewNeck.png', 'ForestGreen': 'ForestGreenCrewNeck.JPEG', 
+                    'KellyGreen': 'KellyGreen.png', 'NavyBlue': 'NavyBlueShirt.png', 'Violet': '', 
+                    'HotPink': 'HotPink.png', 'Yellow': '', 'Purple': 'PurpleCrewNeck.png', 'SageGreen': '', 'Orange': 'OrangeCrewNeck.png'
+                }
+            },
+            'thread-tanktop': {
+                sizes: ['Small', 'Medium', 'Large'],
+                colors: {
+                    'Black': 'BlackTanktop.png', 'White': 'WhiteTankTop.png', 'Grey': 'GreyTankTop.png', 
+                    'HotPink': 'HotPinkTankTop.png', 'TahitiBlue': 'TahitiBlueTankTop.png', 
+                    'MilitaryGreen': 'MilitaryGreenTankTop.png', 'Indigo': 'IndigoTankTop.png', 
+                    'Red': 'RedTankTop.png', 'RoyalBlue': 'RoyalBlue.png'
+                }
+            }
+        };
 
+        const shopGrid = document.querySelector('.shop-grid');
+        const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
+
+        // Initialize Shop Engine
+        async function initShopEngine() {
+            shopGrid.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono);">SYNCING SECURE INVENTORY LOGIC...</p>';
+            
+            try {
+                // Calls the Vercel Serverless Function to get active Stripe products
+                const response = await fetch('/api/products');
+                const products = await response.json();
+                
+                shopGrid.innerHTML = ''; // Clear loading state
+
+                products.forEach(product => {
+                    const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
+                    const category = product.metadata ? product.metadata.category : 'dtf';
+                    
+                    let variantHTML = '';
+                    let defaultImage = product.image || '';
+                    let imageZoneHTML = `<div class="product-image-zone" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;"></div>`;
+
+                    // Generate Dropdowns if Metadata flag is true
+                    if (hasVariants && variantConfig[category]) {
+                        const sizes = variantConfig[category].sizes;
+                        const colors = Object.keys(variantConfig[category].colors);
+                        
+                        // Set the default image to the first color in the dictionary
+                        defaultImage = variantConfig[category].colors[colors[0]] || '';
+                        imageZoneHTML = `<div class="product-image-zone" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;"></div>`;
+
+                        variantHTML = `
+                            <div class="variant-grid">
+                                <select class="variant-select item-size">
+                                    ${sizes.map(size => `<option value="${size}">${size}</option>`).join('')}
+                                </select>
+                                <select class="variant-select item-color" data-category="${category}" data-target="img-zone-${product.id}">
+                                    ${colors.map(color => `<option value="${color}">${color}</option>`).join('')}
+                                </select>
+                            </div>
+                        `;
+                    } else if (category === 'loaded-binders') {
+                         // Custom handling for binders to maintain the gallery layout
+                         imageZoneHTML = `
+                            <div class="binder-gallery">
+                                <img src="${defaultImage}" class="main-binder-img" alt="${product.name}" onclick="openLightbox(this.src)">
+                                <div class="binder-thumbnails">
+                                    <img src="${defaultImage}" onclick="this.parentElement.previousElementSibling.src=this.src">
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // Construct the final card
+                    const cardHTML = `
+                        <div class="product-card reveal active" data-category="${category}">
+                            ${imageZoneHTML}
+                            <div class="product-details">
+                                <span class="product-tag">${category.replace('-', ' ').toUpperCase()}</span>
+                                <h3 class="product-title">${product.name}</h3>
+                                <p class="product-desc">${product.description || 'Premium apparel blank ready for technical application.'}</p>
+                                ${variantHTML}
+                                <div class="checkout-row">
+                                    <span class="price-tag">$${product.price}</span>
+                                    <button class="stripe-btn add-cart-btn" 
+                                        data-name="${product.name}" 
+                                        data-price="${product.price}" 
+                                        data-price-id="${product.priceId}" 
+                                        data-has-variants="${hasVariants}">
+                                        Add to Cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    shopGrid.insertAdjacentHTML('beforeend', cardHTML);
+                });
+
+                attachDynamicListeners();
+                applyFilter('dtf', document.getElementById('defaultFilter')); // Default view
+
+            } catch (error) {
+                console.error("Transmission Error:", error);
+                shopGrid.innerHTML = '<p style="color: #ef4444; font-family: var(--font-mono);">ERROR: INVENTORY SYNC FAILED.</p>';
+            }
+        }
+
+        // Attach listeners to dynamically generated UI elements
+        function attachDynamicListeners() {
+            // Image Swapping Logic
+            document.querySelectorAll('.item-color').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    const category = e.target.getAttribute('data-category');
+                    const targetZoneId = e.target.getAttribute('data-target');
+                    const selectedColor = e.target.value;
+                    const newImage = variantConfig[category].colors[selectedColor];
+                    
+                    const imageZone = document.getElementById(targetZoneId);
+                    if (newImage && imageZone) {
+                        imageZone.style.backgroundImage = `url('${newImage}')`;
+                    } else if (imageZone) {
+                         imageZone.style.backgroundImage = 'none';
+                         imageZone.style.backgroundColor = '#151515';
+                         imageZone.innerHTML = '[ IMAGE NOT FOUND ]';
+                    }
+                });
+            });
+
+            // Cart Logic Re-attachment
+            document.querySelectorAll('.add-cart-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const card = e.target.closest('.product-card');
+                    const name = btn.getAttribute('data-name');
+                    const price = parseFloat(btn.getAttribute('data-price'));
+                    const priceId = btn.getAttribute('data-price-id');
+                    const hasVariants = btn.getAttribute('data-has-variants') === 'true';
+                    
+                    let size = null, color = null;
+                    if (hasVariants) {
+                        size = card.querySelector('.item-size').value;
+                        color = card.querySelector('.item-color').value;
+                    }
+
+                    const existingItem = cart.find(item => item.priceId === priceId && item.size === size && item.color === color);
+                    if (existingItem) {
+                        existingItem.quantity += 1;
+                    } else {
+                        cart.push({ id: Date.now(), name, price, priceId, size, color, quantity: 1 });
+                    }
+                    
+                    localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+                    updateCartUI();
+                    if(!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
+                });
+            });
+        }
+
+        // Filter Logic
         function applyFilter(filterValue, activeBtn) {
+            if(!activeBtn) return;
             filterBtns.forEach(b => b.classList.remove('active'));
             activeBtn.classList.add('active');
 
+            const productCards = document.querySelectorAll('.product-card');
             productCards.forEach(card => {
                 card.style.opacity = '0';
                 card.style.transform = 'scale(0.95)';
@@ -863,7 +729,7 @@
                 productCards.forEach(card => {
                     if (card.getAttribute('data-category') === filterValue) {
                         card.classList.remove('hidden-filter');
-                        void card.offsetWidth; // Force reflow
+                        void card.offsetWidth; 
                         card.style.opacity = '1';
                         card.style.transform = 'scale(1)';
                     } else {
@@ -874,197 +740,12 @@
         }
 
         filterBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                applyFilter(btn.getAttribute('data-filter'), btn);
-            });
+            btn.addEventListener('click', () => applyFilter(btn.getAttribute('data-filter'), btn));
         });
 
-        // Initialize Shop with default filter (DTF) so it isnt empty without the "All Specs" tab
-        window.addEventListener('DOMContentLoaded', () => {
-            const defaultFilterBtn = document.getElementById('defaultFilter');
-            if(defaultFilterBtn) applyFilter('dtf', defaultFilterBtn);
-        });
-
-        // --- 4. DYNAMIC IMAGE SWAP ENGINE ---
+        // --- 4. SHOPPING CART ENGINE ---
         
-        // --- 4A. CREW NECK ---
-        const crewneckCard = document.querySelector('.product-card[data-category="thread-crewneck"]');
-        const crewneckColorSelect = crewneckCard ? crewneckCard.querySelector('.item-color') : null;
-        const crewneckImageZone = crewneckCard ? crewneckCard.querySelector('.product-image-zone') : null;
-
-        const crewneckImages = {
-            "Black": "BlackCrewNeck.png",
-            "White": "WhiteCrewNeck.png",
-            "Gray": "AthleticGreyCrewNeck.png", 
-            "LightPink": "LightPinkCrewNeck.png",
-            "Sand": "SandCrewNeck.png",
-            "Red": "RedCrewNeck.png",
-            "RoyalBlue": "RoyalBlueCrewNeck.png",
-            "ForestGreen": "ForestGreenCrewNeck.JPEG",
-            "KellyGreen": "KellyGreen.png",
-            "NavyBlue": "NavyBlueShirt.png",
-            "Violet": "",
-            "HotPink": "HotPink.png",
-            "Yellow": "",
-            "Purple": "PurpleCrewNeck.png",
-            "SageGreen": "",
-            "Orange": "OrangeCrewNeck.png"
-        };
-
-        if(crewneckColorSelect && crewneckImageZone) {
-            crewneckColorSelect.addEventListener('change', function() {
-                const selectedColor = this.value;
-                const imageFile = crewneckImages[selectedColor];
-                
-                if (imageFile) {
-                    crewneckImageZone.style.backgroundImage = `url('${imageFile}')`;
-                    crewneckImageZone.style.backgroundSize = 'contain'; 
-                    crewneckImageZone.style.backgroundPosition = 'center';
-                    crewneckImageZone.style.backgroundRepeat = 'no-repeat';
-                    crewneckImageZone.style.backgroundColor = '#ffffff'; 
-                    crewneckImageZone.innerHTML = ''; 
-                } else {
-                    crewneckImageZone.style.backgroundImage = 'none';
-                    crewneckImageZone.style.backgroundColor = '#151515';
-                    crewneckImageZone.innerHTML = '[ CREWNECK TEMPLATE ]';
-                }
-            });
-            crewneckColorSelect.dispatchEvent(new Event('change'));
-        }
-
-        // --- 4B. T-SHIRT ---
-        const tshirtCard = document.querySelector('.product-card[data-category="thread-tshirt"]');
-        const tshirtColorSelect = tshirtCard ? tshirtCard.querySelector('.item-color') : null;
-        const tshirtImageZone = tshirtCard ? tshirtCard.querySelector('.product-image-zone') : null;
-
-        const tshirtImages = {
-            "Black": "IMG_8033.JPEG",
-            "White": "IMG_8034.JPEG",
-            "Gray": "GreyTShirt.png",
-            "RoyalBlue": "RoyalBlueT.png",
-            "LightBlue": "LightBlueT.png",
-            "NavyBlue": "NavyBlueShirt.png",
-            "Violet": "VioletT.png",
-            "Purple": "PurpleT.png",
-            "Sand": "SandT.png",
-            "HotPink": "HotPinkT.png",
-            "LightPink": "LightPink.png",
-            "IrishGreen": "IrishGreenT.png",
-            "SageGreen": "SageGreenT.JPEG",
-            "Orange": "OrangeT.png",
-            "Yellow": "YellowT.png",
-            "Red": "RedT.png",
-            "ForestGreen": "ForestGreen.png",
-            "BurntOrange": "BurntOrange.png"
-        };
-
-        if(tshirtColorSelect && tshirtImageZone) {
-            tshirtColorSelect.addEventListener('change', function() {
-                const selectedColor = this.value;
-                const imageFile = tshirtImages[selectedColor];
-                
-                if (imageFile) {
-                    tshirtImageZone.style.backgroundImage = `url('${imageFile}')`;
-                    tshirtImageZone.style.backgroundSize = 'contain'; 
-                    tshirtImageZone.style.backgroundPosition = 'center';
-                    tshirtImageZone.style.backgroundRepeat = 'no-repeat';
-                    tshirtImageZone.style.backgroundColor = '#ffffff'; 
-                    tshirtImageZone.innerHTML = ''; 
-                } else {
-                    tshirtImageZone.style.backgroundImage = 'none';
-                    tshirtImageZone.style.backgroundColor = '#151515';
-                    tshirtImageZone.innerHTML = '[ T-SHIRT TEMPLATE ]';
-                }
-            });
-            tshirtColorSelect.dispatchEvent(new Event('change'));
-        }
-
-        // --- 4C. HOODIE ---
-        const hoodieCard = document.querySelector('.product-card[data-category="thread-hoodie"]');
-        const hoodieColorSelect = hoodieCard ? hoodieCard.querySelector('.item-color') : null;
-        const hoodieImageZone = hoodieCard ? hoodieCard.querySelector('.product-image-zone') : null;
-
-        const hoodieImages = {
-            "Black": "BlackHoodie.png",
-            "Navy": "NavyHoodie.png",
-            "Pink": "PinkHoodie.png",
-            "Red": "RedHoodie.png",
-            "White": "WhiteHoodie.png",
-            "Sport Grey": "SportGreyHoodie.png",
-            "Sand": "SandHoodie.png",
-            "Charcoal": "CharcoalHoodie.png",
-            "Purple": "PurpleHoodie.png",
-            "ForestGreen": "ForestGreenHoodie.png",
-            "Orange": "OrangeHoodie.png",
-            "Maroon": "MaroonHoodie.png",
-            "Mint Green": "MintGreenHoodie.png"     
-        };
-
-        if(hoodieColorSelect && hoodieImageZone) {
-            hoodieColorSelect.addEventListener('change', function() {
-                const selectedColor = this.value;
-                const imageFile = hoodieImages[selectedColor];
-                
-                if (imageFile) {
-                    hoodieImageZone.style.backgroundImage = `url('${imageFile}')`;
-                    hoodieImageZone.style.backgroundSize = 'contain'; 
-                    hoodieImageZone.style.backgroundPosition = 'center';
-                    hoodieImageZone.style.backgroundRepeat = 'no-repeat';
-                    hoodieImageZone.style.backgroundColor = '#ffffff'; 
-                    hoodieImageZone.innerHTML = ''; 
-                } else {
-                    hoodieImageZone.style.backgroundImage = 'none';
-                    hoodieImageZone.style.backgroundColor = '#151515';
-                    hoodieImageZone.innerHTML = '[ HOODIE TEMPLATE ]';
-                }
-            });
-            hoodieColorSelect.dispatchEvent(new Event('change'));
-        }
-
-        // --- 4D. TANK TOP ---
-        const tanktopCard = document.querySelector('.product-card[data-category="thread-tanktop"]');
-        const tanktopColorSelect = tanktopCard ? tanktopCard.querySelector('.item-color') : null;
-        const tanktopImageZone = tanktopCard ? tanktopCard.querySelector('.product-image-zone') : null;
-
-        const tanktopImages = {
-            "Black": "BlackTanktop.png",
-            "White": "WhiteTankTop.png",
-            "Grey": "GreyTankTop.png",
-            "HotPink": "HotPinkTankTop.png",
-            "TahitiBlue": "TahitiBlueTankTop.png",
-            "MilitaryGreen": "MilitaryGreenTankTop.png",
-            "Indigo": "IndigoTankTop.png",
-            "Red": "RedTankTop.png",
-            "RoyalBlue": "RoyalBlue.png",
-        };
-
-        if(tanktopColorSelect && tanktopImageZone) {
-            tanktopColorSelect.addEventListener('change', function() {
-                const selectedColor = this.value;
-                const imageFile = tanktopImages[selectedColor];
-                
-                if (imageFile) {
-                    tanktopImageZone.style.backgroundImage = `url('${imageFile}')`;
-                    tanktopImageZone.style.backgroundSize = 'contain'; 
-                    tanktopImageZone.style.backgroundPosition = 'center';
-                    tanktopImageZone.style.backgroundRepeat = 'no-repeat';
-                    tanktopImageZone.style.backgroundColor = '#ffffff'; 
-                    tanktopImageZone.innerHTML = ''; 
-                } else {
-                    tanktopImageZone.style.backgroundImage = 'none';
-                    tanktopImageZone.style.backgroundColor = '#151515';
-                    tanktopImageZone.innerHTML = '[ TANK TOP TEMPLATE ]';
-                }
-            });
-            tanktopColorSelect.dispatchEvent(new Event('change'));
-        }
-
-        // --- 5. SHOPPING CART ENGINE ---
-        
-        // --- NEW: Initialize cart from localStorage ---
         let cart = JSON.parse(localStorage.getItem('inspiredThreadsCart')) || [];
-        
-        // Initialize Stripe (Replace with your actual Publishable Key)
         const stripe = Stripe('pk_live_51TnjXXFWt379RB9CQuAZ3roCVW8l892C9ffUstWDP6TjNAtlmYZ4gWWnad9kPpqGveHGqA54LAjtGE3eKNfYy6FM00dGd8t5Hr');
         
         function toggleCart() {
@@ -1108,47 +789,9 @@
 
         function removeFromCart(index) {
             cart.splice(index, 1);
-            
-            // --- NEW: Update storage after deletion ---
             localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
-            
             updateCartUI();
         }
-
-        // Add to Cart Listeners
-        document.querySelectorAll('.add-cart-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const card = e.target.closest('.product-card');
-                const name = btn.getAttribute('data-name');
-                const price = parseFloat(btn.getAttribute('data-price'));
-                const priceId = btn.getAttribute('data-price-id');
-                const hasVariants = btn.getAttribute('data-has-variants') === 'true';
-                
-                let size = null, color = null;
-                
-                if (hasVariants) {
-                    size = card.querySelector('.item-size').value;
-                    color = card.querySelector('.item-color').value;
-                }
-
-                // Check if identical item already exists in cart to stack quantities
-                const existingItem = cart.find(item => item.priceId === priceId && item.size === size && item.color === color);
-                
-                if (existingItem) {
-                    existingItem.quantity += 1;
-                } else {
-                    cart.push({ id: Date.now(), name, price, priceId, size, color, quantity: 1 });
-                }
-                
-                // --- NEW: Save state to non-volatile storage ---
-                localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
-                
-                updateCartUI();
-                if(!document.getElementById('cartDrawer').classList.contains('open')) {
-                    toggleCart();
-                }
-            });
-        });
 
         async function processCheckout() {
             if(cart.length === 0) return alert("Please add items to your cart before checking out.");
@@ -1158,7 +801,6 @@
             checkoutBtn.disabled = true;
 
             try {
-                // Call our Vercel Serverless Function
                 const response = await fetch('/api/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1166,10 +808,8 @@
                 });
 
                 const session = await response.json();
-                
                 if (session.error) throw new Error(session.error);
 
-                // Redirect to Stripe Hosted Checkout
                 await stripe.redirectToCheckout({ sessionId: session.id });
                 
             } catch (error) {
@@ -1185,7 +825,7 @@
         }
 
 
-        // --- 6. FORMSPREE ENGINE ---
+        // --- 5. FORMSPREE ENGINE ---
         document.getElementById('contactForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = document.getElementById('submitBtn');
@@ -1218,7 +858,7 @@
             }
         });
 
-        // --- 7. LIGHTBOX ENGINE ---
+        // --- 6. LIGHTBOX ENGINE ---
         function openLightbox(imgSrc) {
             const overlay = document.getElementById('lightboxOverlay');
             const img = document.getElementById('lightboxImg');
@@ -1232,22 +872,16 @@
         window.onload = () => { 
             onScroll();  
             
-            // --- NEW: Check URL for Stripe Success Redirect ---
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('success') === 'true') {
-                // Clear the local storage and cart array completely
                 localStorage.removeItem('inspiredThreadsCart');
                 cart = []; 
-                
-                // Clean the URL so if they refresh, it doesn't trigger again
                 window.history.replaceState(null, '', window.location.pathname);
-                
-                // Optional: alert the user
                 alert("Payment Successful! Your cart has been cleared.");
             }
 
-            // --- NEW: Render the saved cart on page load ---
             updateCartUI(); 
+            initShopEngine(); // Triggers the dynamic fetch on load
         };
     </script>
 </body>
