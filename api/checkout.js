@@ -47,6 +47,7 @@ export default async function handler(req, res) {
             payment_method_types: ['card'],
             line_items: lineItems,
             mode: 'payment',
+            allow_promotion_codes: true,
             metadata: orderMetadata,
             payment_intent_data: { metadata: orderMetadata }, // Ensures it shows on the payment page
             success_url: `${req.headers.origin}/?success=true`,
