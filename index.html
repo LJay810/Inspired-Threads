@@ -37,137 +37,110 @@
             animation: fadeIn 1.2s ease-out forwards;
         }
 
+        /* --- ENHANCEMENT 6: CUSTOM CURSOR --- */
+        @media (pointer: fine) {
+            body { cursor: none; }
+            a, button, input, select, textarea { cursor: none; }
+        }
+        
+        .cursor-dot {
+            width: 6px; height: 6px; background-color: var(--accent-pink); border-radius: 50%;
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+            transform: translate(-50%, -50%); display: none;
+            box-shadow: 0 0 10px rgba(255, 0, 127, 0.8);
+        }
+        .cursor-ring {
+            width: 30px; height: 30px; border: 2px solid rgba(255, 0, 127, 0.5); border-radius: 50%;
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9998;
+            transform: translate(-50%, -50%); transition: width 0.2s, height 0.2s, background-color 0.2s, border-color 0.2s;
+            display: none;
+        }
+        @media (pointer: fine) {
+            .cursor-dot, .cursor-ring { display: block; }
+        }
+        .cursor-ring.hovering {
+            width: 50px; height: 50px; background-color: rgba(255, 0, 127, 0.1); border-color: var(--accent-pink);
+        }
+
+        /* --- ENHANCEMENT 2: CINEMATIC NOISE --- */
+        .noise-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none; z-index: 500; opacity: 0.04; mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
         /* --- CUSTOM SCROLLBAR --- */
         ::-webkit-scrollbar { width: 10px; }
         ::-webkit-scrollbar-track { background: var(--bg-main); }
         ::-webkit-scrollbar-thumb { background: #222; border-radius: 5px; border: 2px solid var(--bg-main); }
         ::-webkit-scrollbar-thumb:hover { background: var(--accent-pink); }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        /* --- SCROLL ANIMATIONS --- */
-        .reveal {
-            opacity: 0;
-            transform: translateY(40px);
-            transition: all 0.9s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-        .reveal.active {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        /* --- ENHANCEMENT 5: STAGGERED SCROLL ANIMATIONS --- */
+        .reveal { opacity: 0; transform: translateY(40px); transition: all 0.9s cubic-bezier(0.25, 1, 0.5, 1); }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+        .stagger-1 { transition-delay: 0.1s; }
+        .stagger-2 { transition-delay: 0.3s; }
+        .stagger-3 { transition-delay: 0.5s; }
 
-        /* --- FIXED DYNAMIC HEADER (GLASSMORPHISM) --- */
+        /* --- FIXED DYNAMIC HEADER --- */
         header { 
-            position: fixed; 
-            top: 0; 
-            width: 100%; 
-            padding: 20px 60px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            background: rgba(3, 3, 3, 0.65); 
-            backdrop-filter: blur(35px) saturate(150%); 
-            -webkit-backdrop-filter: blur(35px) saturate(150%);
-            z-index: 1000; 
-            border-bottom: 1px solid rgba(255, 0, 127, 0.15); 
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            position: fixed; top: 0; width: 100%; padding: 20px 60px; 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: rgba(3, 3, 3, 0.65); backdrop-filter: blur(35px) saturate(150%); -webkit-backdrop-filter: blur(35px) saturate(150%);
+            z-index: 1000; border-bottom: 1px solid rgba(255, 0, 127, 0.15); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
         }
         
         .brand-text {
-            font-family: var(--font-mono);
-            font-weight: 800; 
-            letter-spacing: 0.3em; 
-            text-transform: uppercase;
-            color: var(--text-pure);
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+            font-family: var(--font-mono); font-weight: 800; letter-spacing: 0.3em; 
+            text-transform: uppercase; color: var(--text-pure); text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
         }
 
         .nav-container { position: relative; display: flex; gap: 15px; align-items: center;}
         
         .nav-tab { 
-            background: none; 
-            border: none; 
-            color: var(--text-muted); 
-            font-family: var(--font-mono);
-            font-size: 0.75rem; 
-            font-weight: 600;
-            text-transform: uppercase; 
-            letter-spacing: 0.15em; 
-            cursor: pointer; 
-            padding: 10px 20px;
-            transition: var(--transition-fluid); 
+            background: none; border: none; color: var(--text-muted); font-family: var(--font-mono);
+            font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; 
+            padding: 10px 20px; transition: var(--transition-fluid); 
         }
         
-        .nav-tab:hover, .nav-tab.active { 
-            color: var(--text-pure); 
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
-        }
+        .nav-tab:hover, .nav-tab.active { color: var(--text-pure); text-shadow: 0 0 8px rgba(255, 255, 255, 0.4); }
 
         .cart-btn {
-            border: 1px solid var(--accent-pink);
-            color: var(--accent-pink);
-            border-radius: 20px;
-            padding: 8px 18px;
-            background: rgba(255, 0, 127, 0.05);
-            box-shadow: 0 0 15px rgba(255, 0, 127, 0.1);
+            border: 1px solid var(--accent-pink); color: var(--accent-pink); border-radius: 20px;
+            padding: 8px 18px; background: rgba(255, 0, 127, 0.05); box-shadow: 0 0 15px rgba(255, 0, 127, 0.1);
         }
-        .cart-btn:hover { 
-            background: rgba(255,0,127,0.15); 
-            box-shadow: 0 0 25px rgba(255, 0, 127, 0.3);
-            color: #fff;
-        }
+        .cart-btn:hover { background: rgba(255,0,127,0.15); box-shadow: 0 0 25px rgba(255, 0, 127, 0.3); color: #fff; }
         
         #indicator { 
-            position: absolute; 
-            bottom: -21px; 
-            height: 3px; 
-            background: var(--accent-pink); 
+            position: absolute; bottom: -21px; height: 3px; background: var(--accent-pink); 
             transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), left 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
-            pointer-events: none;
-            box-shadow: 0 -2px 15px rgba(255, 0, 127, 0.8); 
-            border-radius: 50px 50px 0 0;
+            pointer-events: none; box-shadow: 0 -2px 15px rgba(255, 0, 127, 0.8); border-radius: 50px 50px 0 0;
         }
 
         /* --- PAGE SECTIONS --- */
         .page-section { 
-            min-height: 100vh; 
-            padding: 140px 60px 100px 60px; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            max-width: 1600px;
-            margin: 0 auto;
+            min-height: 100vh; padding: 140px 60px 100px 60px; 
+            display: flex; flex-direction: column; justify-content: center; 
+            max-width: 1600px; margin: 0 auto; position: relative; z-index: 10;
         }
 
         .section-header {
-            font-size: 2.8rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: -0.02em;
-            margin-bottom: 20px;
-            background: linear-gradient(90deg, #fff, #8e9aa8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 2.8rem; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em;
+            margin-bottom: 20px; background: linear-gradient(90deg, #fff, #8e9aa8);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
-        /* --- HERO (PARALLAX + TEXT REMOVED) --- */
+        /* --- HERO --- */
         #home { 
             background: linear-gradient(to bottom, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.1) 40%, rgba(3,3,3,0.1) 70%, #030303 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat fixed; 
-            flex-direction: column;
-            justify-content: center;
-            align-items: center; 
-            text-align: center; 
-            max-width: 100%;
-            border-bottom: none;
-            position: relative;
+            flex-direction: column; justify-content: center; align-items: center; text-align: center; max-width: 100%; border-bottom: none;
         }
 
         .hero-content { flex: 1; max-width: 900px; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 50px;}
         
-        /* --- TIKTOK BUTTON (NEON GLOW) --- */
+        /* --- TIKTOK BUTTON (ENHANCEMENT 3: MAGNETIC READY) --- */
         @keyframes breathe {
             0% { box-shadow: 0 0 20px rgba(255, 0, 127, 0.2), inset 0 0 10px rgba(255, 0, 127, 0.1); }
             50% { box-shadow: 0 0 40px rgba(255, 0, 127, 0.5), inset 0 0 15px rgba(255, 0, 127, 0.2); }
@@ -175,100 +148,63 @@
         }
 
         .tiktok-btn {
-            margin-top: 40px;
-            background: rgba(255, 0, 127, 0.08);
-            border: 1px solid var(--accent-pink);
-            color: var(--text-pure);
-            padding: 18px 45px;
-            border-radius: 50px; 
-            font-family: var(--font-mono);
-            font-size: 1rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.25em;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            animation: breathe 3s infinite ease-in-out;
-            position: relative;
-            overflow: hidden;
-            backdrop-filter: blur(10px);
+            margin-top: 40px; background: rgba(255, 0, 127, 0.08); border: 1px solid var(--accent-pink);
+            color: var(--text-pure); padding: 18px 45px; border-radius: 50px; font-family: var(--font-mono);
+            font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.25em;
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), background 0.4s ease;
+            animation: breathe 3s infinite ease-in-out; position: relative; overflow: hidden; backdrop-filter: blur(10px);
+            /* Magnetic structural requirement */
+            display: inline-block;
         }
         .tiktok-btn::before {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(45deg, transparent, rgba(255,255,255,0.2), transparent);
             transform: translateX(-100%); transition: transform 0.6s ease;
         }
-        .tiktok-btn:hover {
-            background: rgba(255, 0, 127, 0.25);
-            transform: translateY(-5px) scale(1.02);
-            color: #fff;
-            text-shadow: 0 0 10px rgba(255,255,255,0.5);
-        }
+        .tiktok-btn:hover { background: rgba(255, 0, 127, 0.25); color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
         .tiktok-btn:hover::before { transform: translateX(100%); }
 
-        /* --- TIKTOK MODAL (CAREFUL UPGRADE) --- */
-        .tiktok-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.75); z-index: 3000;
-            display: flex; justify-content: center; align-items: center;
-            opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); /* UPGRADE */
+        /* --- MODALS --- */
+        .tiktok-overlay, .lightbox-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); z-index: 3000;
+            display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
         }
-        .tiktok-overlay.active { opacity: 1; pointer-events: all; }
+        .tiktok-overlay.active, .lightbox-overlay.active { opacity: 1; pointer-events: all; }
         
         .tiktok-modal {
-            background: rgba(10, 10, 10, 0.85); /* UPGRADE */
-            border: 1px solid var(--accent-pink);
-            border-radius: 20px; /* UPGRADE */
-            padding: 40px;
-            width: 90%;
-            max-width: 420px;
-            box-shadow: 0 30px 80px rgba(0,0,0,1), 0 0 40px rgba(255,0,127,0.2); /* UPGRADE */
-            transform: translateY(30px) scale(0.95);
-            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            position: relative;
+            background: rgba(10, 10, 10, 0.85); border: 1px solid var(--accent-pink); border-radius: 20px; 
+            padding: 40px; width: 90%; max-width: 420px; box-shadow: 0 30px 80px rgba(0,0,0,1), 0 0 40px rgba(255,0,127,0.2); 
+            transform: translateY(30px) scale(0.95); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); position: relative;
         }
         .tiktok-overlay.active .tiktok-modal { transform: translateY(0) scale(1); }
         
         .close-tiktok {
             position: absolute; top: 15px; right: 20px; background: none; border: none;
-            color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.2s;
-            text-shadow: 0 0 10px rgba(255,255,255,0.2); /* UPGRADE */
+            color: var(--text-muted); font-size: 1.5rem; transition: color 0.2s; text-shadow: 0 0 10px rgba(255,255,255,0.2); 
         }
         .close-tiktok:hover { color: var(--accent-pink); }
 
         .qty-btn {
-            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
-            color: var(--text-pure); width: 40px; height: 40px; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center; cursor: pointer;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: var(--text-pure); 
+            width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; 
             font-size: 1.2rem; transition: var(--transition-snappy);
         }
         .qty-btn:hover { background: rgba(255,0,127,0.2); border-color: var(--accent-pink); color: var(--text-pure); box-shadow: 0 0 15px rgba(255,0,127,0.3);}
 
-
         /* --- SHOP CATEGORY FILTERS --- */
-        .shop-controls {
-            display: flex;
-            flex-direction: column;
-            margin-bottom: 50px;
-            position: relative; 
-            z-index: 50; 
-        }
-
+        .shop-controls { display: flex; flex-direction: column; margin-bottom: 50px; position: relative; z-index: 50; }
         .filter-bar { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px; align-items: center; }
 
         .filter-btn {
             background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-subtle); color: var(--text-muted);
             padding: 12px 28px; border-radius: 40px; font-family: var(--font-mono); font-size: 0.75rem;
-            font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; cursor: pointer; transition: var(--transition-snappy);
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; transition: var(--transition-snappy);
         }
-        .filter-btn:hover, .filter-btn.active {
-            background: rgba(255, 0, 127, 0.1); border-color: var(--accent-pink); color: var(--text-pure); box-shadow: 0 0 25px rgba(255, 0, 127, 0.25);
-        }
+        .filter-btn:hover, .filter-btn.active { background: rgba(255, 0, 127, 0.1); border-color: var(--accent-pink); color: var(--text-pure); box-shadow: 0 0 25px rgba(255, 0, 127, 0.25); }
 
-        /* --- DROPDOWN FILTERS --- */
         .dropdown { position: relative; display: inline-block; outline: none; z-index: 100; }
-        .dropdown-toggle { cursor: pointer; padding-right: 40px; position: relative; user-select: none; }
+        .dropdown-toggle { padding-right: 40px; position: relative; user-select: none; }
         .dropdown-toggle::after { content: '▼'; font-size: 0.6rem; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: var(--accent-pink); }
         .dropdown-content {
             display: none; position: absolute; background: rgba(10, 10, 10, 0.85); backdrop-filter: blur(25px);
@@ -281,82 +217,80 @@
         .dropdown-content .filter-btn { border: none; background: transparent; text-align: left; border-radius: 8px; padding: 14px 18px; width: 100%; }
         .dropdown-content .filter-btn:hover, .dropdown-content .filter-btn.active { background: rgba(255, 0, 127, 0.15); color: var(--text-pure); border-color: transparent; box-shadow: none;}
 
+        /* --- ENHANCEMENT 4: SKELETON LOADING UI --- */
+        @keyframes shimmer {
+            0% { background-position: -400px 0; }
+            100% { background-position: 400px 0; }
+        }
+        .skeleton {
+            background: rgba(25,25,25,0.4); border: 1px solid var(--border-subtle); border-radius: 16px; 
+            height: 520px; overflow: hidden; display: flex; flex-direction: column;
+        }
+        .skeleton-img { height: 300px; background: #111; border-bottom: 1px solid var(--border-subtle); position: relative; overflow: hidden; }
+        .skeleton-text, .skeleton-btn { 
+            background: #222; border-radius: 4px; height: 20px; margin-bottom: 15px; position: relative; overflow: hidden;
+        }
+        .skeleton-text.short { width: 40%; height: 12px; margin-bottom: 25px; }
+        .skeleton-text.title { width: 80%; height: 28px; margin-bottom: 20px; }
+        .skeleton-text.desc { height: 60px; margin-bottom: 30px;}
+        .skeleton-btn { height: 45px; width: 120px; border-radius: 8px; float: right; margin-top: 15px;}
+        
+        .skeleton-img::after, .skeleton-text::after, .skeleton-btn::after {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to right, transparent 0%, rgba(255,0,127,0.05) 50%, transparent 100%);
+            animation: shimmer 2s infinite linear; background-size: 800px 100%;
+        }
+
         /* --- E-COMMERCE SHOP GRID --- */
         .shop-grid { 
             display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 45px; 
-            min-height: 500px; align-content: start; position: relative; z-index: 1; 
+            min-height: 500px; align-content: start; position: relative; z-index: 1; perspective: 1000px; /* Required for 3D */
         }
         
+        /* ENHANCEMENT 1: 3D CARD FOUNDATION */
         .product-card { 
             background: rgba(15,15,15,0.6); border: 1px solid var(--border-subtle); border-radius: 16px; overflow: hidden;
-            display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease-out, border-color 0.3s ease-out, opacity 0.4s ease; 
-            opacity: 1; transform: scale(1); position: relative; backdrop-filter: blur(10px); /* UPGRADE */
+            display: flex; flex-direction: column; transition: box-shadow 0.3s ease-out, border-color 0.3s ease-out, opacity 0.4s ease; 
+            opacity: 1; position: relative; backdrop-filter: blur(10px); transform-style: preserve-3d;
         }
         .product-card.hidden-filter { display: none !important; opacity: 0; transform: scale(0.95); }
-        .product-card:hover { 
-            border-color: rgba(255,0,127,0.5); 
-            transform: translateY(-12px) scale(1.01); 
-            box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 35px rgba(255, 0, 127, 0.15); 
-            z-index: 2; 
+        .product-card:hover { border-color: rgba(255,0,127,0.5); box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 35px rgba(255, 0, 127, 0.15); z-index: 2; }
+        
+        /* 3D Fallback for mobile/touch */
+        @media (hover: none) and (pointer: coarse) {
+            .product-card { transition: transform 0.4s ease, box-shadow 0.3s ease; transform: scale(1) !important; }
+            .product-card:active { transform: scale(0.98) !important; border-color: var(--accent-pink); }
         }
 
         .product-image-zone {
-            height: 300px; 
-            background: #111; display: flex; align-items: center; justify-content: center;
+            height: 300px; background: #111; display: flex; align-items: center; justify-content: center;
             border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.1em;
-            transition: background-color 0.3s ease; 
+            transition: background-color 0.3s ease; transform: translateZ(20px); /* 3D pop */
         }
 
         /* --- BINDER SPECIFIC UI --- */
-        .binder-gallery {
-            display: flex; flex-direction: column; height: 350px; background: #111; border-bottom: 1px solid var(--border-subtle);
-        }
-        .main-binder-img {
-            width: 100%; height: 260px; object-fit: contain; padding: 15px; transition: opacity 0.3s ease;
-            cursor: zoom-in;
-        }
-        .binder-thumbnails {
-            display: flex; height: 90px; gap: 10px; padding: 10px; background: rgba(0,0,0,0.6); border-top: 1px solid var(--border-subtle);
-        }
-        .binder-thumbnails img {
-            width: 25%; height: 100%; object-fit: cover; cursor: pointer; border: 1px solid transparent; border-radius: 6px; transition: var(--transition-snappy); opacity: 0.5;
-        }
-        .binder-thumbnails img:hover, .binder-thumbnails img:active {
-            border-color: var(--accent-pink); opacity: 1; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        }
+        .binder-gallery { display: flex; flex-direction: column; height: 350px; background: #111; border-bottom: 1px solid var(--border-subtle); }
+        .main-binder-img { width: 100%; height: 260px; object-fit: contain; padding: 15px; transition: opacity 0.3s ease; }
+        .binder-thumbnails { display: flex; height: 90px; gap: 10px; padding: 10px; background: rgba(0,0,0,0.6); border-top: 1px solid var(--border-subtle); }
+        .binder-thumbnails img { width: 25%; height: 100%; object-fit: cover; border: 1px solid transparent; border-radius: 6px; transition: var(--transition-snappy); opacity: 0.5; }
+        .binder-thumbnails img:hover, .binder-thumbnails img:active { border-color: var(--accent-pink); opacity: 1; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
 
-        .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; }
+        .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; transform: translateZ(30px); /* 3D pop */ }
         .product-tag { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 12px; font-weight: 700; }
         .product-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.03em; }
         .product-desc { color: var(--text-muted); font-size: 1rem; margin-bottom: 25px; flex-grow: 1; line-height: 1.7;}
         
-        /* --- INVENTORY TELEMETRY --- */
         .stock-badge {
-            font-family: var(--font-mono);
-            font-size: 0.7rem;
-            color: var(--text-pure);
-            background: rgba(255, 0, 127, 0.1);
-            border: 1px solid rgba(255, 0, 127, 0.4);
-            padding: 8px 14px;
-            border-radius: 6px;
-            display: inline-block;
-            letter-spacing: 0.15em;
-            margin-bottom: 25px;
-            width: fit-content;
-            box-shadow: 0 0 10px rgba(255,0,127,0.1);
+            font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-pure); background: rgba(255, 0, 127, 0.1);
+            border: 1px solid rgba(255, 0, 127, 0.4); padding: 8px 14px; border-radius: 6px; display: inline-block;
+            letter-spacing: 0.15em; margin-bottom: 25px; width: fit-content; box-shadow: 0 0 10px rgba(255,0,127,0.1);
         }
-        .stock-badge.sold-out {
-            background: rgba(255, 255, 255, 0.03);
-            border-color: var(--border-subtle);
-            color: var(--text-muted);
-            box-shadow: none;
-        }
+        .stock-badge.sold-out { background: rgba(255, 255, 255, 0.03); border-color: var(--border-subtle); color: var(--text-muted); box-shadow: none; }
 
-        /* Product Options (Size/Color) */
         .variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px; }
         .variant-select {
             background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); color: var(--text-pure);
-            padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem; outline: none; cursor: pointer;
+            padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem; outline: none; 
             transition: var(--transition-snappy); appearance: none;
         }
         .variant-select:focus { border-color: var(--accent-pink); box-shadow: 0 0 15px rgba(255,0,127,0.15); background: rgba(0,0,0,0.5);}
@@ -368,19 +302,15 @@
         .stripe-btn {
             background: var(--text-pure); color: var(--bg-main); border: none; padding: 14px 30px;
             font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em;
-            border-radius: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            border-radius: 8px; transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s;
+            display: inline-block; /* Magnetic structural req */
         }
-        .stripe-btn:hover { 
-            background: var(--accent-pink); 
-            color: var(--text-pure); 
-            transform: scale(1.05) translateY(-2px); 
-            box-shadow: 0 10px 20px rgba(255,0,127,0.3);
-        }
+        .stripe-btn:hover { background: var(--accent-pink); color: var(--text-pure); box-shadow: 0 10px 20px rgba(255,0,127,0.3); }
 
-        /* --- CART DRAWER SYSTEM (CAREFUL UPGRADE) --- */
+        /* --- CART DRAWER SYSTEM --- */
         .cart-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7);
-            z-index: 1999; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); /* UPGRADE */
+            z-index: 1999; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
             opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
         }
         .cart-overlay.open { opacity: 1; pointer-events: all; }
@@ -389,13 +319,13 @@
             position: fixed; top: 0; right: -480px; width: 480px; max-width: 100%; height: 100vh;
             background: rgba(10,10,10,0.95); border-left: 1px solid rgba(255,0,127,0.3); z-index: 2000;
             padding: 40px; display: flex; flex-direction: column; transition: right 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: -20px 0 60px rgba(0,0,0,1); backdrop-filter: blur(25px); /* UPGRADE */
+            box-shadow: -20px 0 60px rgba(0,0,0,1); backdrop-filter: blur(25px); 
         }
         .cart-drawer.open { right: 0; }
         
         .cart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 35px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 20px;}
         .cart-header h2 { font-size: 1.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 900; }
-        .close-cart { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: var(--transition-snappy); text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+        .close-cart { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: var(--transition-snappy); text-shadow: 0 0 10px rgba(255,255,255,0.2); }
         .close-cart:hover { color: var(--accent-pink); transform: scale(1.1); }
 
         .cart-items { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px; }
@@ -409,7 +339,7 @@
         .cart-item-meta { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-pink); margin-bottom: 8px; }
         .cart-item-price { font-family: var(--font-mono); font-weight: 800; font-size: 1.1rem; }
         
-        .remove-item { background: none; border: none; color: var(--text-muted); cursor: pointer; transition: color 0.2s; font-size: 1.4rem; }
+        .remove-item { background: none; border: none; color: var(--text-muted); transition: color 0.2s; font-size: 1.4rem; }
         .remove-item:hover { color: #ef4444; transform: scale(1.1); }
 
         .cart-footer { border-top: 1px solid var(--border-subtle); padding-top: 30px; margin-top: 25px; }
@@ -417,13 +347,10 @@
         
         .checkout-btn {
             background: var(--accent-pink); color: var(--text-pure); border: none; width: 100%; padding: 20px;
-            font-size: 0.95rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; border-radius: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            font-size: 0.95rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; border-radius: 8px; 
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease; display: inline-block;
         }
-        .checkout-btn:hover { 
-            background: var(--accent-pink-hover); 
-            box-shadow: 0 15px 35px rgba(255, 0, 127, 0.4); 
-            transform: translateY(-2px);
-        }
+        .checkout-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 15px 35px rgba(255, 0, 127, 0.4); }
 
         .cart-items::-webkit-scrollbar { width: 6px; }
         .cart-items::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
@@ -445,28 +372,28 @@
         .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--accent-pink); background: rgba(0,0,0,0.4); box-shadow: 0 0 15px rgba(255,0,127,0.1); }
         .form-group input:focus + label, .form-group textarea:focus + label { color: var(--accent-pink); }
         
-        .submit-btn { background: var(--accent-pink); color: var(--text-pure); border: none; padding: 20px 0; width: 100%; font-size: 0.95rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; border-radius: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); display: block; margin-top: 30px; }
-        .submit-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 15px 35px rgba(255, 0, 127, 0.4); transform: translateY(-2px);}
+        .submit-btn { 
+            background: var(--accent-pink); color: var(--text-pure); border: none; padding: 20px 0; width: 100%; 
+            font-size: 0.95rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; border-radius: 8px; 
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s; display: block; margin-top: 30px; 
+        }
+        .submit-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 15px 35px rgba(255, 0, 127, 0.4); }
 
-        /* --- LIGHTBOX OVERLAY (CAREFUL UPGRADE) --- */
+        /* --- LIGHTBOX OVERLAY --- */
         .lightbox-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(0,0,0,0.9); z-index: 3000;
-            display: flex; justify-content: center; align-items: center;
-            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
-            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); /* UPGRADE */
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 3000;
+            display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
         }
         .lightbox-overlay.active { opacity: 1; pointer-events: all; }
         .lightbox-img {
-            max-width: 90%; max-height: 90%; border-radius: 8px;
-            box-shadow: 0 10px 50px rgba(0,0,0,0.8); border: 1px solid var(--accent-pink);
+            max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.8); border: 1px solid var(--accent-pink);
             transform: scale(0.95); transition: transform 0.3s ease;
         }
         .lightbox-overlay.active .lightbox-img { transform: scale(1); }
         .lightbox-close {
-            position: absolute; top: 30px; right: 40px; background: none; border: none;
-            color: var(--text-pure); font-size: 2rem; cursor: pointer; transition: color 0.2s;
-            z-index: 3001; text-shadow: 0 0 10px rgba(255,255,255,0.2); /* UPGRADE */
+            position: absolute; top: 30px; right: 40px; background: none; border: none; color: var(--text-pure); font-size: 2rem; 
+            transition: color 0.2s; z-index: 3001; text-shadow: 0 0 10px rgba(255,255,255,0.2); 
         }
         .lightbox-close:hover { color: var(--accent-pink); transform: scale(1.1); }
 
@@ -480,7 +407,6 @@
             #indicator { bottom: -16px; top: auto; }
             .page-section { padding: 120px 20px 80px 20px; }
             
-            /* Remove fixed background attachment on mobile as iOS Safari handles it poorly */
             #home { background: linear-gradient(to bottom, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.2) 40%, rgba(3,3,3,0.2) 70%, #030303 100%), url('inspiredthreadsLogo.jpg') center top/cover no-repeat scroll; padding-top: 130px; padding-bottom: 60px; }
             
             .filter-bar { justify-content: center; }
@@ -493,15 +419,20 @@
 </head>
 <body>
 
+    <div class="noise-overlay"></div>
+    
+    <div class="cursor-dot" id="cursorDot"></div>
+    <div class="cursor-ring" id="cursorRing"></div>
+
     <header>
         <div class="brand-text">INSPIRED THREADS</div>
         <nav class="nav-container">
             <div id="indicator"></div>
-            <button class="nav-tab active" onclick="scrollToSection('home')">Home</button>
-            <button class="nav-tab" onclick="scrollToSection('shop')">Shop</button>
-            <button class="nav-tab" onclick="scrollToSection('about')">About</button>
-            <button class="nav-tab" onclick="scrollToSection('contact')">Contact</button>
-            <button class="nav-tab cart-btn" onclick="toggleCart()">Cart (<span id="cartNavCount">0</span>)</button>
+            <button class="nav-tab active hover-target" onclick="scrollToSection('home')">Home</button>
+            <button class="nav-tab hover-target" onclick="scrollToSection('shop')">Shop</button>
+            <button class="nav-tab hover-target" onclick="scrollToSection('about')">About</button>
+            <button class="nav-tab hover-target" onclick="scrollToSection('contact')">Contact</button>
+            <button class="nav-tab cart-btn hover-target" onclick="toggleCart()">Cart (<span id="cartNavCount">0</span>)</button>
         </nav>
     </header>
 
@@ -509,60 +440,60 @@
     <div class="cart-drawer" id="cartDrawer">
         <div class="cart-header">
             <h2>Your Cart</h2>
-            <button class="close-cart" onclick="toggleCart()">✕</button>
+            <button class="close-cart hover-target" onclick="toggleCart()">✕</button>
         </div>
         <div class="cart-items" id="cartItems">
-            <p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>
+            <p style="color:var(--text-muted); font-size: 1rem;">Your cart is currently empty.</p>
         </div>
         <div class="cart-footer">
             <div class="cart-total-row">
                 <span>Total:</span>
                 <span id="cartTotal">$0.00</span>
             </div>
-            <button class="checkout-btn" onclick="processCheckout()">Secure Checkout via Stripe</button>
+            <button class="checkout-btn magnetic-btn hover-target" onclick="processCheckout()">Secure Checkout via Stripe</button>
         </div>
     </div>
 
     <div class="tiktok-overlay" id="tiktokOverlay" onclick="closeTikTokModal(event)">
         <div class="tiktok-modal" onclick="event.stopPropagation()"> 
-            <button class="close-tiktok" onclick="closeTikTokModal()">✕</button>
-            <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center; font-weight: 800;">Live Claims</h2>
+            <button class="close-tiktok hover-target" onclick="closeTikTokModal()">✕</button>
+            <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 30px; text-transform: uppercase; letter-spacing: 0.15em; text-align: center; font-weight: 800;">Live Claims</h2>
             
             <div class="form-group">
                 <label>Select Claim Tier</label>
-                <select id="tiktokTier" class="variant-select" style="width: 100%; margin-bottom: 10px;" onchange="updateTikTokTotal()">
+                <select id="tiktokTier" class="variant-select hover-target" style="width: 100%; margin-bottom: 10px;" onchange="updateTikTokTotal()">
                     <option value="1.00" data-price-id="price_1ToElqFWt379RB9CShnW512b">Tier 1 - $1.00</option>
                     <option value="1.50" data-price-id="price_1ToElqFWt379RB9CTegULiuL">Tier 2 - $1.50</option>
                     <option value="2.00" data-price-id="price_1ToElqFWt379RB9CMDSOkhlt">Tier 3 - $2.00</option>
                 </select>
             </div>
 
-            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; margin-top: 20px;">
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 35px; margin-top: 25px;">
                 <label style="margin-bottom: 0;">Print Quantity</label>
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <button class="qty-btn" onclick="changeTikTokQty(-1)">-</button>
+                <div style="display: flex; align-items: center; gap: 18px;">
+                    <button class="qty-btn hover-target" onclick="changeTikTokQty(-1)">-</button>
                     <span id="tiktokQty" style="font-family: var(--font-mono); font-size: 1.4rem; font-weight: 800; color: var(--text-pure);">1</span>
-                    <button class="qty-btn" onclick="changeTikTokQty(1)">+</button>
+                    <button class="qty-btn hover-target" onclick="changeTikTokQty(1)">+</button>
                 </div>
             </div>
 
-            <div class="cart-total-row" style="border-top: 1px solid var(--border-subtle); padding-top: 20px; margin-bottom: 20px;">
+            <div class="cart-total-row" style="border-top: 1px solid var(--border-subtle); padding-top: 25px; margin-bottom: 25px;">
                 <span>Total:</span>
                 <span id="tiktokTotal" style="color: var(--accent-pink);">$1.00</span>
             </div>
 
-            <button class="checkout-btn" onclick="addTikTokToCart()">Add to Cart</button>
+            <button class="checkout-btn magnetic-btn hover-target" onclick="addTikTokToCart()">Add to Cart</button>
         </div>
     </div>
 
     <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeLightbox()">
-        <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+        <button class="lightbox-close hover-target" onclick="closeLightbox()">✕</button>
         <img src="" class="lightbox-img" id="lightboxImg" alt="Expanded View" onclick="event.stopPropagation()">
     </div>
 
     <section id="home" class="page-section">
         <div class="hero-content reveal">
-            <button class="tiktok-btn" onclick="openTikTokModal()">TikTok Live Claims</button>
+            <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
         </div>
     </section>
 
@@ -570,34 +501,34 @@
         <div class="shop-controls reveal">
             <h2 class="section-header">Featured Collection</h2>
             <div class="filter-bar">
-                <button class="filter-btn active" data-filter="dtf" id="defaultFilter">DTF Transfers</button>
+                <button class="filter-btn active hover-target" data-filter="dtf" id="defaultFilter">DTF Transfers</button>
                 
                 <div class="dropdown" tabindex="0">
-                    <div class="filter-btn dropdown-toggle">Thread Choice</div>
+                    <div class="filter-btn dropdown-toggle hover-target">Thread Choice</div>
                     <div class="dropdown-content">
-                        <button class="filter-btn" data-filter="thread-tshirt">T-Shirt's</button>
-                        <button class="filter-btn" data-filter="thread-crewneck">Crew Neck Sweatshirt's</button>
-                        <button class="filter-btn" data-filter="thread-hoodie">Hoodie's</button>
-                        <button class="filter-btn" data-filter="thread-tanktop">Tank Top's</button>
+                        <button class="filter-btn hover-target" data-filter="thread-tshirt">T-Shirt's</button>
+                        <button class="filter-btn hover-target" data-filter="thread-crewneck">Crew Neck Sweatshirt's</button>
+                        <button class="filter-btn hover-target" data-filter="thread-hoodie">Hoodie's</button>
+                        <button class="filter-btn hover-target" data-filter="thread-tanktop">Tank Top's</button>
                     </div>
                 </div>
                
-                <button class="filter-btn" data-filter="loaded-binders">Loaded Binders</button>
-                <button class="filter-btn" data-filter="corporate">Graphic Tote Bags</button>
+                <button class="filter-btn hover-target" data-filter="loaded-binders">Loaded Binders</button>
+                <button class="filter-btn hover-target" data-filter="corporate">Graphic Tote Bags</button>
             </div>
         </div>
 
-        <div class="shop-grid">
+        <div class="shop-grid" id="mainShopGrid">
             </div>
     </section>
 
     <section id="about" class="page-section">
         <h2 class="section-header reveal">The Standard</h2>
         <div style="max-width: 800px;">
-            <p class="reveal" style="font-size: 1.25rem; color: var(--text-muted); margin-bottom: 20px;">
+            <p class="reveal stagger-1" style="font-size: 1.25rem; color: var(--text-muted); margin-bottom: 25px;">
                 Inspired Threads operates on the principle that every garment is a canvas requiring technical precision. By utilizing advanced Direct-to-Garment (DTG) printing and commercial vinyl heat-press workflows, we bypass standard retail limitations to produce truly custom, durable apparel.
             </p>
-            <p class="reveal" style="font-size: 1.25rem; color: var(--text-muted);">
+            <p class="reveal stagger-2" style="font-size: 1.25rem; color: var(--text-muted);">
                 Whether you need a single highly-detailed graphic tee or a full production run for your business, we engineer clothing built to factory thresholds.
             </p>
         </div>
@@ -607,36 +538,120 @@
         <h2 class="section-header reveal">Intake Facility</h2>
         <div class="contact-layout reveal">
             <div class="contact-info">
-                <p>Submit your design parameters, garment preferences, and quantity requirements.</p>
-                <p>We process intake submissions to calculate precise quote thresholds for custom vector cuts and DTG fluid requirements.</p>
-                <span class="location-tag">Base of Operations: Port Huron, MI</span>
+                <p class="reveal stagger-1">Submit your design parameters, garment preferences, and quantity requirements.</p>
+                <p class="reveal stagger-2">We process intake submissions to calculate precise quote thresholds for custom vector cuts and DTG fluid requirements.</p>
+                <span class="location-tag reveal stagger-3">Base of Operations: Port Huron, MI</span>
             </div>
             
             <div class="form-container">
                 <form id="contactForm">
                     <div class="form-group">
                         <label for="name">Full Name / Organization</label>
-                        <input type="text" id="name" name="name" required>
+                        <input type="text" id="name" name="name" class="hover-target" required>
                     </div>
                     <div class="form-group">
                         <label for="email">Contact Email</label>
-                        <input type="email" id="email" name="email" required>
+                        <input type="email" id="email" name="email" class="hover-target" required>
                     </div>
                     <div class="form-group">
                         <label for="project">Garment Type & Quantity</label>
-                        <input type="text" id="project" name="project" placeholder="e.g. 15 Black Pullover Hoodies" required>
+                        <input type="text" id="project" name="project" class="hover-target" placeholder="e.g. 15 Black Pullover Hoodies" required>
                     </div>
                     <div class="form-group">
                         <label for="details">Design Specifications</label>
-                        <textarea id="details" name="details" rows="4" placeholder="Describe your graphic, placement (chest, back), and print method (DTG/Vinyl)" required></textarea>
+                        <textarea id="details" name="details" rows="4" class="hover-target" placeholder="Describe your graphic, placement (chest, back), and print method (DTG/Vinyl)" required></textarea>
                     </div>
-                    <button type="submit" class="submit-btn" id="submitBtn">Transmit Intake Request</button>
+                    <button type="submit" class="submit-btn magnetic-btn hover-target" id="submitBtn">Transmit Intake Request</button>
                 </form>
             </div>
         </div>
     </section>
 
     <script>
+        // --- 0. HARDWARE ACCELERATED UI ENGINE (Cursor, Magnetics, 3D Tracking) ---
+        const isDesktop = window.matchMedia("(pointer: fine)").matches;
+
+        if (isDesktop) {
+            // Cyber Cursor logic
+            const dot = document.getElementById('cursorDot');
+            const ring = document.getElementById('cursorRing');
+            let mouseX = window.innerWidth / 2;
+            let mouseY = window.innerHeight / 2;
+            let ringX = mouseX;
+            let ringY = mouseY;
+            
+            // Render Loop for Lerping (Smooth follow)
+            function renderCursor() {
+                ringX += (mouseX - ringX) * 0.15;
+                ringY += (mouseY - ringY) * 0.15;
+                dot.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
+                ring.style.transform = `translate(${ringX}px, ${ringY}px)`;
+                requestAnimationFrame(renderCursor);
+            }
+            requestAnimationFrame(renderCursor);
+
+            document.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            // Hover state for interactive elements
+            const attachHoverTargets = () => {
+                document.querySelectorAll('.hover-target').forEach(el => {
+                    el.addEventListener('mouseenter', () => ring.classList.add('hovering'));
+                    el.addEventListener('mouseleave', () => ring.classList.remove('hovering'));
+                });
+            };
+            attachHoverTargets();
+
+            // Magnetic Buttons
+            const attachMagnetics = () => {
+                document.querySelectorAll('.magnetic-btn').forEach(btn => {
+                    btn.addEventListener('mousemove', (e) => {
+                        const rect = btn.getBoundingClientRect();
+                        const x = e.clientX - rect.left - rect.width / 2;
+                        const y = e.clientY - rect.top - rect.height / 2;
+                        // Pull towards cursor
+                        btn.style.transform = `translate(${x * 0.3}px, ${y * 0.3}px) scale(1.05)`;
+                    });
+                    btn.addEventListener('mouseleave', () => {
+                        btn.style.transform = `translate(0px, 0px) scale(1)`;
+                    });
+                });
+            };
+            attachMagnetics();
+
+            // 3D Card Tracking setup (Function defined here, executed on render)
+            window.attach3DTracking = () => {
+                document.querySelectorAll('.product-card').forEach(card => {
+                    card.addEventListener('mousemove', (e) => {
+                        const rect = card.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+                        const centerX = rect.width / 2;
+                        const centerY = rect.height / 2;
+                        // Tilt limits (max 8 degrees)
+                        const rotateX = ((y - centerY) / centerY) * -8;
+                        const rotateY = ((x - centerX) / centerX) * 8;
+                        
+                        card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+                        card.classList.add('hover-target'); // ensure ring expands
+                    });
+                    
+                    card.addEventListener('mouseenter', () => ring.classList.add('hovering'));
+                    card.addEventListener('mouseleave', () => {
+                        card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+                        ring.classList.remove('hovering');
+                    });
+                });
+            };
+        } else {
+            // Stub for mobile to prevent undefined errors
+            window.attach3DTracking = () => {};
+            const attachHoverTargets = () => {};
+            const attachMagnetics = () => {};
+        }
+
         // --- 1. DYNAMIC NAVIGATION ENGINE ---
         const indicator = document.getElementById('indicator');
         const tabs = document.querySelectorAll('.nav-tab:not(.cart-btn)');
@@ -730,13 +745,32 @@
             }
         };
 
-        const shopGrid = document.querySelector('.shop-grid');
+        const shopGrid = document.getElementById('mainShopGrid');
         const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
+
+        // Inject Skeletons on Load
+        function renderSkeletons() {
+            let skelHTML = '';
+            for(let i=0; i<6; i++) {
+                skelHTML += `
+                    <div class="product-card skeleton">
+                        <div class="skeleton-img"></div>
+                        <div class="product-details" style="padding-top: 30px;">
+                            <div class="skeleton-text short"></div>
+                            <div class="skeleton-text title"></div>
+                            <div class="skeleton-text desc"></div>
+                            <div style="border-top: 1px solid var(--border-subtle); margin-top: 15px;">
+                                <div class="skeleton-btn"></div>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+            shopGrid.innerHTML = skelHTML;
+        }
+        renderSkeletons();
 
         // Initialize Shop Engine
         async function initShopEngine() {
-            shopGrid.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono);">SYNCING SECURE INVENTORY LOGIC...</p>';
-            
             try {
                 const response = await fetch('/api/products');
                 const products = await response.json();
@@ -752,7 +786,7 @@
                     
                     let variantHTML = '';
                     let defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
-                    let imageZoneHTML = `<div class="product-image-zone" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
+                    let imageZoneHTML = `<div class="product-image-zone" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #111;">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
 
                     let stockHTML = '';
                     let checkoutButtonHTML = '';
@@ -762,20 +796,19 @@
                         const colors = Object.keys(variantConfig[category].colors);
                         
                         defaultImage = variantConfig[category].colors[colors[0]] || '';
-                        imageZoneHTML = `<div class="product-image-zone" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;"></div>`;
+                        imageZoneHTML = `<div class="product-image-zone" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #111;"></div>`;
 
                         variantHTML = `
                             <div class="variant-grid">
-                                <select class="variant-select item-size" data-product-id="${product.id}">
+                                <select class="variant-select item-size hover-target" data-product-id="${product.id}">
                                     ${sizes.map(size => `<option value="${size}">${size}</option>`).join('')}
                                 </select>
-                                <select class="variant-select item-color" data-category="${category}" data-target="img-zone-${product.id}" data-product-id="${product.id}">
+                                <select class="variant-select item-color hover-target" data-category="${category}" data-target="img-zone-${product.id}" data-product-id="${product.id}">
                                     ${colors.map(color => `<option value="${color}">${color}</option>`).join('')}
                                 </select>
                             </div>
                         `;
 
-                        // Evaluate default color selection inventory bounds string
                         const defaultSize = sizes[0];
                         const defaultColor = colors[0];
                         const stockKey = `stock_${defaultSize}_${defaultColor}`;
@@ -788,7 +821,7 @@
                             } else {
                                 stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}">INVENTORY COUNTER: ${stockCount}</div>`;
                                 checkoutButtonHTML = `
-                                    <button class="stripe-btn add-cart-btn" id="btn-zone-${product.id}"
+                                    <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
                                         data-name="${product.name}" 
                                         data-price="${product.price}" 
                                         data-price-id="${product.priceId}" 
@@ -800,7 +833,7 @@
                         } else {
                             stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}" style="display:none;"></div>`;
                             checkoutButtonHTML = `
-                                <button class="stripe-btn add-cart-btn" id="btn-zone-${product.id}"
+                                <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
                                     data-name="${product.name}" 
                                     data-price="${product.price}" 
                                     data-price-id="${product.priceId}" 
@@ -813,17 +846,17 @@
                         if (category === 'loaded-binders') {
                              let thumbnailsHTML = '';
                              if (defaultImage) {
-                                 thumbnailsHTML += `<img src="${defaultImage}" alt="Main View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
+                                 thumbnailsHTML += `<img src="${defaultImage}" alt="Main View" class="hover-target" onclick="this.parentElement.previousElementSibling.src=this.src">`;
                              }
                              for (let i = 1; i <= 4; i++) {
                                  let extraImg = product.metadata ? product.metadata[`thumb${i}`] : null;
                                  if (extraImg) {
-                                     thumbnailsHTML += `<img src="${extraImg}" alt="Alternate View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
+                                     thumbnailsHTML += `<img src="${extraImg}" alt="Alternate View" class="hover-target" onclick="this.parentElement.previousElementSibling.src=this.src">`;
                                  }
                              }
                              imageZoneHTML = `
                                 <div class="binder-gallery">
-                                    <img src="${defaultImage || 'placeholder.jpg'}" class="main-binder-img" alt="${product.name}" onclick="openLightbox(this.src)">
+                                    <img src="${defaultImage || 'placeholder.jpg'}" class="main-binder-img hover-target" alt="${product.name}" onclick="openLightbox(this.src)">
                                     <div class="binder-thumbnails">
                                         ${thumbnailsHTML}
                                     </div>
@@ -839,7 +872,7 @@
                             } else {
                                 stockHTML = `<div class="stock-badge">INVENTORY COUNTER: ${stockCount}</div>`;
                                 checkoutButtonHTML = `
-                                    <button class="stripe-btn add-cart-btn" 
+                                    <button class="stripe-btn add-cart-btn magnetic-btn hover-target" 
                                         data-name="${product.name}" 
                                         data-price="${product.price}" 
                                         data-price-id="${product.priceId}" 
@@ -850,7 +883,7 @@
                             }
                         } else {
                             checkoutButtonHTML = `
-                                <button class="stripe-btn add-cart-btn" 
+                                <button class="stripe-btn add-cart-btn magnetic-btn hover-target" 
                                     data-name="${product.name}" 
                                     data-price="${product.price}" 
                                     data-price-id="${product.priceId}" 
@@ -883,6 +916,7 @@
 
                 attachDynamicListeners();
                 applyFilter('dtf', document.getElementById('defaultFilter')); 
+                if(isDesktop) { attach3DTracking(); attachMagnetics(); }
 
             } catch (error) {
                 console.error("Transmission Error:", error);
@@ -942,7 +976,7 @@
                         
                         if (btnZone && btnZone.tagName === 'SPAN') {
                             const btn = document.createElement('button');
-                            btn.className = 'stripe-btn add-cart-btn';
+                            btn.className = 'stripe-btn add-cart-btn magnetic-btn hover-target';
                             btn.id = `btn-zone-${productId}`;
                             btn.setAttribute('data-name', name);
                             btn.setAttribute('data-price', price);
@@ -951,13 +985,14 @@
                             btn.innerText = 'Add to Cart';
                             btnZone.replaceWith(btn);
                             attachCartListenerToElement(btn);
+                            if(isDesktop) attachMagnetics();
                         }
                     }
                 } else {
                     badge.style.display = 'none';
                     if (btnZone && btnZone.tagName === 'SPAN') {
                         const btn = document.createElement('button');
-                        btn.className = 'stripe-btn add-cart-btn';
+                        btn.className = 'stripe-btn add-cart-btn magnetic-btn hover-target';
                         btn.id = `btn-zone-${productId}`;
                         btn.setAttribute('data-name', name);
                         btn.setAttribute('data-price', price);
@@ -966,6 +1001,7 @@
                         btn.innerText = 'Add to Cart';
                         btnZone.replaceWith(btn);
                         attachCartListenerToElement(btn);
+                        if(isDesktop) attachMagnetics();
                     }
                 }
             }
@@ -1012,7 +1048,7 @@
                             imageZone.style.backgroundImage = `url('${newImage}')`;
                         } else if (imageZone) {
                              imageZone.style.backgroundImage = 'none';
-                             imageZone.style.backgroundColor = '#151515';
+                             imageZone.style.backgroundColor = '#111';
                              imageZone.innerHTML = '[ IMAGE NOT FOUND ]';
                         }
                     }
@@ -1075,7 +1111,7 @@
             cartItemsContainer.innerHTML = '';
 
             if (cart.length === 0) {
-                cartItemsContainer.innerHTML = '<p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>';
+                cartItemsContainer.innerHTML = '<p style="color:var(--text-muted); font-size: 1rem;">Your cart is currently empty.</p>';
             } else {
                 cart.forEach((item, index) => {
                     totalItems += item.quantity;
@@ -1089,7 +1125,7 @@
                                 <div class="cart-item-meta">${metaText}</div>
                                 <div class="cart-item-price">$${item.price.toFixed(2)} x ${item.quantity}</div>
                             </div>
-                            <button class="remove-item" onclick="removeFromCart(${index})">✕</button>
+                            <button class="remove-item hover-target" onclick="removeFromCart(${index})">✕</button>
                         </div>
                     `;
                 });
@@ -1097,6 +1133,7 @@
             
             cartNavCount.innerText = totalItems;
             cartTotal.innerText = `$${totalPrice.toFixed(2)}`;
+            if(isDesktop) attachHoverTargets(); // reattach to dynamic remove buttons
         }
 
         function removeFromCart(index) {
@@ -1108,7 +1145,7 @@
         async function processCheckout() {
             if(cart.length === 0) return alert("Please add items to your cart before checking out.");
             
-            const checkoutBtn = document.querySelector('.checkout-btn');
+            const checkoutBtn = document.querySelector('.cart-drawer .checkout-btn');
             checkoutBtn.innerText = "INITIALIZING SECURE LINK...";
             checkoutBtn.disabled = true;
 
@@ -1135,11 +1172,10 @@
                     checkoutBtn.style.background = "";
                     checkoutBtn.innerText = "Secure Checkout via Stripe";
                     checkoutBtn.disabled = false;
-                    checkoutBtn.style.fontSize = "0.9rem";
+                    checkoutBtn.style.fontSize = "0.95rem";
                 }, 4000);
             }
         }
-
 
         // --- 5. FORMSPREE ENGINE ---
         document.getElementById('contactForm').addEventListener('submit', async (e) => {
