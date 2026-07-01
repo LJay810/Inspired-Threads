@@ -898,11 +898,20 @@ Thank you for supporting my small business and understanding the handmade nature
                         
                         defaultImage = variantConfig[category].colors[colors[0]] || '';
                         
-                        // DTF Overlay Logic Calculation
+                        // DTF Overlay Logic Calculation (Upgraded for Metadata Overrides)
                         let overlayStyle = "";
-                        if (dtfPlacements[category]) {
-                            const pos = dtfPlacements[category];
-                            overlayStyle = `top: ${pos.top}; left: ${pos.left}; width: ${pos.width}; height: ${pos.height};`;
+                        // If it has a category default OR specific Stripe metadata, build the box
+                        if (dtfPlacements[category] || product.metadata.dtf_top) {
+                            
+                            // 1. Look for custom Stripe metadata first. 
+                            // 2. If null, fallback to our dtfPlacements dictionary.
+                            // 3. If category doesn't exist, use a safe default center placement.
+                            const top = product.metadata.dtf_top || dtfPlacements[category]?.top || '35%';
+                            const left = product.metadata.dtf_left || dtfPlacements[category]?.left || '40%';
+                            const width = product.metadata.dtf_width || dtfPlacements[category]?.width || '20%';
+                            const height = product.metadata.dtf_height || dtfPlacements[category]?.height || '40%';
+                            
+                            overlayStyle = `top: ${top}; left: ${left}; width: ${width}; height: ${height};`;
                         }
 
                         // Builds image zone with Absolute Positioned Overlay inside it
