@@ -45,8 +45,8 @@
 
         /* --- ENHANCEMENT: CUSTOM CURSOR --- */
         @media (pointer: fine) {
-            body, a, button, select, .nav-tab, .filter-btn, .stripe-btn, .tiktok-btn, .checkout-btn, img { cursor: none !important; }
-            input, textarea { cursor: text !important; } /* Preserves text editing caret */
+            body, a, button, select, option, .nav-tab, .filter-btn, .stripe-btn, .tiktok-btn, .checkout-btn, img, .product-image-zone { cursor: none !important; }
+            input, textarea { cursor: text !important; } 
         }
         
         .cursor-dot {
@@ -199,9 +199,9 @@
 
         /* --- BINDER SPECIFIC UI --- */
         .binder-gallery { display: flex; flex-direction: column; height: 330px; background: #151515; border-bottom: 1px solid var(--border-subtle); }
-        .main-binder-img { width: 100%; height: 240px; object-fit: contain; padding: 10px; transition: opacity 0.3s ease; }
+        .main-binder-img { width: 100%; height: 240px; object-fit: contain; padding: 10px; transition: opacity 0.3s ease; cursor: zoom-in !important; }
         .binder-thumbnails { display: flex; height: 90px; gap: 8px; padding: 10px; background: rgba(0,0,0,0.4); border-top: 1px solid var(--border-subtle); }
-        .binder-thumbnails img { width: 25%; height: 100%; object-fit: cover; border: 1px solid transparent; border-radius: 4px; transition: var(--transition-snappy); opacity: 0.6; }
+        .binder-thumbnails img { width: 25%; height: 100%; object-fit: cover; border: 1px solid transparent; border-radius: 4px; transition: var(--transition-snappy); opacity: 0.6; cursor: pointer; }
         .binder-thumbnails img:hover, .binder-thumbnails img:active { border-color: var(--accent-pink); opacity: 1; transform: translateY(-2px); }
 
         .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; transform: translateZ(25px); }
@@ -337,7 +337,7 @@
             <button class="close-tiktok hover-target" onclick="closeTikTokModal()">✕</button>
             <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">Live Claims</h2>
             
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 10px;">
                 <label>Select Claim Tier</label>
                 <select id="tiktokTier" class="variant-select hover-target" style="width: 100%; margin-bottom: 10px;" onchange="updateTikTokTotal()">
                     <option value="1.00" data-price-id="price_1ToElqFWt379RB9CShnW512b">Tier 1 - $1.00</option>
@@ -449,7 +449,6 @@
 
     <script>
         // --- 0. HARDWARE ACCELERATED UI ENGINE ---
-        // Safely scoped functions mapping the visual logic
         let attachHoverTargets = () => {};
         let attachMagnetics = () => {};
         let attach3DTracking = () => {};
@@ -468,7 +467,6 @@
                 ringX += (mouseX - ringX) * 0.15;
                 ringY += (mouseY - ringY) * 0.15;
                 
-                // Using left/top preserves the translate(-50%, -50%) centering in CSS
                 dot.style.left = mouseX + 'px';
                 dot.style.top = mouseY + 'px';
                 ring.style.left = ringX + 'px';
@@ -483,7 +481,6 @@
                 mouseY = e.clientY;
             });
 
-            // Isolate attachments to prevent memory leaks on shop syncs
             attachHoverTargets = () => {
                 document.querySelectorAll('.hover-target:not(.hover-bound)').forEach(el => {
                     el.classList.add('hover-bound');
@@ -666,7 +663,7 @@
                     
                     let variantHTML = '';
                     let defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
-                    let imageZoneHTML = `<div class="product-image-zone" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #151515;">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
+                    let imageZoneHTML = '';
 
                     let stockHTML = '';
                     let checkoutButtonHTML = '';
@@ -676,7 +673,9 @@
                         const colors = Object.keys(variantConfig[category].colors);
                         
                         defaultImage = variantConfig[category].colors[colors[0]] || '';
-                        imageZoneHTML = `<div class="product-image-zone" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #151515;"></div>`;
+                        
+                        // NEW: Configured for Lightbox Tracking
+                        imageZoneHTML = `<div class="product-image-zone hover-target" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #151515; cursor: none !important;" onclick="openVariantLightbox(this)"></div>`;
 
                         variantHTML = `
                             <div class="variant-grid">
@@ -743,6 +742,9 @@
                                     </div>
                                 </div>
                             `;
+                        } else {
+                            // Non-variant DTF or Corporate Items
+                            imageZoneHTML = `<div class="product-image-zone hover-target" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #151515; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
                         }
 
                         const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
@@ -1103,6 +1105,17 @@
         }
         function closeLightbox() {
             document.getElementById('lightboxOverlay').classList.remove('active');
+        }
+
+        // Extracts URL from dynamic background elements for Lightbox
+        function openVariantLightbox(element) {
+            const bg = element.style.backgroundImage;
+            if (bg && bg !== 'none') {
+                const urlMatch = bg.match(/url\(['"]?(.*?)['"]?\)/);
+                if (urlMatch && urlMatch[1]) {
+                    openLightbox(urlMatch[1]);
+                }
+            }
         }
 
         // --- 7. TIKTOK LIVE CLAIMS ENGINE ---
