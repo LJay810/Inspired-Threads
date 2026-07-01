@@ -794,21 +794,12 @@ Thank you for supporting my small business and understanding the handmade nature
         window.dtfRegistry = []; // Global memory for all available DTF products
         window.attachedDtfs = {}; // Maps { productId : {dtfData} }
         
-        // Math coordinates for precise transparent .png overlay positioning
         const dtfPlacements = {
-            /* T-Shirt: Shifted down further from the collarbone. */
-            'thread-tshirt': { top: '35%', width: '20%', height: '40%', left: '40%' },
-            
-            /* Hoodie: Shrunk width to fix chest proportion, recalculated center. */
-            'thread-hoodie': { top: '39%', width: '16%', height: '35%', left: '42%' }, 
-            
-            /* Crewneck: Shrunk width to fix chest proportion, recalculated center. */
+            'thread-tshirt': { top: '35%', width: '18%', height: '40%', left: '41%' },
+            'thread-hoodie': { top: '38%', width: '18%', height: '35%', left: '41%' }, 
             'thread-crewneck': { top: '35%', width: '18%', height: '40%', left: '41%' },
-            
-            /* Tanktop: Verified perfect placement, untouched. */
-            'thread-tanktop': { top: '42%', width: '15%', height: '35%', left: '42.5%' } 
+            'thread-tanktop': { top: '35%', width: '18%', height: '35%', left: '41%' } 
         };
-
 
         // --- 4. DYNAMIC STRIPE INVENTORY & VARIANT ENGINE ---
         const variantConfig = {
@@ -916,7 +907,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
                         // Builds image zone with Absolute Positioned Overlay inside it
                         imageZoneHTML = `
-                            <div class="product-image-zone hover-target" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #151515; cursor: none !important;" onclick="openVariantLightbox(this)">
+                            <div class="product-image-zone hover-target" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff; cursor: none !important;" onclick="openVariantLightbox(this)">
                                 <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
                             </div>
                         `;
