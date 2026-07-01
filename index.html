@@ -550,10 +550,10 @@
 
         // --- 3. DYNAMIC STRIPE INVENTORY & VARIANT ENGINE ---
         
-        // Configuration Dictionary: Centralized mapping for all variant colors and images
+        // Configuration Dictionary: Appended 3X and 4X options across all structural layouts
         const variantConfig = {
             'thread-tshirt': {
-                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL'],
+                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL', '3X', '4X'],
                 colors: {
                     'Black': 'IMG_8033.JPEG', 'White': 'IMG_8034.JPEG', 'Gray': 'GreyTShirt.png', 
                     'RoyalBlue': 'RoyalBlueT.png', 'LightBlue': 'LightBlueT.png', 'NavyBlue': 'NavyBlueShirt.png', 
@@ -564,7 +564,7 @@
                 }
             },
             'thread-hoodie': {
-                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL'],
+                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL', '3X', '4X'],
                 colors: {
                     'Black': 'BlackHoodie.png', 'Navy': 'NavyHoodie.png', 'Pink': 'PinkHoodie.png', 
                     'Red': 'RedHoodie.png', 'White': 'WhiteHoodie.png', 'Sport Grey': 'SportGreyHoodie.png', 
@@ -574,7 +574,7 @@
                 }
             },
             'thread-crewneck': {
-                sizes: ['Small', 'Medium', 'Large', 'XL'],
+                sizes: ['Small', 'Medium', 'Large', 'XL', '3X', '4X'],
                 colors: {
                     'Black': 'BlackCrewNeck.png', 'White': 'WhiteCrewNeck.png', 'Gray': 'AthleticGreyCrewNeck.png', 
                     'LightPink': 'LightPinkCrewNeck.png', 'Sand': 'SandCrewNeck.png', 'Red': 'RedCrewNeck.png', 
@@ -584,7 +584,7 @@
                 }
             },
             'thread-tanktop': {
-                sizes: ['Small', 'Medium', 'Large'],
+                sizes: ['Small', 'Medium', 'Large', '3X', '4X'],
                 colors: {
                     'Black': 'BlackTanktop.png', 'White': 'WhiteTankTop.png', 'Grey': 'GreyTankTop.png', 
                     'HotPink': 'HotPinkTankTop.png', 'TahitiBlue': 'TahitiBlueTankTop.png', 
@@ -602,95 +602,129 @@
             shopGrid.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono);">SYNCING SECURE INVENTORY LOGIC...</p>';
             
             try {
-                // Calls the Vercel Serverless Function to get active Stripe products
                 const response = await fetch('/api/products');
                 const products = await response.json();
                 
-                shopGrid.innerHTML = ''; // Clear loading state
+                shopGrid.innerHTML = ''; 
+                window.productInventory = {}; // Global layout variable to process current telemetry matrix
 
                 products.forEach(product => {
                     const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
                     const category = product.metadata ? product.metadata.category : 'dtf';
                     
+                    window.productInventory[product.id] = product.metadata || {};
+                    
                     let variantHTML = '';
-                    // Fallback to a template placeholder string if she didn't upload an image yet
                     let defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
                     let imageZoneHTML = `<div class="product-image-zone" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
 
-                    // Generate Dropdowns if Metadata flag is true
+                    let stockHTML = '';
+                    let checkoutButtonHTML = '';
+
                     if (hasVariants && variantConfig[category]) {
                         const sizes = variantConfig[category].sizes;
                         const colors = Object.keys(variantConfig[category].colors);
                         
-                        // Set the default image to the first color in the dictionary
                         defaultImage = variantConfig[category].colors[colors[0]] || '';
                         imageZoneHTML = `<div class="product-image-zone" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;"></div>`;
 
                         variantHTML = `
                             <div class="variant-grid">
-                                <select class="variant-select item-size">
+                                <select class="variant-select item-size" data-product-id="${product.id}">
                                     ${sizes.map(size => `<option value="${size}">${size}</option>`).join('')}
                                 </select>
-                                <select class="variant-select item-color" data-category="${category}" data-target="img-zone-${product.id}">
+                                <select class="variant-select item-color" data-category="${category}" data-target="img-zone-${product.id}" data-product-id="${product.id}">
                                     ${colors.map(color => `<option value="${color}">${color}</option>`).join('')}
                                 </select>
                             </div>
                         `;
-                    } else if (category === 'loaded-binders') {
-                         let thumbnailsHTML = '';
-                         
-                         // 1. Drop the main Stripe image into the first thumbnail slot
-                         if (defaultImage) {
-                             thumbnailsHTML += `<img src="${defaultImage}" alt="Main View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
-                         }
 
-                         // 2. Loop through the metadata to find any extra local thumbnails (thumb1, thumb2, etc.)
-                         for (let i = 1; i <= 4; i++) {
-                             let extraImg = product.metadata ? product.metadata[`thumb${i}`] : null;
-                             if (extraImg) {
-                                 thumbnailsHTML += `<img src="${extraImg}" alt="Alternate View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
-                             }
-                         }
+                        // Evaluate default color selection inventory bounds string
+                        const defaultSize = sizes[0];
+                        const defaultColor = colors[0];
+                        const stockKey = `stock_${defaultSize}_${defaultColor}`;
+                        const stockCount = product.metadata && product.metadata[stockKey] !== undefined ? parseInt(product.metadata[stockKey]) : null;
 
-                         imageZoneHTML = `
-                            <div class="binder-gallery">
-                                <img src="${defaultImage || 'placeholder.jpg'}" class="main-binder-img" alt="${product.name}" onclick="openLightbox(this.src)">
-                                <div class="binder-thumbnails">
-                                    ${thumbnailsHTML}
-                                </div>
-                            </div>
-                        `;
-                    }
-
-                    // --- NEW INVENTORY LOGIC GATE ---
-                    let stockHTML = '';
-                    let checkoutButtonHTML = '';
-                    const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
-                    const isSoldOut = stockCount !== null && stockCount <= 0;
-
-                    if (stockCount !== null) {
-                        if (isSoldOut) {
-                            stockHTML = `<div class="stock-badge sold-out">STATUS: OUT OF STOCK</div>`;
+                        if (stockCount !== null) {
+                            if (stockCount <= 0) {
+                                stockHTML = `<div class="stock-badge sold-out" id="stock-badge-${product.id}">STATUS: OUT OF STOCK</div>`;
+                                checkoutButtonHTML = `<span id="btn-zone-${product.id}" style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
+                            } else {
+                                stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}">INVENTORY COUNTER: ${stockCount}</div>`;
+                                checkoutButtonHTML = `
+                                    <button class="stripe-btn add-cart-btn" id="btn-zone-${product.id}"
+                                        data-name="${product.name}" 
+                                        data-price="${product.price}" 
+                                        data-price-id="${product.priceId}" 
+                                        data-has-variants="${hasVariants}">
+                                        Add to Cart
+                                    </button>
+                                `;
+                            }
                         } else {
-                            stockHTML = `<div class="stock-badge">INVENTORY COUNTER: ${stockCount}</div>`;
+                            stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}" style="display:none;"></div>`;
+                            checkoutButtonHTML = `
+                                <button class="stripe-btn add-cart-btn" id="btn-zone-${product.id}"
+                                    data-name="${product.name}" 
+                                    data-price="${product.price}" 
+                                    data-price-id="${product.priceId}" 
+                                    data-has-variants="${hasVariants}">
+                                    Add to Cart
+                                </button>
+                            `;
+                        }
+                    } else {
+                        if (category === 'loaded-binders') {
+                             let thumbnailsHTML = '';
+                             if (defaultImage) {
+                                 thumbnailsHTML += `<img src="${defaultImage}" alt="Main View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
+                             }
+                             for (let i = 1; i <= 4; i++) {
+                                 let extraImg = product.metadata ? product.metadata[`thumb${i}`] : null;
+                                 if (extraImg) {
+                                     thumbnailsHTML += `<img src="${extraImg}" alt="Alternate View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
+                                 }
+                             }
+                             imageZoneHTML = `
+                                <div class="binder-gallery">
+                                    <img src="${defaultImage || 'placeholder.jpg'}" class="main-binder-img" alt="${product.name}" onclick="openLightbox(this.src)">
+                                    <div class="binder-thumbnails">
+                                        ${thumbnailsHTML}
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
+                        if (stockCount !== null) {
+                            if (stockCount <= 0) {
+                                stockHTML = `<div class="stock-badge sold-out">STATUS: OUT OF STOCK</div>`;
+                                checkoutButtonHTML = `<span style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
+                            } else {
+                                stockHTML = `<div class="stock-badge">INVENTORY COUNTER: ${stockCount}</div>`;
+                                checkoutButtonHTML = `
+                                    <button class="stripe-btn add-cart-btn" 
+                                        data-name="${product.name}" 
+                                        data-price="${product.price}" 
+                                        data-price-id="${product.priceId}" 
+                                        data-has-variants="${hasVariants}">
+                                        Add to Cart
+                                    </button>
+                                `;
+                            }
+                        } else {
+                            checkoutButtonHTML = `
+                                <button class="stripe-btn add-cart-btn" 
+                                    data-name="${product.name}" 
+                                    data-price="${product.price}" 
+                                    data-price-id="${product.priceId}" 
+                                    data-has-variants="${hasVariants}">
+                                    Add to Cart
+                                </button>
+                            `;
                         }
                     }
 
-                    if (isSoldOut) {
-                        checkoutButtonHTML = `<span style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
-                    } else {
-                        checkoutButtonHTML = `
-                            <button class="stripe-btn add-cart-btn" 
-                                data-name="${product.name}" 
-                                data-price="${product.price}" 
-                                data-price-id="${product.priceId}" 
-                                data-has-variants="${hasVariants}">
-                                Add to Cart
-                            </button>
-                        `;
-                    }
-
-                    // Construct the final card
                     const cardHTML = `
                         <div class="product-card reveal active" data-category="${category}">
                             ${imageZoneHTML}
@@ -703,6 +737,7 @@
                                 <div class="checkout-row">
                                     <span class="price-tag">$${product.price}</span>
                                     ${checkoutButtonHTML}
+                                }
                                 </div>
                             </div>
                         </div>
@@ -712,7 +747,7 @@
                 });
 
                 attachDynamicListeners();
-                applyFilter('dtf', document.getElementById('defaultFilter')); // Default view
+                applyFilter('dtf', document.getElementById('defaultFilter')); 
 
             } catch (error) {
                 console.error("Transmission Error:", error);
@@ -722,27 +757,85 @@
 
         // Attach listeners to dynamically generated UI elements
         function attachDynamicListeners() {
-            // Image Swapping Logic
-            document.querySelectorAll('.item-color').forEach(select => {
-                select.addEventListener('change', (e) => {
-                    const category = e.target.getAttribute('data-category');
-                    const targetZoneId = e.target.getAttribute('data-target');
-                    const selectedColor = e.target.value;
-                    const newImage = variantConfig[category].colors[selectedColor];
-                    
-                    const imageZone = document.getElementById(targetZoneId);
-                    if (newImage && imageZone) {
-                        imageZone.style.backgroundImage = `url('${newImage}')`;
-                    } else if (imageZone) {
-                         imageZone.style.backgroundImage = 'none';
-                         imageZone.style.backgroundColor = '#151515';
-                         imageZone.innerHTML = '[ IMAGE NOT FOUND ]';
-                    }
-                });
-            });
+            function updateVariantStock(productId) {
+                const card = document.querySelector(`#img-zone-${productId}`)?.closest('.product-card') || document.querySelector(`#stock-badge-${productId}`)?.closest('.product-card');
+                if (!card) return;
+                
+                const sizeSelect = card.querySelector('.item-size');
+                const colorSelect = card.querySelector('.item-color');
+                if (!sizeSelect || !colorSelect) return;
 
-            // Cart Logic Re-attachment
-            document.querySelectorAll('.add-cart-btn').forEach(btn => {
+                const size = sizeSelect.value;
+                const color = colorSelect.value;
+                const metadata = window.productInventory[productId] || {};
+                const stockKey = `stock_${size}_${color}`;
+                const stockCount = metadata[stockKey] !== undefined ? parseInt(metadata[stockKey]) : null;
+                
+                const badge = document.getElementById(`stock-badge-${productId}`);
+                let btnZone = document.getElementById(`btn-zone-${productId}`);
+
+                const name = card.querySelector('.product-title').innerText;
+                const priceId = btnZone?.getAttribute('data-price-id') || window.currentPriceIdCache?.[productId] || '';
+                
+                if (btnZone && btnZone.getAttribute('data-price-id')) {
+                    window.currentPriceIdCache = window.currentPriceIdCache || {};
+                    window.currentPriceIdCache[productId] = btnZone.getAttribute('data-price-id');
+                }
+                const actualPriceId = btnZone?.getAttribute('data-price-id') || window.currentPriceIdCache?.[productId] || '';
+                const price = card.querySelector('.price-tag').innerText.replace('$', '');
+
+                if (stockCount !== null) {
+                    badge.style.display = 'inline-block';
+                    if (stockCount <= 0) {
+                        badge.className = 'stock-badge sold-out';
+                        badge.innerText = 'STATUS: OUT OF STOCK';
+                        
+                        if (btnZone && btnZone.tagName !== 'SPAN') {
+                            const span = document.createElement('span');
+                            span.id = `btn-zone-${productId}`;
+                            span.style.color = 'var(--accent-pink)';
+                            span.style.fontFamily = 'var(--font-mono)';
+                            span.style.fontSize = '0.9rem';
+                            span.style.fontWeight = '800';
+                            span.style.letterSpacing = '0.15em';
+                            span.innerText = 'SOLD OUT';
+                            btnZone.replaceWith(span);
+                        }
+                    } else {
+                        badge.className = 'stock-badge';
+                        badge.innerText = `INVENTORY COUNTER: ${stockCount}`;
+                        
+                        if (btnZone && btnZone.tagName === 'SPAN') {
+                            const btn = document.createElement('button');
+                            btn.className = 'stripe-btn add-cart-btn';
+                            btn.id = `btn-zone-${productId}`;
+                            btn.setAttribute('data-name', name);
+                            btn.setAttribute('data-price', price);
+                            btn.setAttribute('data-price-id', actualPriceId);
+                            btn.setAttribute('data-has-variants', 'true');
+                            btn.innerText = 'Add to Cart';
+                            btnZone.replaceWith(btn);
+                            attachCartListenerToElement(btn);
+                        }
+                    }
+                } else {
+                    badge.style.display = 'none';
+                    if (btnZone && btnZone.tagName === 'SPAN') {
+                        const btn = document.createElement('button');
+                        btn.className = 'stripe-btn add-cart-btn';
+                        btn.id = `btn-zone-${productId}`;
+                        btn.setAttribute('data-name', name);
+                        btn.setAttribute('data-price', price);
+                        btn.setAttribute('data-price-id', actualPriceId);
+                        btn.setAttribute('data-has-variants', 'true');
+                        btn.innerText = 'Add to Cart';
+                        btnZone.replaceWith(btn);
+                        attachCartListenerToElement(btn);
+                    }
+                }
+            }
+
+            function attachCartListenerToElement(btn) {
                 btn.addEventListener('click', (e) => {
                     const card = e.target.closest('.product-card');
                     const name = btn.getAttribute('data-name');
@@ -767,6 +860,33 @@
                     updateCartUI();
                     if(!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
                 });
+            }
+
+            document.querySelectorAll('.item-size, .item-color').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    const productId = e.target.getAttribute('data-product-id');
+                    
+                    if (e.target.classList.contains('item-color')) {
+                        const category = e.target.getAttribute('data-category');
+                        const targetZoneId = e.target.getAttribute('data-target');
+                        const selectedColor = e.target.value;
+                        const newImage = variantConfig[category].colors[selectedColor];
+                        
+                        const imageZone = document.getElementById(targetZoneId);
+                        if (newImage && imageZone) {
+                            imageZone.style.backgroundImage = `url('${newImage}')`;
+                        } else if (imageZone) {
+                             imageZone.style.backgroundImage = 'none';
+                             imageZone.style.backgroundColor = '#151515';
+                             imageZone.innerHTML = '[ IMAGE NOT FOUND ]';
+                        }
+                    }
+                    updateVariantStock(productId);
+                });
+            });
+
+            document.querySelectorAll('.add-cart-btn').forEach(btn => {
+                attachCartListenerToElement(btn);
             });
         }
 
@@ -872,10 +992,9 @@
             } catch (error) {
                 console.error("Checkout Error:", error);
                 
-                // NEW: Display the specific out-of-stock error from the backend
                 checkoutBtn.innerText = error.message; 
                 checkoutBtn.style.background = "#ef4444";
-                checkoutBtn.style.fontSize = "0.7rem"; // shrink slightly to fit longer messages
+                checkoutBtn.style.fontSize = "0.7rem"; 
                 
                 setTimeout(() => {
                     checkoutBtn.style.background = "";
@@ -943,7 +1062,7 @@
             }
 
             updateCartUI(); 
-            initShopEngine(); // Triggers the dynamic fetch on load
+            initShopEngine(); 
         };
     </script>
 </body>

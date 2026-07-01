@@ -25,40 +25,59 @@ export default async function handler(req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
+    const metadata = session.metadata;
 
-    let requiresRefund = false;
+    if (metadata && metadata.item_count) {
+      const itemCount = parseInt(metadata.item_count);
+      let requiresRefund = false;
 
-    for (const item of lineItems.data) {
-      const productId = item.price.product;
-      const quantityPurchased = item.quantity;
-      const product = await stripe.products.retrieve(productId);
-      
-      if (product.metadata && product.metadata.stock !== undefined) {
-        const currentStock = parseInt(product.metadata.stock);
+      for (let i = 0; i < itemCount; i++) {
+        const priceId = metadata[`id_${i}`];
+        const size = metadata[`size_${i}`];
+        const color = metadata[`color_${i}`];
+        const quantityPurchased = parseInt(metadata[`qty_${i}`]);
 
-        // --- DEFENSE LEVEL 2: THE FAILSAFE ---
-        if (currentStock < quantityPurchased) {
-            // Overdraft detected! Flag for refund and hard-stop stock at 0.
-            requiresRefund = true;
-            await stripe.products.update(productId, {
-                metadata: { ...product.metadata, stock: '0' },
-            });
+        const price = await stripe.prices.retrieve(priceId, { expand: ['product'] });
+        const product = price.product;
+        const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
+
+        if (hasVariants) {
+          const stockKey = `stock_${size}_${color}`;
+          if (product.metadata && product.metadata[stockKey] !== undefined) {
+            const currentStock = parseInt(product.metadata[stockKey]);
+            const updateData = { ...product.metadata };
+            
+            if (currentStock < quantityPurchased) {
+              requiresRefund = true;
+              updateData[stockKey] = '0';
+            } else {
+              updateData[stockKey] = (currentStock - quantityPurchased).toString();
+            }
+            await stripe.products.update(product.id, { metadata: updateData });
+          }
         } else {
-            // Normal deduction
-            const newStock = currentStock - quantityPurchased;
-            await stripe.products.update(productId, {
+          if (product.metadata && product.metadata.stock !== undefined) {
+            const currentStock = parseInt(product.metadata.stock);
+            if (currentStock < quantityPurchased) {
+              requiresRefund = true;
+              await stripe.products.update(product.id, {
+                metadata: { ...product.metadata, stock: '0' },
+              });
+            } else {
+              const newStock = currentStock - quantityPurchased;
+              await stripe.products.update(product.id, {
                 metadata: { ...product.metadata, stock: newStock.toString() },
-            });
+              });
+            }
+          }
         }
       }
-    }
 
-    // --- TRIGGER STRIPE AUTO-REFUND ---
-    if (requiresRefund && session.payment_intent) {
+      if (requiresRefund && session.payment_intent) {
         await stripe.refunds.create({
-            payment_intent: session.payment_intent,
+          payment_intent: session.payment_intent,
         });
+      }
     }
   }
 
