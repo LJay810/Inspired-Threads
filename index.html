@@ -618,12 +618,20 @@
                             </div>
                         `;
                     } else if (category === 'loaded-binders') {
-                         // Custom handling for binders to maintain the gallery layout
-                         const totalImages = product.images || [];
                          let thumbnailsHTML = '';
-                         totalImages.forEach(imgUrl => {
-                             thumbnailsHTML += `<img src="${imgUrl}" alt="Binder View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
-                         });
+                         
+                         // 1. Drop the main Stripe image into the first thumbnail slot
+                         if (defaultImage) {
+                             thumbnailsHTML += `<img src="${defaultImage}" alt="Main View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
+                         }
+
+                         // 2. Loop through the metadata to find any extra local thumbnails (thumb1, thumb2, etc.)
+                         for (let i = 1; i <= 4; i++) {
+                             let extraImg = product.metadata ? product.metadata[`thumb${i}`] : null;
+                             if (extraImg) {
+                                 thumbnailsHTML += `<img src="${extraImg}" alt="Alternate View" onclick="this.parentElement.previousElementSibling.src=this.src">`;
+                             }
+                         }
 
                          imageZoneHTML = `
                             <div class="binder-gallery">
