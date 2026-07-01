@@ -135,29 +135,90 @@
 
         /* --- HERO --- */
         #home { 
-            background: linear-gradient(to right, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.3) 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat; 
-            flex-direction: row;
-            justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.6) 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat; 
+            flex-direction: column;
+            justify-content: center;
             align-items: center; 
-            text-align: left; 
+            text-align: center; 
             max-width: 100%;
             border-bottom: none;
             position: relative;
         }
 
-        .hero-content { flex: 1; max-width: 750px; z-index: 2; }
-        .hero-visual { flex: 1; display: flex; justify-content: flex-end; align-items: center; z-index: 2; }
+        .hero-content { flex: 1; max-width: 900px; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 50px;}
         
-        .main-logo { 
-            width: clamp(240px, 24vw, 400px);
-            border-radius: 8px; 
-            box-shadow: 0 0 50px rgba(255, 0, 127, 0.15); 
-            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-        }
-        .main-logo:hover { transform: scale(1.03) translateY(-5px); box-shadow: 0 15px 60px rgba(255, 0, 127, 0.25); }
-
         .hero-title { font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; line-height: 1.1; margin-bottom: 24px; text-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .hero-subtitle { color: var(--text-muted); font-size: clamp(1.1rem, 2vw, 1.4rem); font-weight: 300; letter-spacing: 0.05em; text-shadow: 0 4px 15px rgba(0,0,0,0.9); }
+
+        /* --- TIKTOK BUTTON --- */
+        .tiktok-btn {
+            margin-top: 40px;
+            background: rgba(255, 0, 127, 0.05);
+            border: 1px solid var(--accent-pink);
+            color: var(--text-pure);
+            padding: 14px 35px;
+            border-radius: 50px; 
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 0 20px rgba(255, 0, 127, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        .tiktok-btn::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(255,0,127,0.2), transparent);
+            transform: translateX(-100%); transition: transform 0.6s ease;
+        }
+        .tiktok-btn:hover {
+            background: rgba(255, 0, 127, 0.15);
+            box-shadow: 0 0 40px rgba(255, 0, 127, 0.4);
+            transform: translateY(-3px);
+        }
+        .tiktok-btn:hover::before { transform: translateX(100%); }
+
+        /* --- TIKTOK MODAL --- */
+        .tiktok-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.85); z-index: 3000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+            backdrop-filter: blur(10px);
+        }
+        .tiktok-overlay.active { opacity: 1; pointer-events: all; }
+        
+        .tiktok-modal {
+            background: rgba(15, 15, 15, 0.95);
+            border: 1px solid var(--accent-pink);
+            border-radius: 16px;
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px rgba(255,0,127,0.15);
+            transform: translateY(30px) scale(0.95);
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            position: relative;
+        }
+        .tiktok-overlay.active .tiktok-modal { transform: translateY(0) scale(1); }
+        
+        .close-tiktok {
+            position: absolute; top: 15px; right: 20px; background: none; border: none;
+            color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.2s;
+        }
+        .close-tiktok:hover { color: var(--accent-pink); }
+
+        .qty-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle);
+            color: var(--text-pure); width: 35px; height: 35px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+            font-size: 1.2rem; transition: var(--transition-snappy);
+        }
+        .qty-btn:hover { background: rgba(255,0,127,0.2); border-color: var(--accent-pink); color: var(--accent-pink); }
+
 
         /* --- SHOP CATEGORY FILTERS --- */
         .shop-controls {
@@ -370,11 +431,11 @@
             .cart-btn { font-size: 0.65rem; padding: 5px 10px; margin-left: 5px;}
             #indicator { bottom: -16px; top: auto; }
             .page-section { padding: 120px 20px 80px 20px; }
-            #home { flex-direction: column; justify-content: flex-start; text-align: left; padding-top: 110px; padding-bottom: 60px; background: linear-gradient(to top, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.3) 70%), url('inspiredthreadsLogo.jpg') no-repeat; background-position: 20% top; background-size: cover; }
-            .hero-visual { position: absolute; top: 100px; right: 20px; width: auto; margin: 0; }
-            .main-logo { width: 130px; box-shadow: 0 0 30px rgba(255, 0, 127, 0.3); }
-            .hero-content { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding-right: 150px; box-sizing: border-box; margin-top: 0; }
+            
+            #home { flex-direction: column; justify-content: flex-start; text-align: center; padding-top: 130px; padding-bottom: 60px; background: linear-gradient(to bottom, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.5) 80%), url('inspiredthreadsLogo.jpg') no-repeat; background-position: center top; background-size: cover; }
+            .hero-content { display: flex; flex-direction: column; align-items: center; width: 100%; padding-right: 0; box-sizing: border-box; margin-top: 0; }
             .hero-title { font-size: 1.9rem; margin-bottom: 15px; overflow-wrap: break-word; }
+            
             .filter-bar { justify-content: center; }
             .cart-drawer { width: 100%; right: -100%; padding: 20px;}
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
@@ -414,6 +475,38 @@
         </div>
     </div>
 
+    <div class="tiktok-overlay" id="tiktokOverlay" onclick="closeTikTokModal(event)">
+        <div class="tiktok-modal" onclick="event.stopPropagation()"> 
+            <button class="close-tiktok" onclick="closeTikTokModal()">✕</button>
+            <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">Live Claims</h2>
+            
+            <div class="form-group">
+                <label>Select Claim Tier</label>
+                <select id="tiktokTier" class="variant-select" style="width: 100%; margin-bottom: 10px;" onchange="updateTikTokTotal()">
+                    <option value="1.00" data-price-id="price_1ToElqFWt379RB9CShnW512b">Tier 1 - $1.00</option>
+                    <option value="1.50" data-price-id="price_1ToElqFWt379RB9CTegULiuL">Tier 2 - $1.50</option>
+                    <option value="2.00" data-price-id="price_1ToElqFWt379RB9CMDSOkhlt">Tier 3 - $2.00</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; margin-top: 20px;">
+                <label style="margin-bottom: 0;">Print Quantity</label>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button class="qty-btn" onclick="changeTikTokQty(-1)">-</button>
+                    <span id="tiktokQty" style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--text-pure);">1</span>
+                    <button class="qty-btn" onclick="changeTikTokQty(1)">+</button>
+                </div>
+            </div>
+
+            <div class="cart-total-row" style="border-top: 1px solid var(--border-subtle); padding-top: 20px; margin-bottom: 20px;">
+                <span>Total:</span>
+                <span id="tiktokTotal" style="color: var(--accent-pink);">$1.00</span>
+            </div>
+
+            <button class="checkout-btn" onclick="addTikTokToCart()">Add to Cart</button>
+        </div>
+    </div>
+
     <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeLightbox()">
         <button class="lightbox-close" onclick="closeLightbox()">✕</button>
         <img src="" class="lightbox-img" id="lightboxImg" alt="Expanded View" onclick="event.stopPropagation()">
@@ -423,9 +516,7 @@
         <div class="hero-content reveal">
             <h1 class="hero-title">Precision Apparel Engineering</h1>
             <p class="hero-subtitle">Custom DTF & Commercial Vinyl Application</p>
-        </div>
-        <div class="hero-visual reveal">
-            <img src="inspiredthreadsLogo.jpg" class="main-logo" alt="Inspired Threads Logo">
+            <button class="tiktok-btn" onclick="openTikTokModal()">TikTok Live Claims</button>
         </div>
     </section>
 
@@ -550,7 +641,6 @@
 
         // --- 3. DYNAMIC STRIPE INVENTORY & VARIANT ENGINE ---
         
-        // Configuration Dictionary: Appended 3X and 4X options across all structural layouts
         const variantConfig = {
             'thread-tshirt': {
                 sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL', '3X', '4X'],
@@ -606,7 +696,7 @@
                 const products = await response.json();
                 
                 shopGrid.innerHTML = ''; 
-                window.productInventory = {}; // Global layout variable to process current telemetry matrix
+                window.productInventory = {}; 
 
                 products.forEach(product => {
                     const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
@@ -737,7 +827,6 @@
                                 <div class="checkout-row">
                                     <span class="price-tag">$${product.price}</span>
                                     ${checkoutButtonHTML}
-                                
                                 </div>
                             </div>
                         </div>
@@ -1049,6 +1138,65 @@
         function closeLightbox() {
             document.getElementById('lightboxOverlay').classList.remove('active');
         }
+
+        // --- 7. TIKTOK LIVE CLAIMS ENGINE ---
+        let currentTikTokQty = 1;
+
+        function openTikTokModal() {
+            document.getElementById('tiktokOverlay').classList.add('active');
+            currentTikTokQty = 1;
+            document.getElementById('tiktokQty').innerText = currentTikTokQty;
+            document.getElementById('tiktokTier').selectedIndex = 0; 
+            updateTikTokTotal();
+        }
+
+        function closeTikTokModal(e) {
+            if (e && e.target !== document.getElementById('tiktokOverlay')) return;
+            document.getElementById('tiktokOverlay').classList.remove('active');
+        }
+
+        function changeTikTokQty(change) {
+            currentTikTokQty += change;
+            if (currentTikTokQty < 1) currentTikTokQty = 1;
+            document.getElementById('tiktokQty').innerText = currentTikTokQty;
+            updateTikTokTotal();
+        }
+
+        function updateTikTokTotal() {
+            const tierPrice = parseFloat(document.getElementById('tiktokTier').value);
+            const total = tierPrice * currentTikTokQty;
+            document.getElementById('tiktokTotal').innerText = `$${total.toFixed(2)}`;
+        }
+
+        function addTikTokToCart() {
+            const select = document.getElementById('tiktokTier');
+            const selectedOption = select.options[select.selectedIndex];
+            
+            const price = parseFloat(selectedOption.value);
+            const priceId = selectedOption.getAttribute('data-price-id');
+            const quantity = currentTikTokQty;
+            
+            const tierText = selectedOption.innerText.split(' - ')[0];
+            const name = `TikTok Live Claim (${tierText})`;
+
+            if (priceId.includes("REPLACE_ME")) {
+                alert("SYSTEM HALT: Stripe Price IDs have not been configured in the HTML.");
+                return;
+            }
+
+            const existingItem = cart.find(item => item.priceId === priceId);
+            if (existingItem) {
+                existingItem.quantity += quantity;
+            } else {
+                cart.push({ id: Date.now(), name, price, priceId, size: null, color: null, quantity });
+            }
+            
+            localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+            updateCartUI();
+            closeTikTokModal();
+            if(!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
+        }
+
 
         window.onload = () => { 
             onScroll();  
