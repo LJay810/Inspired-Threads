@@ -43,7 +43,8 @@ export default async function handler(req, res) {
         }
 
         const orderMetadata = cartItems.reduce((acc, item, index) => {
-            acc[`Item_${index + 1}`] = `${item.name} - ${item.size || 'N/A'} - ${item.color || 'N/A'}`;
+            // Simplified to remove visual redundancy in the Stripe Dashboard
+            acc[`Item_${index + 1}`] = item.name;
             return acc;
         }, {});
 
