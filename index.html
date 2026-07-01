@@ -37,21 +37,22 @@
             animation: fadeIn 1.2s ease-out forwards;
         }
 
-        /* --- ENHANCEMENT 6: CUSTOM CURSOR --- */
+        /* --- ENHANCEMENT 6: CUSTOM CURSOR (FIXED POSITIONING & TEXT CARETS) --- */
         @media (pointer: fine) {
-            body { cursor: none; }
-            a, button, input, select, textarea { cursor: none; }
+            body, a, button, select { cursor: none; }
+            /* Critical Fix: Ensure native text cursor remains for form inputs */
+            input, textarea { cursor: text; }
         }
         
         .cursor-dot {
             width: 6px; height: 6px; background-color: var(--accent-pink); border-radius: 50%;
-            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+            position: fixed; pointer-events: none; z-index: 9999;
             transform: translate(-50%, -50%); display: none;
             box-shadow: 0 0 10px rgba(255, 0, 127, 0.8);
         }
         .cursor-ring {
             width: 30px; height: 30px; border: 2px solid rgba(255, 0, 127, 0.5); border-radius: 50%;
-            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9998;
+            position: fixed; pointer-events: none; z-index: 9998;
             transform: translate(-50%, -50%); transition: width 0.2s, height 0.2s, background-color 0.2s, border-color 0.2s;
             display: none;
         }
@@ -140,7 +141,7 @@
 
         .hero-content { flex: 1; max-width: 900px; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 50px;}
         
-        /* --- TIKTOK BUTTON (ENHANCEMENT 3: MAGNETIC READY) --- */
+        /* --- TIKTOK BUTTON --- */
         @keyframes breathe {
             0% { box-shadow: 0 0 20px rgba(255, 0, 127, 0.2), inset 0 0 10px rgba(255, 0, 127, 0.1); }
             50% { box-shadow: 0 0 40px rgba(255, 0, 127, 0.5), inset 0 0 15px rgba(255, 0, 127, 0.2); }
@@ -153,7 +154,6 @@
             font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.25em;
             transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), background 0.4s ease;
             animation: breathe 3s infinite ease-in-out; position: relative; overflow: hidden; backdrop-filter: blur(10px);
-            /* Magnetic structural requirement */
             display: inline-block;
         }
         .tiktok-btn::before {
@@ -244,7 +244,7 @@
         /* --- E-COMMERCE SHOP GRID --- */
         .shop-grid { 
             display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 45px; 
-            min-height: 500px; align-content: start; position: relative; z-index: 1; perspective: 1000px; /* Required for 3D */
+            min-height: 500px; align-content: start; position: relative; z-index: 1; perspective: 1000px; 
         }
         
         /* ENHANCEMENT 1: 3D CARD FOUNDATION */
@@ -265,17 +265,17 @@
         .product-image-zone {
             height: 300px; background: #111; display: flex; align-items: center; justify-content: center;
             border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.1em;
-            transition: background-color 0.3s ease; transform: translateZ(20px); /* 3D pop */
+            transition: background-color 0.3s ease; transform: translateZ(20px); 
         }
 
         /* --- BINDER SPECIFIC UI --- */
         .binder-gallery { display: flex; flex-direction: column; height: 350px; background: #111; border-bottom: 1px solid var(--border-subtle); }
-        .main-binder-img { width: 100%; height: 260px; object-fit: contain; padding: 15px; transition: opacity 0.3s ease; }
+        .main-binder-img { width: 100%; height: 260px; object-fit: contain; padding: 15px; transition: opacity 0.3s ease; cursor: zoom-in; }
         .binder-thumbnails { display: flex; height: 90px; gap: 10px; padding: 10px; background: rgba(0,0,0,0.6); border-top: 1px solid var(--border-subtle); }
-        .binder-thumbnails img { width: 25%; height: 100%; object-fit: cover; border: 1px solid transparent; border-radius: 6px; transition: var(--transition-snappy); opacity: 0.5; }
+        .binder-thumbnails img { width: 25%; height: 100%; object-fit: cover; border: 1px solid transparent; border-radius: 6px; transition: var(--transition-snappy); opacity: 0.5; cursor: pointer; }
         .binder-thumbnails img:hover, .binder-thumbnails img:active { border-color: var(--accent-pink); opacity: 1; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
 
-        .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; transform: translateZ(30px); /* 3D pop */ }
+        .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; transform: translateZ(30px); }
         .product-tag { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 12px; font-weight: 700; }
         .product-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.03em; }
         .product-desc { color: var(--text-muted); font-size: 1rem; margin-bottom: 25px; flex-grow: 1; line-height: 1.7;}
@@ -290,7 +290,7 @@
         .variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 30px; }
         .variant-select {
             background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); color: var(--text-pure);
-            padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem; outline: none; 
+            padding: 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.85rem; outline: none; cursor: pointer;
             transition: var(--transition-snappy); appearance: none;
         }
         .variant-select:focus { border-color: var(--accent-pink); box-shadow: 0 0 15px rgba(255,0,127,0.15); background: rgba(0,0,0,0.5);}
@@ -301,9 +301,8 @@
         
         .stripe-btn {
             background: var(--text-pure); color: var(--bg-main); border: none; padding: 14px 30px;
-            font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em;
-            border-radius: 8px; transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s;
-            display: inline-block; /* Magnetic structural req */
+            font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; cursor: pointer;
+            border-radius: 8px; transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s; display: inline-block;
         }
         .stripe-btn:hover { background: var(--accent-pink); color: var(--text-pure); box-shadow: 0 10px 20px rgba(255,0,127,0.3); }
 
@@ -325,7 +324,7 @@
         
         .cart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 35px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 20px;}
         .cart-header h2 { font-size: 1.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 900; }
-        .close-cart { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: var(--transition-snappy); text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+        .close-cart { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: var(--transition-snappy); text-shadow: 0 0 10px rgba(255,255,255,0.2); }
         .close-cart:hover { color: var(--accent-pink); transform: scale(1.1); }
 
         .cart-items { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px; }
@@ -339,7 +338,7 @@
         .cart-item-meta { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-pink); margin-bottom: 8px; }
         .cart-item-price { font-family: var(--font-mono); font-weight: 800; font-size: 1.1rem; }
         
-        .remove-item { background: none; border: none; color: var(--text-muted); transition: color 0.2s; font-size: 1.4rem; }
+        .remove-item { background: none; border: none; color: var(--text-muted); cursor: pointer; transition: color 0.2s; font-size: 1.4rem; }
         .remove-item:hover { color: #ef4444; transform: scale(1.1); }
 
         .cart-footer { border-top: 1px solid var(--border-subtle); padding-top: 30px; margin-top: 25px; }
@@ -348,36 +347,30 @@
         .checkout-btn {
             background: var(--accent-pink); color: var(--text-pure); border: none; width: 100%; padding: 20px;
             font-size: 0.95rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; border-radius: 8px; 
-            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease; display: inline-block;
+            cursor: pointer; transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease; display: inline-block;
         }
         .checkout-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 15px 35px rgba(255, 0, 127, 0.4); }
 
         .cart-items::-webkit-scrollbar { width: 6px; }
         .cart-items::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
 
-        /* --- CONTACT FORM --- */
+        /* --- CONTACT FORM (RESTORED TO ORIGINAL BACKUP DESIGN) --- */
         .contact-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 80px; }
-        .contact-info p { color: var(--text-muted); font-size: 1.2rem; margin-bottom: 24px; line-height: 1.8;}
-        .location-tag { font-family: var(--font-mono); color: var(--accent-pink); font-size: 0.9rem; letter-spacing: 0.15em; text-transform: uppercase; display: block; margin-top: 50px; font-weight: 700;}
+        .contact-info p { color: var(--text-muted); font-size: 1.15rem; margin-bottom: 24px; line-height: 1.6;}
+        .location-tag { font-family: var(--font-mono); color: var(--accent-pink); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-top: 50px; font-weight: 700;}
         
-        .form-container {
-            background: rgba(15,15,15,0.6); padding: 50px; border: 1px solid var(--border-subtle); border-radius: 16px; box-shadow: 0 30px 60px rgba(0,0,0,0.8); backdrop-filter: blur(10px);
-            transition: var(--transition-fluid);
-        }
-        .form-container:hover { border-color: rgba(255,0,127,0.3); box-shadow: 0 30px 60px rgba(0,0,0,0.8), 0 0 40px rgba(255,0,127,0.1); }
-
-        .form-group { margin-bottom: 35px; position: relative; }
-        .form-group label { display: block; font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 12px; color: var(--text-muted); transition: var(--transition-snappy); font-weight: 700;}
-        .form-group input, .form-group textarea { width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-pure); padding: 15px; font-size: 1.1rem; font-family: inherit; transition: var(--transition-snappy); }
-        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--accent-pink); background: rgba(0,0,0,0.4); box-shadow: 0 0 15px rgba(255,0,127,0.1); }
+        .form-group { margin-bottom: 30px; position: relative; }
+        .form-group label { display: block; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; color: var(--text-muted); transition: var(--transition-snappy); }
+        .form-group input, .form-group textarea { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border-subtle); color: var(--text-pure); padding: 12px 0; font-size: 1.05rem; font-family: inherit; transition: var(--transition-snappy); }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-bottom-color: var(--accent-pink); }
         .form-group input:focus + label, .form-group textarea:focus + label { color: var(--accent-pink); }
         
         .submit-btn { 
-            background: var(--accent-pink); color: var(--text-pure); border: none; padding: 20px 0; width: 100%; 
-            font-size: 0.95rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; border-radius: 8px; 
-            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s; display: block; margin-top: 30px; 
+            background: var(--accent-pink); color: var(--text-pure); border: none; padding: 18px 0; width: 100%; 
+            font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 6px; 
+            cursor: pointer; transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s; display: block; margin-top: 20px; 
         }
-        .submit-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 15px 35px rgba(255, 0, 127, 0.4); }
+        .submit-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 10px 25px rgba(255, 0, 127, 0.3); }
 
         /* --- LIGHTBOX OVERLAY --- */
         .lightbox-overlay {
@@ -393,7 +386,7 @@
         .lightbox-overlay.active .lightbox-img { transform: scale(1); }
         .lightbox-close {
             position: absolute; top: 30px; right: 40px; background: none; border: none; color: var(--text-pure); font-size: 2rem; 
-            transition: color 0.2s; z-index: 3001; text-shadow: 0 0 10px rgba(255,255,255,0.2); 
+            cursor: pointer; transition: color 0.2s; z-index: 3001; text-shadow: 0 0 10px rgba(255,255,255,0.2); 
         }
         .lightbox-close:hover { color: var(--accent-pink); transform: scale(1.1); }
 
@@ -412,7 +405,6 @@
             .filter-bar { justify-content: center; }
             .cart-drawer { width: 100%; right: -100%; padding: 25px;}
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
-            .form-container { padding: 30px; }
             .lightbox-close { top: 20px; right: 20px; }
         }
     </style>
@@ -459,7 +451,7 @@
             <button class="close-tiktok hover-target" onclick="closeTikTokModal()">✕</button>
             <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 30px; text-transform: uppercase; letter-spacing: 0.15em; text-align: center; font-weight: 800;">Live Claims</h2>
             
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 10px;">
                 <label>Select Claim Tier</label>
                 <select id="tiktokTier" class="variant-select hover-target" style="width: 100%; margin-bottom: 10px;" onchange="updateTikTokTotal()">
                     <option value="1.00" data-price-id="price_1ToElqFWt379RB9CShnW512b">Tier 1 - $1.00</option>
@@ -543,23 +535,23 @@
                 <span class="location-tag reveal stagger-3">Base of Operations: Port Huron, MI</span>
             </div>
             
-            <div class="form-container">
+            <div style="background: var(--bg-card); padding: 40px; border: 1px solid var(--border-subtle); border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
                 <form id="contactForm">
                     <div class="form-group">
                         <label for="name">Full Name / Organization</label>
-                        <input type="text" id="name" name="name" class="hover-target" required>
+                        <input type="text" id="name" name="name" required>
                     </div>
                     <div class="form-group">
                         <label for="email">Contact Email</label>
-                        <input type="email" id="email" name="email" class="hover-target" required>
+                        <input type="email" id="email" name="email" required>
                     </div>
                     <div class="form-group">
                         <label for="project">Garment Type & Quantity</label>
-                        <input type="text" id="project" name="project" class="hover-target" placeholder="e.g. 15 Black Pullover Hoodies" required>
+                        <input type="text" id="project" name="project" placeholder="e.g. 15 Black Pullover Hoodies" required>
                     </div>
                     <div class="form-group">
                         <label for="details">Design Specifications</label>
-                        <textarea id="details" name="details" rows="4" class="hover-target" placeholder="Describe your graphic, placement (chest, back), and print method (DTG/Vinyl)" required></textarea>
+                        <textarea id="details" name="details" rows="4" placeholder="Describe your graphic, placement (chest, back), and print method (DTG/Vinyl)" required></textarea>
                     </div>
                     <button type="submit" class="submit-btn magnetic-btn hover-target" id="submitBtn">Transmit Intake Request</button>
                 </form>
@@ -568,7 +560,12 @@
     </section>
 
     <script>
-        // --- 0. HARDWARE ACCELERATED UI ENGINE (Cursor, Magnetics, 3D Tracking) ---
+        // --- 0. GLOBAL DECLARATIONS FOR HARDWARE ACCELERATED UI ENGINE ---
+        // By defining these globally here, they will never throw ReferenceErrors in your shop init function.
+        let attachHoverTargets = () => {};
+        let attachMagnetics = () => {};
+        let attach3DTracking = () => {};
+        
         const isDesktop = window.matchMedia("(pointer: fine)").matches;
 
         if (isDesktop) {
@@ -580,12 +577,17 @@
             let ringX = mouseX;
             let ringY = mouseY;
             
-            // Render Loop for Lerping (Smooth follow)
+            // Render Loop for Lerping (Smooth follow) & Fixed Math
             function renderCursor() {
                 ringX += (mouseX - ringX) * 0.15;
                 ringY += (mouseY - ringY) * 0.15;
-                dot.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
-                ring.style.transform = `translate(${ringX}px, ${ringY}px)`;
+                
+                // Using left/top guarantees the CSS translate(-50%, -50%) keeps the dot perfectly centered on the pointer.
+                dot.style.left = mouseX + 'px';
+                dot.style.top = mouseY + 'px';
+                ring.style.left = ringX + 'px';
+                ring.style.top = ringY + 'px';
+                
                 requestAnimationFrame(renderCursor);
             }
             requestAnimationFrame(renderCursor);
@@ -596,7 +598,7 @@
             });
 
             // Hover state for interactive elements
-            const attachHoverTargets = () => {
+            attachHoverTargets = () => {
                 document.querySelectorAll('.hover-target').forEach(el => {
                     el.addEventListener('mouseenter', () => ring.classList.add('hovering'));
                     el.addEventListener('mouseleave', () => ring.classList.remove('hovering'));
@@ -605,13 +607,13 @@
             attachHoverTargets();
 
             // Magnetic Buttons
-            const attachMagnetics = () => {
+            attachMagnetics = () => {
                 document.querySelectorAll('.magnetic-btn').forEach(btn => {
                     btn.addEventListener('mousemove', (e) => {
                         const rect = btn.getBoundingClientRect();
                         const x = e.clientX - rect.left - rect.width / 2;
                         const y = e.clientY - rect.top - rect.height / 2;
-                        // Pull towards cursor
+                        // Pull towards cursor safely
                         btn.style.transform = `translate(${x * 0.3}px, ${y * 0.3}px) scale(1.05)`;
                     });
                     btn.addEventListener('mouseleave', () => {
@@ -621,8 +623,8 @@
             };
             attachMagnetics();
 
-            // 3D Card Tracking setup (Function defined here, executed on render)
-            window.attach3DTracking = () => {
+            // 3D Card Tracking
+            attach3DTracking = () => {
                 document.querySelectorAll('.product-card').forEach(card => {
                     card.addEventListener('mousemove', (e) => {
                         const rect = card.getBoundingClientRect();
@@ -645,11 +647,6 @@
                     });
                 });
             };
-        } else {
-            // Stub for mobile to prevent undefined errors
-            window.attach3DTracking = () => {};
-            const attachHoverTargets = () => {};
-            const attachMagnetics = () => {};
         }
 
         // --- 1. DYNAMIC NAVIGATION ENGINE ---
@@ -745,6 +742,7 @@
             }
         };
 
+        // Ensuring we grab the shopGrid accurately
         const shopGrid = document.getElementById('mainShopGrid');
         const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
 
@@ -765,7 +763,7 @@
                         </div>
                     </div>`;
             }
-            shopGrid.innerHTML = skelHTML;
+            if(shopGrid) shopGrid.innerHTML = skelHTML;
         }
         renderSkeletons();
 
@@ -916,11 +914,11 @@
 
                 attachDynamicListeners();
                 applyFilter('dtf', document.getElementById('defaultFilter')); 
-                if(isDesktop) { attach3DTracking(); attachMagnetics(); }
+                if(isDesktop) { attach3DTracking(); attachMagnetics(); attachHoverTargets(); }
 
             } catch (error) {
                 console.error("Transmission Error:", error);
-                shopGrid.innerHTML = '<p style="color: #ef4444; font-family: var(--font-mono);">ERROR: INVENTORY SYNC FAILED.</p>';
+                shopGrid.innerHTML = '<p style="color: #ef4444; font-family: var(--font-mono); margin-top: 20px;">ERROR: INVENTORY SYNC FAILED.</p>';
             }
         }
 
@@ -985,7 +983,7 @@
                             btn.innerText = 'Add to Cart';
                             btnZone.replaceWith(btn);
                             attachCartListenerToElement(btn);
-                            if(isDesktop) attachMagnetics();
+                            if(isDesktop) { attachMagnetics(); attachHoverTargets(); }
                         }
                     }
                 } else {
@@ -1001,7 +999,7 @@
                         btn.innerText = 'Add to Cart';
                         btnZone.replaceWith(btn);
                         attachCartListenerToElement(btn);
-                        if(isDesktop) attachMagnetics();
+                        if(isDesktop) { attachMagnetics(); attachHoverTargets(); }
                     }
                 }
             }
