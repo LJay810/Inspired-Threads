@@ -796,10 +796,17 @@ Thank you for supporting my small business and understanding the handmade nature
         
         // Math coordinates for precise transparent .png overlay positioning
         const dtfPlacements = {
-            'thread-tshirt': { top: '28%', width: '32%', height: '40%', left: '34%' },
-            'thread-hoodie': { top: '34%', width: '26%', height: '35%', left: '37%' }, 
-            'thread-crewneck': { top: '30%', width: '30%', height: '38%', left: '35%' },
-            'thread-tanktop': { top: '36%', width: '25%', height: '35%', left: '37.5%' } 
+            /* T-Shirt: Model is closest. Shrunk width, shifted down from collarbone. */
+            'thread-tshirt': { top: '32%', width: '24%', height: 'auto', left: '38%' },
+            
+            /* Hoodie: Shifted much lower to clear the drawstrings. */
+            'thread-hoodie': { top: '38%', width: '20%', height: 'auto', left: '40%' }, 
+            
+            /* Crewneck: Model is slightly further back than T-shirt. */
+            'thread-crewneck': { top: '34%', width: '22%', height: 'auto', left: '39%' },
+            
+            /* Tanktop: Model is zoomed furthest out. Dramatically shrunk to match scale. */
+            'thread-tanktop': { top: '42%', width: '15%', height: 'auto', left: '42.5%' } 
         };
 
 
