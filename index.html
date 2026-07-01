@@ -59,7 +59,7 @@
             transform: translateY(0);
         }
 
-        /* --- FIXED DYNAMIC HEADER (ENHANCED GLASSMORPHISM) --- */
+        /* --- FIXED DYNAMIC HEADER (GLASSMORPHISM) --- */
         header { 
             position: fixed; 
             top: 0; 
@@ -153,28 +153,20 @@
             -webkit-text-fill-color: transparent;
         }
 
-        /* --- HERO (PARALLAX ENHANCED) --- */
+        /* --- HERO (PARALLAX + TEXT REMOVED) --- */
         #home { 
-            /* SEVERE ENHANCEMENT: Fluid Parallax Scrolling */
             background: linear-gradient(to bottom, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.1) 40%, rgba(3,3,3,0.1) 70%, #030303 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat fixed; 
             flex-direction: column;
             justify-content: center;
             align-items: center; 
             text-align: center; 
             max-width: 100%;
+            border-bottom: none;
             position: relative;
         }
 
-        .hero-content { 
-            flex: 1; 
-            max-width: 900px; 
-            z-index: 2; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
-        }
-
+        .hero-content { flex: 1; max-width: 900px; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 50px;}
+        
         /* --- TIKTOK BUTTON (NEON GLOW) --- */
         @keyframes breathe {
             0% { box-shadow: 0 0 20px rgba(255, 0, 127, 0.2), inset 0 0 10px rgba(255, 0, 127, 0.1); }
@@ -183,6 +175,7 @@
         }
 
         .tiktok-btn {
+            margin-top: 40px;
             background: rgba(255, 0, 127, 0.08);
             border: 1px solid var(--accent-pink);
             color: var(--text-pure);
@@ -213,27 +206,36 @@
         }
         .tiktok-btn:hover::before { transform: translateX(100%); }
 
-        /* --- MODALS (ENHANCED BLUR) --- */
-        .tiktok-overlay, .lightbox-overlay, .cart-overlay {
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
+        /* --- TIKTOK MODAL (CAREFUL UPGRADE) --- */
+        .tiktok-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.75); z-index: 3000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); /* UPGRADE */
         }
+        .tiktok-overlay.active { opacity: 1; pointer-events: all; }
         
         .tiktok-modal {
-            background: rgba(10, 10, 10, 0.85);
+            background: rgba(10, 10, 10, 0.85); /* UPGRADE */
             border: 1px solid var(--accent-pink);
-            border-radius: 20px;
+            border-radius: 20px; /* UPGRADE */
             padding: 40px;
             width: 90%;
             max-width: 420px;
-            box-shadow: 0 30px 80px rgba(0,0,0,1), 0 0 40px rgba(255,0,127,0.2);
-            transform: translateY(40px) scale(0.9);
+            box-shadow: 0 30px 80px rgba(0,0,0,1), 0 0 40px rgba(255,0,127,0.2); /* UPGRADE */
+            transform: translateY(30px) scale(0.95);
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            position: relative;
         }
         .tiktok-overlay.active .tiktok-modal { transform: translateY(0) scale(1); }
         
-        .close-tiktok, .lightbox-close, .close-cart {
-            text-shadow: 0 0 10px rgba(255,255,255,0.2);
+        .close-tiktok {
+            position: absolute; top: 15px; right: 20px; background: none; border: none;
+            color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.2s;
+            text-shadow: 0 0 10px rgba(255,255,255,0.2); /* UPGRADE */
         }
+        .close-tiktok:hover { color: var(--accent-pink); }
 
         .qty-btn {
             background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
@@ -243,11 +245,12 @@
         }
         .qty-btn:hover { background: rgba(255,0,127,0.2); border-color: var(--accent-pink); color: var(--text-pure); box-shadow: 0 0 15px rgba(255,0,127,0.3);}
 
+
         /* --- SHOP CATEGORY FILTERS --- */
         .shop-controls {
             display: flex;
             flex-direction: column;
-            margin-bottom: 60px;
+            margin-bottom: 50px;
             position: relative; 
             z-index: 50; 
         }
@@ -263,7 +266,7 @@
             background: rgba(255, 0, 127, 0.1); border-color: var(--accent-pink); color: var(--text-pure); box-shadow: 0 0 25px rgba(255, 0, 127, 0.25);
         }
 
-        /* --- DROPDOWN FILTERS (ENHANCED) --- */
+        /* --- DROPDOWN FILTERS --- */
         .dropdown { position: relative; display: inline-block; outline: none; z-index: 100; }
         .dropdown-toggle { cursor: pointer; padding-right: 40px; position: relative; user-select: none; }
         .dropdown-toggle::after { content: '▼'; font-size: 0.6rem; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); color: var(--accent-pink); }
@@ -276,9 +279,9 @@
         .dropdown-content::before { content: ''; position: absolute; top: -15px; left: 0; width: 100%; height: 15px; background: transparent; }
         .dropdown:hover .dropdown-content, .dropdown:focus-within .dropdown-content { display: flex; opacity: 1; transform: translateY(0); }
         .dropdown-content .filter-btn { border: none; background: transparent; text-align: left; border-radius: 8px; padding: 14px 18px; width: 100%; }
-        .dropdown-content .filter-btn:hover, .dropdown-content .filter-btn.active { background: rgba(255, 0, 127, 0.15); color: var(--text-pure); }
+        .dropdown-content .filter-btn:hover, .dropdown-content .filter-btn.active { background: rgba(255, 0, 127, 0.15); color: var(--text-pure); border-color: transparent; box-shadow: none;}
 
-        /* --- E-COMMERCE SHOP GRID (ENHANCED CARDS) --- */
+        /* --- E-COMMERCE SHOP GRID --- */
         .shop-grid { 
             display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 45px; 
             min-height: 500px; align-content: start; position: relative; z-index: 1; 
@@ -287,8 +290,7 @@
         .product-card { 
             background: rgba(15,15,15,0.6); border: 1px solid var(--border-subtle); border-radius: 16px; overflow: hidden;
             display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease-out, border-color 0.3s ease-out, opacity 0.4s ease; 
-            opacity: 1; transform: scale(1); position: relative;
-            backdrop-filter: blur(10px);
+            opacity: 1; transform: scale(1); position: relative; backdrop-filter: blur(10px); /* UPGRADE */
         }
         .product-card.hidden-filter { display: none !important; opacity: 0; transform: scale(0.95); }
         .product-card:hover { 
@@ -324,7 +326,7 @@
         }
 
         .product-details { padding: 35px; display: flex; flex-direction: column; flex-grow: 1; }
-        .product-tag { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 12px; font-weight: 700;}
+        .product-tag { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 12px; font-weight: 700; }
         .product-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.03em; }
         .product-desc { color: var(--text-muted); font-size: 1rem; margin-bottom: 25px; flex-grow: 1; line-height: 1.7;}
         
@@ -375,23 +377,32 @@
             box-shadow: 0 10px 20px rgba(255,0,127,0.3);
         }
 
-        /* --- CART DRAWER SYSTEM (ENHANCED) --- */
+        /* --- CART DRAWER SYSTEM (CAREFUL UPGRADE) --- */
+        .cart-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7);
+            z-index: 1999; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); /* UPGRADE */
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .cart-overlay.open { opacity: 1; pointer-events: all; }
+
         .cart-drawer {
             position: fixed; top: 0; right: -480px; width: 480px; max-width: 100%; height: 100vh;
             background: rgba(10,10,10,0.95); border-left: 1px solid rgba(255,0,127,0.3); z-index: 2000;
             padding: 40px; display: flex; flex-direction: column; transition: right 0.5s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: -20px 0 60px rgba(0,0,0,1);
-            backdrop-filter: blur(25px);
+            box-shadow: -20px 0 60px rgba(0,0,0,1); backdrop-filter: blur(25px); /* UPGRADE */
         }
         .cart-drawer.open { right: 0; }
         
         .cart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 35px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 20px;}
         .cart-header h2 { font-size: 1.8rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 900; }
+        .close-cart { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: var(--transition-snappy); text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+        .close-cart:hover { color: var(--accent-pink); transform: scale(1.1); }
+
+        .cart-items { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px; }
         
         .cart-item {
             background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 18px;
-            display: flex; justify-content: space-between; align-items: center;
-            transition: var(--transition-snappy);
+            display: flex; justify-content: space-between; align-items: center; transition: var(--transition-snappy);
         }
         .cart-item:hover { border-color: rgba(255,0,127,0.3); background: rgba(255,0,127,0.02); }
         .cart-item-details h4 { font-size: 1rem; text-transform: uppercase; margin-bottom: 6px; font-weight: 700;}
@@ -414,7 +425,10 @@
             transform: translateY(-2px);
         }
 
-        /* --- CONTACT FORM (FLOATING GLOW) --- */
+        .cart-items::-webkit-scrollbar { width: 6px; }
+        .cart-items::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
+
+        /* --- CONTACT FORM --- */
         .contact-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 80px; }
         .contact-info p { color: var(--text-muted); font-size: 1.2rem; margin-bottom: 24px; line-height: 1.8;}
         .location-tag { font-family: var(--font-mono); color: var(--accent-pink); font-size: 0.9rem; letter-spacing: 0.15em; text-transform: uppercase; display: block; margin-top: 50px; font-weight: 700;}
@@ -433,6 +447,28 @@
         
         .submit-btn { background: var(--accent-pink); color: var(--text-pure); border: none; padding: 20px 0; width: 100%; font-size: 0.95rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; border-radius: 8px; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); display: block; margin-top: 30px; }
         .submit-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 15px 35px rgba(255, 0, 127, 0.4); transform: translateY(-2px);}
+
+        /* --- LIGHTBOX OVERLAY (CAREFUL UPGRADE) --- */
+        .lightbox-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.9); z-index: 3000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); /* UPGRADE */
+        }
+        .lightbox-overlay.active { opacity: 1; pointer-events: all; }
+        .lightbox-img {
+            max-width: 90%; max-height: 90%; border-radius: 8px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.8); border: 1px solid var(--accent-pink);
+            transform: scale(0.95); transition: transform 0.3s ease;
+        }
+        .lightbox-overlay.active .lightbox-img { transform: scale(1); }
+        .lightbox-close {
+            position: absolute; top: 30px; right: 40px; background: none; border: none;
+            color: var(--text-pure); font-size: 2rem; cursor: pointer; transition: color 0.2s;
+            z-index: 3001; text-shadow: 0 0 10px rgba(255,255,255,0.2); /* UPGRADE */
+        }
+        .lightbox-close:hover { color: var(--accent-pink); transform: scale(1.1); }
 
         /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 900px) {
@@ -476,7 +512,7 @@
             <button class="close-cart" onclick="toggleCart()">✕</button>
         </div>
         <div class="cart-items" id="cartItems">
-            <p style="color:var(--text-muted); font-size: 1rem;">Your cart is currently empty.</p>
+            <p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>
         </div>
         <div class="cart-footer">
             <div class="cart-total-row">
@@ -490,7 +526,7 @@
     <div class="tiktok-overlay" id="tiktokOverlay" onclick="closeTikTokModal(event)">
         <div class="tiktok-modal" onclick="event.stopPropagation()"> 
             <button class="close-tiktok" onclick="closeTikTokModal()">✕</button>
-            <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 30px; text-transform: uppercase; letter-spacing: 0.15em; text-align: center; font-weight: 800;">Live Claims</h2>
+            <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center; font-weight: 800;">Live Claims</h2>
             
             <div class="form-group">
                 <label>Select Claim Tier</label>
@@ -501,16 +537,16 @@
                 </select>
             </div>
 
-            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 35px; margin-top: 25px;">
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; margin-top: 20px;">
                 <label style="margin-bottom: 0;">Print Quantity</label>
-                <div style="display: flex; align-items: center; gap: 18px;">
+                <div style="display: flex; align-items: center; gap: 15px;">
                     <button class="qty-btn" onclick="changeTikTokQty(-1)">-</button>
                     <span id="tiktokQty" style="font-family: var(--font-mono); font-size: 1.4rem; font-weight: 800; color: var(--text-pure);">1</span>
                     <button class="qty-btn" onclick="changeTikTokQty(1)">+</button>
                 </div>
             </div>
 
-            <div class="cart-total-row" style="border-top: 1px solid var(--border-subtle); padding-top: 25px; margin-bottom: 25px;">
+            <div class="cart-total-row" style="border-top: 1px solid var(--border-subtle); padding-top: 20px; margin-bottom: 20px;">
                 <span>Total:</span>
                 <span id="tiktokTotal" style="color: var(--accent-pink);">$1.00</span>
             </div>
@@ -558,7 +594,7 @@
     <section id="about" class="page-section">
         <h2 class="section-header reveal">The Standard</h2>
         <div style="max-width: 800px;">
-            <p class="reveal" style="font-size: 1.25rem; color: var(--text-muted); margin-bottom: 25px;">
+            <p class="reveal" style="font-size: 1.25rem; color: var(--text-muted); margin-bottom: 20px;">
                 Inspired Threads operates on the principle that every garment is a canvas requiring technical precision. By utilizing advanced Direct-to-Garment (DTG) printing and commercial vinyl heat-press workflows, we bypass standard retail limitations to produce truly custom, durable apparel.
             </p>
             <p class="reveal" style="font-size: 1.25rem; color: var(--text-muted);">
@@ -716,7 +752,7 @@
                     
                     let variantHTML = '';
                     let defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
-                    let imageZoneHTML = `<div class="product-image-zone" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #050505;">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
+                    let imageZoneHTML = `<div class="product-image-zone" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
 
                     let stockHTML = '';
                     let checkoutButtonHTML = '';
@@ -726,7 +762,7 @@
                         const colors = Object.keys(variantConfig[category].colors);
                         
                         defaultImage = variantConfig[category].colors[colors[0]] || '';
-                        imageZoneHTML = `<div class="product-image-zone" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #050505;"></div>`;
+                        imageZoneHTML = `<div class="product-image-zone" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #ffffff;"></div>`;
 
                         variantHTML = `
                             <div class="variant-grid">
@@ -976,7 +1012,7 @@
                             imageZone.style.backgroundImage = `url('${newImage}')`;
                         } else if (imageZone) {
                              imageZone.style.backgroundImage = 'none';
-                             imageZone.style.backgroundColor = '#111';
+                             imageZone.style.backgroundColor = '#151515';
                              imageZone.innerHTML = '[ IMAGE NOT FOUND ]';
                         }
                     }
@@ -1039,7 +1075,7 @@
             cartItemsContainer.innerHTML = '';
 
             if (cart.length === 0) {
-                cartItemsContainer.innerHTML = '<p style="color:var(--text-muted); font-size: 1rem;">Your cart is currently empty.</p>';
+                cartItemsContainer.innerHTML = '<p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>';
             } else {
                 cart.forEach((item, index) => {
                     totalItems += item.quantity;
@@ -1099,7 +1135,7 @@
                     checkoutBtn.style.background = "";
                     checkoutBtn.innerText = "Secure Checkout via Stripe";
                     checkoutBtn.disabled = false;
-                    checkoutBtn.style.fontSize = "0.95rem";
+                    checkoutBtn.style.fontSize = "0.9rem";
                 }, 4000);
             }
         }
