@@ -343,6 +343,50 @@
         .lightbox-close { position: absolute; top: 30px; right: 40px; background: none; border: none; color: var(--text-pure); font-size: 2rem; transition: color 0.2s; z-index: 3001; }
         .lightbox-close:hover { color: var(--accent-pink); transform: scale(1.1); }
 
+        /* --- DYNAMIC IMAGE GLOW & LAYOUTS --- */
+        .glow-img {
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            cursor: none !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        .glow-img:hover {
+            border-color: var(--accent-pink);
+            box-shadow: 0 10px 40px rgba(255, 0, 127, 0.4), 0 0 25px rgba(255, 0, 127, 0.2);
+            transform: translateY(-5px) scale(1.02);
+        }
+
+        .home-layout {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12vw; /* Creates the empty space in the middle for the Lion's face */
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .home-img-wrapper {
+            flex: 0 1 380px; /* Locks the max width so it stays in the dark void */
+        }
+
+        .about-layout {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 60px;
+            align-items: center;
+            max-width: 1400px;
+        }
+        .about-img-wrapper {
+            display: flex;
+            justify-content: center;
+        }
+        .about-img-wrapper img {
+            max-width: 500px;
+        }
+
         /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 900px) {
             header { padding: 15px 10px; justify-content: center; background: rgba(3, 3, 3, 0.98); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(10px); flex-wrap: wrap;}
@@ -361,6 +405,10 @@
             .cart-drawer { width: 100%; right: -100%; padding: 20px;}
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
             .lightbox-close { top: 20px; right: 20px; }
+            
+            .home-layout { flex-direction: column; gap: 50px; margin-top: 40px; }
+            .home-img-wrapper { width: 85%; max-width: 320px; }
+            .about-layout { grid-template-columns: 1fr; gap: 40px; }
         }
     </style>
 </head>
@@ -452,9 +500,13 @@
     </div>
 
     <section id="home" class="page-section">
-        <div class="hero-content reveal">
-            <!-- Text removed so the Lion breathes completely -->
-            <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
+        <div class="home-layout">
+            <div class="home-img-wrapper reveal stagger-1">
+                <img src="WelcomeToInspiredThreads.png" class="glow-img hover-target" alt="Welcome to the Crew" onclick="openLightbox(this.src)">
+            </div>
+            <div class="hero-content reveal stagger-2" style="margin-top: 0;">
+                <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
+            </div>
         </div>
     </section>
 
@@ -477,9 +529,9 @@
 
     <section id="about" class="page-section">
         <h2 class="section-header reveal">The Standard</h2>
-        <div style="max-width: 800px;">
-            <p class="reveal stagger-1" style="font-size: 1.15rem; color: var(--text-muted); margin-bottom: 20px;">
-                Contact Inspired Threads 💕
+        <div class="about-layout">
+            <div class="about-text">
+                <p class="reveal stagger-1" style="font-size: 1.15rem; color: var(--text-muted); margin-bottom: 20px; white-space: pre-wrap; line-height: 1.8;">Contact Inspired Threads 💕
 
 Have a question? Need a custom design? I’m here to help!
 
@@ -502,13 +554,16 @@ Thank you for supporting my small Michigan business. Your support allows me to c
 Questions? Ready to order?
 📩 Send me a message anytime—I can’t wait to create something special just for you!
 
-“Whatever you do, do it all for the glory of God.” – 1 Corinthians 10:31 ✝️💕
-            </p>
-              </div>
+“Whatever you do, do it all for the glory of God.” – 1 Corinthians 10:31 ✝️💕</p>
+            </div>
+            <div class="about-img-wrapper reveal stagger-2">
+                <img src="Family.png" class="glow-img hover-target" alt="The Inspired Threads Family" onclick="openLightbox(this.src)">
+            </div>
+        </div>
     </section>
 
     <section id="contact" class="page-section">
-        <h2 class="section-header reveal">Intake Facility</h2>
+        <h2 class="section-header reveal">Contact</h2>
         <div class="contact-layout reveal">
             <div class="contact-info">
                 <p class="reveal stagger-1">Submit your design parameters, garment preferences, and quantity requirements. If Applicable</p>
@@ -718,29 +773,10 @@ Questions? Ready to order?
         const shopGrid = document.getElementById('mainShopGrid');
         const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
 
-        // Inject Skeleton State Instantly
-        function renderSkeletons() {
-            let skelHTML = '';
-            for(let i=0; i<6; i++) {
-                skelHTML += `
-                    <div class="product-card skeleton">
-                        <div class="skeleton-img"></div>
-                        <div class="product-details" style="padding-top: 30px;">
-                            <div class="skeleton-text short"></div>
-                            <div class="skeleton-text title"></div>
-                            <div class="skeleton-text desc"></div>
-                            <div style="border-top: 1px solid var(--border-subtle); margin-top: 15px;">
-                                <div class="skeleton-btn"></div>
-                            </div>
-                        </div>
-                    </div>`;
-            }
-            if(shopGrid) shopGrid.innerHTML = skelHTML;
-        }
-        renderSkeletons();
-
         // Initialize Shop Engine
         async function initShopEngine() {
+            shopGrid.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono);">SYNCING SECURE INVENTORY LOGIC...</p>';
+            
             try {
                 const response = await fetch('/api/products');
                 const products = await response.json();
@@ -1274,8 +1310,6 @@ Questions? Ready to order?
             if(!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
         }
 
-        // Initiate shop rendering immediately to avoid render blocking
-        initShopEngine(); 
 
         window.onload = () => { 
             onScroll();  
@@ -1289,6 +1323,7 @@ Questions? Ready to order?
             }
 
             updateCartUI(); 
+            initShopEngine(); 
         };
     </script>
 </body>
