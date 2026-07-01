@@ -119,19 +119,41 @@
         .hero-title { font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 800; letter-spacing: -0.02em; text-transform: uppercase; line-height: 1.1; margin-bottom: 24px; text-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .hero-subtitle { color: var(--text-muted); font-size: clamp(1.1rem, 2vw, 1.4rem); font-weight: 300; letter-spacing: 0.05em; text-shadow: 0 4px 15px rgba(0,0,0,0.9); }
 
-        /* --- TIKTOK BUTTON --- */
+        /* --- TIKTOK BUTTON (UPSCALED & ENHANCED) --- */
+        @keyframes breathe {
+            0% { box-shadow: 0 0 30px rgba(255, 0, 127, 0.3), inset 0 0 15px rgba(255, 0, 127, 0.15); }
+            50% { box-shadow: 0 0 60px rgba(255, 0, 127, 0.6), inset 0 0 25px rgba(255, 0, 127, 0.3); }
+            100% { box-shadow: 0 0 30px rgba(255, 0, 127, 0.3), inset 0 0 15px rgba(255, 0, 127, 0.15); }
+        }
+
         .tiktok-btn {
-            margin-top: 40px; background: rgba(255, 0, 127, 0.05); border: 1px solid var(--accent-pink); color: var(--text-pure);
-            padding: 14px 35px; border-radius: 50px; font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.2em; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: 0 0 20px rgba(255, 0, 127, 0.15); position: relative; overflow: hidden; display: inline-block;
+            margin-top: 0px; 
+            background: rgba(255, 0, 127, 0.08); 
+            border: 2px solid var(--accent-pink); 
+            color: var(--text-pure);
+            padding: 22px 65px; 
+            border-radius: 50px; 
+            font-family: var(--font-mono);
+            font-size: 1.4rem; 
+            font-weight: 900;
+            text-transform: uppercase; 
+            letter-spacing: 0.25em;
+            transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), background 0.4s ease;
+            animation: breathe 3s infinite ease-in-out; 
+            position: relative; 
+            overflow: hidden; 
+            display: inline-block;
         }
         .tiktok-btn::before {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(45deg, transparent, rgba(255,0,127,0.2), transparent);
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.2), transparent);
             transform: translateX(-100%); transition: transform 0.6s ease;
         }
-        .tiktok-btn:hover { background: rgba(255, 0, 127, 0.15); box-shadow: 0 0 40px rgba(255, 0, 127, 0.4); transform: translateY(-3px) scale(1.02); }
+        .tiktok-btn:hover { 
+            background: rgba(255, 0, 127, 0.25); 
+            color: #fff; 
+            text-shadow: 0 0 15px rgba(255,255,255,0.6); 
+        }
         .tiktok-btn:hover::before { transform: translateX(100%); }
 
         /* --- TIKTOK MODAL --- */
@@ -371,8 +393,7 @@
 
     <section id="home" class="page-section">
         <div class="hero-content reveal">
-            <h1 class="hero-title">Precision Apparel Engineering</h1>
-            <p class="hero-subtitle">Custom DTF & Commercial Vinyl Application</p>
+            <!-- Text removed so the Lion breathes completely -->
             <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
         </div>
     </section>
