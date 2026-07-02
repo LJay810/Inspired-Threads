@@ -10,6 +10,7 @@ export default async function handler(req, res) {
         // Fetch active products, expanding the default price data
         const products = await stripe.products.list({
             active: true,
+            limit: 100
             expand: ['data.default_price'],
         });
 
