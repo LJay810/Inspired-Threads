@@ -28,13 +28,13 @@
         * { box-sizing: border-box; margin: 0; padding: 0; scroll-behavior: smooth; }
         
         body { 
-            background: var(--bg-main); 
+            background: transparent; /* Lets the parallax show through */
             color: var(--text-pure); 
             font-family: var(--font-sans); 
             line-height: 1.6; 
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
-            animation: fadeIn 1s ease-out forwards;
+            /* Removed the fadeIn animation that breaks fixed positioning */
         }
 
         /* --- ENHANCEMENT: CUSTOM SCROLLBAR --- */
@@ -75,9 +75,11 @@
 
         /* --- PARALLAX BACK WALL --- */
         .fixed-parallax-bg {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: linear-gradient(to bottom, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.7) 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat;
-            z-index: -1; pointer-events: none;
+            z-index: 0; /* Brought forward to prevent slipping behind the canvas */
+            pointer-events: none;
+            transform: translateZ(0); /* Forces iOS to lock it perfectly in place */
         }
         
         /* Make all sections solid so they slide over the background */
