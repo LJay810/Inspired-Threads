@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#030303"> <title>Inspired Threads | Custom Apparel</title>
     <title>Inspired Threads | Custom Apparel</title>
     <script src="https://js.stripe.com/v3/"></script>
     <link rel="icon" type="image/png" href="inspiredthreadsLogoIcon2.png">
@@ -26,13 +27,12 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; scroll-behavior: smooth; }
-        html { background: var(--bg-main); }
+        html { background: var(--bg-main); overflow-x: hidden; } 
         body { 
             background: transparent; /* Lets the parallax show through */
             color: var(--text-pure); 
             font-family: var(--font-sans); 
             line-height: 1.6; 
-            overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
             /* Removed the fadeIn animation that breaks fixed positioning */
         }
@@ -81,9 +81,9 @@
             transform: translateZ(0); 
         }
         
-        /* Make all sections solid so they slide over the background */
+        /* Allow the Lion to ghost through the entire site! */
         #shop, #about, #contact, #policy {
-            background: var(--bg-main); 
+            background: rgba(3, 3, 3, 0.85); 
         }
 
         /* --- STAGGERED SCROLL ANIMATIONS --- */
