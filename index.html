@@ -26,7 +26,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; scroll-behavior: smooth; }
-        
+        html { background: var(--bg-main); }
         body { 
             background: transparent; /* Lets the parallax show through */
             color: var(--text-pure); 
@@ -75,11 +75,10 @@
 
         /* --- PARALLAX BACK WALL --- */
         .fixed-parallax-bg {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            position: fixed; top: -10vh; left: 0; right: 0; height: 120vh;
             background: linear-gradient(to bottom, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.7) 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat;
-            z-index: 0; /* Brought forward to prevent slipping behind the canvas */
-            pointer-events: none;
-            transform: translateZ(0); /* Forces iOS to lock it perfectly in place */
+            z-index: 0; pointer-events: none;
+            transform: translateZ(0); 
         }
         
         /* Make all sections solid so they slide over the background */
@@ -457,7 +456,7 @@
             #indicator { bottom: -16px; top: auto; }
             .page-section { padding: 120px 20px 80px 20px; } 
             
-            #home { flex-direction: column; justify-content: flex-start; text-align: center; padding-top: 130px; padding-bottom: 140px; background: transparent; }
+            #home { flex-direction: column; justify-content: flex-start; text-align: center; padding-top: 130px; padding-bottom: 80px; background: transparent; }
             .hero-content { display: flex; flex-direction: column; align-items: center; width: 100%; padding-right: 0; box-sizing: border-box; margin-top: 0; }
             .hero-title { font-size: 1.9rem; margin-bottom: 15px; overflow-wrap: break-word; }
             .tiktok-btn { padding: 16px 45px; font-size: 1.15rem; }
@@ -466,7 +465,7 @@
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
             .lightbox-close { top: 20px; right: 20px; }
             
-            .home-layout { flex-direction: column; gap: 90px; margin-top: 40px; }
+            .home-layout { flex-direction: column; gap: 40px; margin-top: 40px; }
             .home-img-wrapper { width: 85%; max-width: 320px; }
             .about-layout { grid-template-columns: 1fr; gap: 40px; }
         }
