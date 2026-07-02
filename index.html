@@ -394,7 +394,7 @@
         .lightbox-overlay.active { opacity: 1; pointer-events: all; }
         .lightbox-container { 
             position: relative; background-size: contain; background-position: center; background-repeat: no-repeat; 
-            background-color: #f2f2f2; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.8); 
+            background-color: #f5f5f5; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.8); 
             border: 1px solid var(--accent-pink); transform: scale(0.95); transition: transform 0.3s ease; 
         }
         .lightbox-overlay.active .lightbox-container { transform: scale(1); }
@@ -1458,7 +1458,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 let scaleFactor = window.innerWidth < 900 ? 1.0 : 1.6;
                 container.style.width = `${sourceW * scaleFactor}px`;
                 container.style.height = `${sourceH * scaleFactor}px`;
-                container.style.backgroundColor = '#f2f2f2'; // Make sure this matches your camo hex code
+                container.style.backgroundColor = '#f5f5f5'; // Make sure this matches your camo hex code
                 
                 if (overlayBg !== 'none') {
                     dtfOverlay.style.top = top;
