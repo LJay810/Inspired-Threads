@@ -470,7 +470,7 @@
         }
         .dtf-search-input:focus { border-color: var(--accent-pink); box-shadow: 0 0 15px rgba(255, 0, 127, 0.2); }
         .hidden-search { display: none !important; opacity: 0; }
-        #mainDtfSearch { margin-right: 365px; } /* RESTORED TO YOUR EXACT 365px SPACING */
+        #mainDtfSearch { margin-right: 365px; } 
         
         .fulfillment-box { 
             background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; 
@@ -535,7 +535,6 @@
             <button class="nav-tab hover-target" onclick="scrollToSection('contact')">Contact</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('policy')">Policy</button>
             
-            <!-- NEW WISHLIST NAV BUTTON -->
             <button class="nav-tab wishlist-btn hover-target" onclick="toggleWishlist()">Wishlist (<span id="wishlistNavCount">0</span>)</button>
             <button class="nav-tab cart-btn hover-target" onclick="toggleCart()">Cart (<span id="cartNavCount">0</span>)</button>
         </nav>
@@ -554,10 +553,8 @@
         </a>
     </div>
 
-    <!-- SHARED OVERLAY FOR BOTH DRAWERS -->
     <div class="drawer-overlay" id="drawerOverlay" onclick="closeAllDrawers()"></div>
     
-    <!-- EXISTING CART DRAWER (RIGHT SLIDE) -->
     <div class="cart-drawer" id="cartDrawer">
         <div class="drawer-header">
             <h2>Your Cart</h2>
@@ -591,7 +588,6 @@
         </div>
     </div>
 
-    <!-- NEW WISHLIST DRAWER (LEFT SLIDE) -->
     <div class="wishlist-drawer" id="wishlistDrawer">
         <div class="drawer-header">
             <h2>Saved Styles</h2>
@@ -1146,8 +1142,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     const cardHTML = `
                         <div class="product-card reveal active" data-category="${category}">
                             
-                            <!-- NEW WISHLIST HEART ICON ON PRODUCT CARD -->
-                            <button class="${heartClass}" onclick="addCurrentConfigToWishlist('${product.id}', this, ${hasVariants})">
+                            <button class="${heartClass}" data-heart-id="${product.id}" onclick="addCurrentConfigToWishlist('${product.id}', this, ${hasVariants})">
                                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                             </button>
 
@@ -1254,6 +1249,22 @@ Thank you for supporting my small business and understanding the handmade nature
             // Swap the Label back to the Button
             document.getElementById(`attach-btn-${productId}`).style.display = 'block';
             document.getElementById(`attached-dtf-label-${productId}`).style.display = 'none';
+        }
+
+        // --- NEW: MASTER WISHLIST SYNC FUNCTION ---
+        // Forces all UI hearts on the page to accurately match the master memory array
+        function syncWishlistHearts() {
+            document.querySelectorAll('.wishlist-heart').forEach(btn => {
+                const pId = btn.getAttribute('data-heart-id');
+                if (pId) {
+                    const isInWishlist = window.wishlist && window.wishlist.some(w => w.productId === pId);
+                    if (isInWishlist) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                }
+            });
         }
 
         // --- 6. EVENT LISTENER ATTACHMENTS ---
@@ -1500,11 +1511,11 @@ Thank you for supporting my small business and understanding the handmade nature
                     const metaText = item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
                     
                     cartItemsContainer.innerHTML += `
-                        <div class="drawer-item">
-                            <div class="drawer-item-details">
+                        <div class="cart-item">
+                            <div class="cart-item-details">
                                 <h4 style="color: ${item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
-                                <div class="drawer-item-meta">${metaText}</div>
-                                <div class="drawer-item-price">$${item.price.toFixed(2)} x ${item.quantity}</div>
+                                <div class="cart-item-meta">${metaText}</div>
+                                <div class="cart-item-price">$${item.price.toFixed(2)} x ${item.quantity}</div>
                             </div>
                             <button class="remove-item hover-target" onclick="removeFromCart(${index})">✕</button>
                         </div>
@@ -1556,14 +1567,15 @@ Thank you for supporting my small business and understanding the handmade nature
             
             if (existingIndex > -1) {
                 window.wishlist.splice(existingIndex, 1);
-                btnElement.classList.remove('active');
             } else {
                 window.wishlist.push({ matchKey, productId, name, price, priceId, size, color, hasVariants, attachedDtf });
-                btnElement.classList.add('active');
             }
             
             localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
             updateWishlistUI();
+            
+            // Run the master visual sync to update the heart icon perfectly
+            syncWishlistHearts(); 
         }
 
         function updateWishlistUI() {
@@ -1600,6 +1612,9 @@ Thank you for supporting my small business and understanding the handmade nature
             window.wishlist.splice(index, 1);
             localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
             updateWishlistUI();
+            
+            // Run the master visual sync so the main grid knows the item was removed!
+            syncWishlistHearts(); 
         }
 
         function moveWishlistToCart(index) {
@@ -1632,6 +1647,9 @@ Thank you for supporting my small business and understanding the handmade nature
             
             updateWishlistUI();
             updateCartUI();
+            
+            // Run the master visual sync so the grid turns the heart off
+            syncWishlistHearts(); 
             
             // Instantly closes the Wishlist and pops open the Cart to show it worked!
             toggleCart();
