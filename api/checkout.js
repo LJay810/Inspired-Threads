@@ -7,6 +7,7 @@ export default async function handler(req, res) {
 
     try {
         const cartItems = req.body.items;
+        const fulfillmentMethod = req.body.fulfillment; // <--- NEW: Reads the toggle from frontend
         const lineItems = [];
 
         // --- DEFENSE LEVEL 1: THE VARIANT PRE-FLIGHT CHECK ---
@@ -57,8 +58,12 @@ export default async function handler(req, res) {
             sessionMetadata[`qty_${index}`] = item.quantity.toString();
         });
         sessionMetadata[`item_count`] = cartItems.length.toString();
+        
+        // Logs the fulfillment method in your Stripe Dashboard for easy reading
+        sessionMetadata[`Fulfillment_Method`] = fulfillmentMethod === 'shipping' ? 'Standard Shipping' : 'Local Pickup'; 
 
-        const session = await stripe.checkout.sessions.create({
+        // Base session configuration
+        const sessionConfig = {
             payment_method_types: ['card'],
             line_items: lineItems,
             mode: 'payment',
@@ -67,7 +72,34 @@ export default async function handler(req, res) {
             payment_intent_data: { metadata: sessionMetadata }, 
             success_url: `${req.headers.origin}/?success=true`,
             cancel_url: `${req.headers.origin}/?canceled=true`,
-        });
+            billing_address_collection: 'required', // Good practice to always collect this
+        };
+
+        // --- THE SHIPPING FEE LOGIC ---
+        if (fulfillmentMethod === 'shipping' && cartItems.length > 0) {
+            // Adds the official Stripe Shipping block to the checkout session
+            sessionConfig.shipping_options = [
+                {
+                    shipping_rate_data: {
+                        type: 'fixed_amount',
+                        fixed_amount: {
+                            amount: 1000, // $10.00 in cents
+                            currency: 'usd',
+                        },
+                        display_name: 'Standard Shipping',
+                        // Automatically shows the customer your turnaround time!
+                        delivery_estimate: {
+                            minimum: { unit: 'business_day', value: 7 },
+                            maximum: { unit: 'business_day', value: 14 },
+                        },
+                    },
+                },
+            ];
+            // Forces Stripe to collect a physical shipping address
+            sessionConfig.shipping_address_collection = { allowed_countries: ['US'] }; 
+        }
+
+        const session = await stripe.checkout.sessions.create(sessionConfig);
 
         res.status(200).json({ id: session.id });
     } catch (error) {
