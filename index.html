@@ -154,9 +154,10 @@
 
         .section-header { font-size: 2.5rem; font-weight: 800; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 20px; }
 
-        /* --- HERO --- */
+       /* --- HERO --- */
         #home { 
             background: linear-gradient(to bottom, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.6) 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat; 
+            background-attachment: fixed; /* <-- CREATES THE FLUID PARALLAX EFFECT */
             flex-direction: column; justify-content: center; align-items: center; text-align: center; max-width: 100%; border-bottom: none;
         }
 
@@ -442,18 +443,18 @@
             .nav-tab { flex: 1; padding: 5px 0; font-size: 0.65rem; }
             .cart-btn { font-size: 0.65rem; padding: 5px 10px; margin-left: 5px;}
             #indicator { bottom: -16px; top: auto; }
-            .page-section { padding: 120px 20px 80px 20px; }
+            .page-section { padding: 120px 20px 80px 20px; } 
             
-            #home { flex-direction: column; justify-content: flex-start; text-align: center; padding-top: 130px; padding-bottom: 60px; background: linear-gradient(to bottom, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.5) 80%), url('inspiredthreadsLogo.jpg') no-repeat; background-position: center top; background-size: cover; }
+            #home { flex-direction: column; justify-content: flex-start; text-align: center; padding-top: 130px; padding-bottom: 140px; background: linear-gradient(to bottom, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.5) 80%), url('inspiredthreadsLogo.jpg') no-repeat; background-position: center top; background-size: cover; background-attachment: fixed; }
             .hero-content { display: flex; flex-direction: column; align-items: center; width: 100%; padding-right: 0; box-sizing: border-box; margin-top: 0; }
             .hero-title { font-size: 1.9rem; margin-bottom: 15px; overflow-wrap: break-word; }
-            
+            .tiktok-btn { padding: 16px 45px; font-size: 1.15rem; }
             .filter-bar { justify-content: center; }
             .cart-drawer { width: 100%; right: -100%; padding: 20px;}
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
             .lightbox-close { top: 20px; right: 20px; }
             
-            .home-layout { flex-direction: column; gap: 50px; margin-top: 40px; }
+            .home-layout { flex-direction: column; gap: 90px; margin-top: 40px; }
             .home-img-wrapper { width: 85%; max-width: 320px; }
             .about-layout { grid-template-columns: 1fr; gap: 40px; }
         }
