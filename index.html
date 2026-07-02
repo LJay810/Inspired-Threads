@@ -928,7 +928,10 @@ Thank you for supporting my small business and understanding the handmade nature
             'thread-crewneck': { top: '28%', width: '18%', height: '40%', left: '41%' },
             
             /* Untouched, kept exactly where you like it */
-            'thread-tanktop': { top: '35%', width: '18%', height: '35%', left: '42%' } 
+            'thread-tanktop': { top: '35%', width: '18%', height: '35%', left: '42%' },
+
+            'corporate': { top: '40%', width: '30%', height: '35%', left: '35%' }
+         
         };
 
         // --- 4. DYNAMIC STRIPE INVENTORY & VARIANT ENGINE ---
@@ -1113,8 +1116,34 @@ Thank you for supporting my small business and understanding the handmade nature
                                     </div>
                                 </div>
                             `;
+                        } else if (category === 'corporate') {
+                            // --- NEW TOTE BAG LOGIC ---
+                            let overlayStyle = "";
+                            if (dtfPlacements[category] || product.metadata.dtf_top) {
+                                const top = product.metadata.dtf_top || dtfPlacements[category]?.top || '35%';
+                                const left = product.metadata.dtf_left || dtfPlacements[category]?.left || '40%';
+                                const width = product.metadata.dtf_width || dtfPlacements[category]?.width || '20%';
+                                const height = product.metadata.dtf_height || dtfPlacements[category]?.height || '40%';
+                                overlayStyle = `top: ${top}; left: ${left}; width: ${width}; height: ${height};`;
+                            }
+
+                            // Builds the image box WITH the absolute-positioned overlay canvas inside it
+                            imageZoneHTML = `
+                                <div class="product-image-zone hover-target" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">
+                                    <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
+                                </div>
+                            `;
+
+                            // Injects the "+ Attach Design" button and the active label (No dropdowns needed!)
+                            variantHTML = `
+                                <button class="attach-btn hover-target" id="attach-btn-${product.id}" onclick="openDtfSelector('${product.id}', '${category}')">+ Attach Design</button>
+                                <div id="attached-dtf-label-${product.id}" style="display:none; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); margin-bottom: 20px; text-align: center; background: rgba(255,0,127,0.05); border: 1px solid var(--accent-pink); padding: 8px; border-radius: 4px;">
+                                    ATTACHED: <span id="dtf-name-${product.id}" style="color:var(--text-pure); font-weight: 700;"></span> 
+                                    <button class="hover-target" style="background:none;border:none;color:#ef4444;margin-left:10px;cursor:pointer;font-weight:900;" onclick="removeDtf('${product.id}')">✕</button>
+                                </div>
+                            `;
                         } else {
-                            // Non-variant DTF or Corporate Items
+                            // Standard Non-variant items (Like the raw DTF transfers themselves)
                             imageZoneHTML = `<div class="product-image-zone hover-target" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
                         }
 
