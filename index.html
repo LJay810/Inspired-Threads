@@ -73,6 +73,18 @@
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+        /* --- PARALLAX BACK WALL --- */
+        .fixed-parallax-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(to bottom, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.7) 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat;
+            z-index: -1; pointer-events: none;
+        }
+        
+        /* Make all sections solid so they slide over the background */
+        #shop, #about, #contact, #policy {
+            background: var(--bg-main); 
+        }
+
         /* --- STAGGERED SCROLL ANIMATIONS --- */
         .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1); }
         .reveal.active { opacity: 1; transform: translateY(0); }
@@ -156,9 +168,7 @@
 
        /* --- HERO --- */
         #home { 
-            background: linear-gradient(to bottom, rgba(3,3,3,0.95) 0%, rgba(3,3,3,0.6) 100%), url('inspiredthreadsLogo.jpg') center/cover no-repeat; 
-            background-attachment: fixed; /* <-- CREATES THE FLUID PARALLAX EFFECT */
-            flex-direction: column; justify-content: center; align-items: center; text-align: center; max-width: 100%; border-bottom: none;
+            flex-direction: column; justify-content: center; align-items: center; text-align: center; max-width: 100%; border-bottom: none; background: transparent;
         }
 
         .hero-content { flex: 1; max-width: 900px; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 50px;}
@@ -445,7 +455,7 @@
             #indicator { bottom: -16px; top: auto; }
             .page-section { padding: 120px 20px 80px 20px; } 
             
-            #home { flex-direction: column; justify-content: flex-start; text-align: center; padding-top: 130px; padding-bottom: 140px; background: linear-gradient(to bottom, rgba(3,3,3,0.98) 20%, rgba(3,3,3,0.5) 80%), url('inspiredthreadsLogo.jpg') no-repeat; background-position: center top; background-size: cover; background-attachment: fixed; }
+            #home { flex-direction: column; justify-content: flex-start; text-align: center; padding-top: 130px; padding-bottom: 140px; background: transparent; }
             .hero-content { display: flex; flex-direction: column; align-items: center; width: 100%; padding-right: 0; box-sizing: border-box; margin-top: 0; }
             .hero-title { font-size: 1.9rem; margin-bottom: 15px; overflow-wrap: break-word; }
             .tiktok-btn { padding: 16px 45px; font-size: 1.15rem; }
@@ -462,6 +472,7 @@
 </head>
 <body>
 
+    <div class="fixed-parallax-bg"></div>
     <div class="noise-overlay"></div>
     
     <div class="cursor-dot" id="cursorDot"></div>
