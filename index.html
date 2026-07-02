@@ -34,7 +34,6 @@
             font-family: var(--font-sans); 
             line-height: 1.6; 
             -webkit-font-smoothing: antialiased;
-            /* Removed the fadeIn animation that breaks fixed positioning */
         }
 
         /* --- ENHANCEMENT: CUSTOM SCROLLBAR --- */
@@ -108,6 +107,10 @@
         .cart-btn { border: 1px solid var(--accent-pink); color: var(--accent-pink); border-radius: 20px; padding: 8px 18px; }
         .cart-btn:hover { background: rgba(255,0,127,0.1); }
         
+        /* NEW WISHLIST BUTTON STYLES */
+        .wishlist-btn { border: 1px solid var(--border-subtle); color: var(--text-pure); border-radius: 20px; padding: 8px 18px; transition: var(--transition-snappy); }
+        .wishlist-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); background: rgba(255,0,127,0.1); }
+
         #indicator { 
             position: absolute; bottom: -21px; height: 2px; background: var(--accent-pink); 
             transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), left 0.4s cubic-bezier(0.25, 1, 0.5, 1); 
@@ -332,6 +335,17 @@
 
         .product-image-zone { position: relative; height: 280px; background: #151515; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.1em; transition: background-color 0.3s ease; transform: translateZ(20px); }
 
+        /* NEW WISHLIST HEART ICON - WITH 3D POP */
+        .wishlist-heart { 
+            position: absolute; top: 15px; right: 15px; z-index: 20; background: rgba(15,15,15,0.7); 
+            border: 1px solid var(--border-subtle); border-radius: 50%; width: 38px; height: 38px; 
+            display: flex; justify-content: center; align-items: center; transition: var(--transition-snappy); 
+            color: var(--text-muted); backdrop-filter: blur(5px); padding-top: 2px;
+            transform: translateZ(30px); /* Hardware accelerated 3D float */
+        }
+        .wishlist-heart:hover { transform: translateZ(30px) scale(1.1); border-color: var(--accent-pink); color: var(--text-pure); }
+        .wishlist-heart.active { color: var(--accent-pink); border-color: var(--accent-pink); background: rgba(255,0,127,0.1); }
+
         /* --- BINDER SPECIFIC UI --- */
         .binder-gallery { display: flex; flex-direction: column; height: 330px; background: #151515; border-bottom: 1px solid var(--border-subtle); }
         .main-binder-img { width: 100%; height: 240px; object-fit: contain; padding: 10px; transition: opacity 0.3s ease; cursor: zoom-in !important; }
@@ -358,34 +372,38 @@
         .stripe-btn { background: var(--text-pure); color: var(--bg-main); border: none; padding: 14px 28px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 6px; transition: transform 0.2s, background 0.3s; display: inline-block; }
         .stripe-btn:hover { background: var(--accent-pink); color: var(--text-pure); transform: scale(1.05); }
 
-        /* --- CART DRAWER SYSTEM --- */
-        .cart-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); z-index: 1999; backdrop-filter: blur(5px); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
-        .cart-overlay.open { opacity: 1; pointer-events: all; }
+        /* --- CART & WISHLIST DRAWER SYSTEM --- */
+        .drawer-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); z-index: 1999; backdrop-filter: blur(5px); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .drawer-overlay.open { opacity: 1; pointer-events: all; }
 
         .cart-drawer { position: fixed; top: 0; right: -450px; width: 450px; max-width: 100%; height: 100vh; background: var(--bg-surface); border-left: 1px solid var(--accent-pink); z-index: 2000; padding: 40px; display: flex; flex-direction: column; transition: right 0.4s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: -10px 0 50px rgba(0,0,0,0.9); }
         .cart-drawer.open { right: 0; }
         
-        .cart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;}
-        .cart-header h2 { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
-        .close-cart { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: var(--transition-snappy); }
-        .close-cart:hover { color: var(--accent-pink); transform: scale(1.1); }
+        /* NEW WISHLIST DRAWER (SLIDES FROM LEFT) */
+        .wishlist-drawer { position: fixed; top: 0; left: -450px; width: 450px; max-width: 100%; height: 100vh; background: var(--bg-surface); border-right: 1px solid var(--accent-pink); z-index: 2000; padding: 40px; display: flex; flex-direction: column; transition: left 0.4s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: 10px 0 50px rgba(0,0,0,0.9); }
+        .wishlist-drawer.open { left: 0; }
 
-        .cart-items { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px; }
-        .cart-item { background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .cart-item-details h4 { font-size: 0.95rem; text-transform: uppercase; margin-bottom: 5px; }
-        .cart-item-meta { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-pink); margin-bottom: 5px; }
-        .cart-item-price { font-family: var(--font-mono); font-weight: 700; }
-        .remove-item { background: none; border: none; color: var(--text-muted); transition: color 0.2s; font-size: 1.2rem; }
+        .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;}
+        .drawer-header h2 { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
+        .close-drawer { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: var(--transition-snappy); }
+        .close-drawer:hover { color: var(--accent-pink); transform: scale(1.1); }
+
+        .drawer-items { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px; }
+        .drawer-item { background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; position: relative;}
+        .drawer-item-details h4 { font-size: 0.95rem; text-transform: uppercase; margin-bottom: 5px; }
+        .drawer-item-meta { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-pink); margin-bottom: 5px; }
+        .drawer-item-price { font-family: var(--font-mono); font-weight: 700; margin-bottom: 10px;}
+        .remove-item { position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-muted); transition: color 0.2s; font-size: 1.2rem; }
         .remove-item:hover { color: #ef4444; }
 
-        .cart-footer { border-top: 1px solid var(--border-subtle); padding-top: 25px; margin-top: 20px; }
+        .drawer-footer { border-top: 1px solid var(--border-subtle); padding-top: 25px; margin-top: 20px; }
         .cart-total-row { display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 800; margin-bottom: 20px; text-transform: uppercase;}
         
         .checkout-btn { background: var(--accent-pink); color: var(--text-pure); border: none; width: 100%; padding: 18px; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 6px; transition: transform 0.2s, box-shadow 0.3s; display: inline-block;}
         .checkout-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 10px 25px rgba(255, 0, 127, 0.3); transform: scale(1.02); }
 
-        .cart-items::-webkit-scrollbar { width: 6px; }
-        .cart-items::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
+        .drawer-items::-webkit-scrollbar { width: 6px; }
+        .drawer-items::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
 
         /* --- CONTACT FORM --- */
         .contact-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 80px; }
@@ -412,14 +430,12 @@
         }
         .lightbox-overlay.active .lightbox-container { transform: scale(1); }
 
-        /* ---> STEP 2: RESTORED LIGHTBOX IMG CLASS <--- */
         .lightbox-img { 
             max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 10px 50px rgba(0,0,0,0.8); 
             border: 1px solid var(--accent-pink); transform: scale(0.95); transition: transform 0.3s ease; 
             display: none; 
         }
         .lightbox-overlay.active .lightbox-img { transform: scale(1); }
-        /* --------------------------------------------- */
 
         .lightbox-close { position: absolute; top: 30px; right: 40px; background: none; border: none; color: var(--text-pure); font-size: 2rem; transition: color 0.2s; z-index: 3001; }
         .lightbox-close:hover { color: var(--accent-pink); transform: scale(1.1); }
@@ -454,7 +470,8 @@
         }
         .dtf-search-input:focus { border-color: var(--accent-pink); box-shadow: 0 0 15px rgba(255, 0, 127, 0.2); }
         .hidden-search { display: none !important; opacity: 0; }
-        #mainDtfSearch { margin-right: 365px; }
+        #mainDtfSearch { margin-right: 365px; } /* RESTORED TO YOUR EXACT 365px SPACING */
+        
         .fulfillment-box { 
             background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; 
             padding: 15px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; 
@@ -474,7 +491,10 @@
             .brand-text { display: none; }
             header nav { width: 100%; display: flex; justify-content: space-around; padding: 0; }
             .nav-tab { flex: 1; padding: 5px 0; font-size: 0.65rem; }
-            .cart-btn { font-size: 0.65rem; padding: 5px 10px; margin-left: 5px;}
+            
+            /* Tighten up mobile nav buttons to fit the new wishlist */
+            .wishlist-btn, .cart-btn { font-size: 0.6rem; padding: 5px 8px; margin: 0 2px;}
+            
             #indicator { bottom: -16px; top: auto; }
             .page-section { padding: 120px 20px 80px 20px; } 
             
@@ -483,7 +503,11 @@
             .hero-title { font-size: 1.9rem; margin-bottom: 15px; overflow-wrap: break-word; }
             .tiktok-btn { padding: 16px 45px; font-size: 1.15rem; }
             .filter-bar { justify-content: center; }
+            
             .cart-drawer { width: 100%; right: -100%; padding: 20px;}
+            .wishlist-drawer { width: 100%; left: -100%; padding: 20px;} /* Mobile Left Slide */
+            
+            #mainDtfSearch { margin-right: 0px; } /* Reset bumper for mobile stacking */
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
             .lightbox-close { top: 20px; right: 20px; }
             
@@ -510,6 +534,9 @@
             <button class="nav-tab hover-target" onclick="scrollToSection('about')">About</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('contact')">Contact</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('policy')">Policy</button>
+            
+            <!-- NEW WISHLIST NAV BUTTON -->
+            <button class="nav-tab wishlist-btn hover-target" onclick="toggleWishlist()">Wishlist (<span id="wishlistNavCount">0</span>)</button>
             <button class="nav-tab cart-btn hover-target" onclick="toggleCart()">Cart (<span id="cartNavCount">0</span>)</button>
         </nav>
     </header>
@@ -527,16 +554,19 @@
         </a>
     </div>
 
-    <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+    <!-- SHARED OVERLAY FOR BOTH DRAWERS -->
+    <div class="drawer-overlay" id="drawerOverlay" onclick="closeAllDrawers()"></div>
+    
+    <!-- EXISTING CART DRAWER (RIGHT SLIDE) -->
     <div class="cart-drawer" id="cartDrawer">
-        <div class="cart-header">
+        <div class="drawer-header">
             <h2>Your Cart</h2>
-            <button class="close-cart hover-target" onclick="toggleCart()">✕</button>
+            <button class="close-drawer hover-target" onclick="toggleCart()">✕</button>
         </div>
-        <div class="cart-items" id="cartItems">
+        <div class="drawer-items" id="cartItems">
             <p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>
         </div>
-        <div class="cart-footer">
+        <div class="drawer-footer">
             
             <div class="fulfillment-box">
                 <h4 style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-pure); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px;">Fulfillment Method</h4>
@@ -558,6 +588,17 @@
                 <span id="cartTotal" style="color: var(--accent-pink);">$0.00</span>
             </div>
             <button class="checkout-btn magnetic-btn hover-target" onclick="processCheckout()">Secure Checkout via Stripe</button>
+        </div>
+    </div>
+
+    <!-- NEW WISHLIST DRAWER (LEFT SLIDE) -->
+    <div class="wishlist-drawer" id="wishlistDrawer">
+        <div class="drawer-header">
+            <h2>Saved Styles</h2>
+            <button class="close-drawer hover-target" onclick="toggleWishlist()">✕</button>
+        </div>
+        <div class="drawer-items" id="wishlistItems">
+            <p style="color:var(--text-muted); font-size: 0.9rem;">Your wishlist is currently empty.</p>
         </div>
     </div>
 
@@ -816,7 +857,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
         // --- 1. DYNAMIC NAVIGATION ENGINE ---
         const indicator = document.getElementById('indicator');
-        const tabs = document.querySelectorAll('.nav-tab:not(.cart-btn)');
+        const tabs = document.querySelectorAll('.nav-tab:not(.cart-btn):not(.wishlist-btn)');
         const sections = document.querySelectorAll('.page-section');
 
         function updateIndicator(tab) {
@@ -1098,8 +1139,18 @@ Thank you for supporting my small business and understanding the handmade nature
                         }
                     }
 
+                    // Pre-fill the heart if a variant of this product is already in the wishlist
+                    const isInWishlist = window.wishlist && window.wishlist.some(w => w.productId === product.id);
+                    const heartClass = isInWishlist ? 'wishlist-heart hover-target active' : 'wishlist-heart hover-target';
+
                     const cardHTML = `
                         <div class="product-card reveal active" data-category="${category}">
+                            
+                            <!-- NEW WISHLIST HEART ICON ON PRODUCT CARD -->
+                            <button class="${heartClass}" onclick="addCurrentConfigToWishlist('${product.id}', this, ${hasVariants})">
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                            </button>
+
                             ${imageZoneHTML}
                             <div class="product-details">
                                 <span class="product-tag">${category.replace('-', ' ').toUpperCase()}</span>
@@ -1402,14 +1453,34 @@ Thank you for supporting my small business and understanding the handmade nature
             btn.addEventListener('click', () => applyFilter(btn.getAttribute('data-filter'), btn));
         });
 
-        // --- 7. SHOPPING CART ENGINE ---
+        // --- 7. CART & WISHLIST ENGINES ---
         
         let cart = JSON.parse(localStorage.getItem('inspiredThreadsCart')) || [];
+        window.wishlist = JSON.parse(localStorage.getItem('inspiredThreadsWishlist')) || [];
         const stripe = Stripe('pk_live_51TnjXXFWt379RB9CQuAZ3roCVW8l892C9ffUstWDP6TjNAtlmYZ4gWWnad9kPpqGveHGqA54LAjtGE3eKNfYy6FM00dGd8t5Hr');
         
+        function closeAllDrawers() {
+            document.getElementById('cartDrawer').classList.remove('open');
+            document.getElementById('wishlistDrawer').classList.remove('open');
+            document.getElementById('drawerOverlay').classList.remove('open');
+        }
+
         function toggleCart() {
+            if(document.getElementById('wishlistDrawer').classList.contains('open')) {
+                document.getElementById('wishlistDrawer').classList.remove('open');
+            } else {
+                document.getElementById('drawerOverlay').classList.toggle('open');
+            }
             document.getElementById('cartDrawer').classList.toggle('open');
-            document.getElementById('cartOverlay').classList.toggle('open');
+        }
+
+        function toggleWishlist() {
+            if(document.getElementById('cartDrawer').classList.contains('open')) {
+                document.getElementById('cartDrawer').classList.remove('open');
+            } else {
+                document.getElementById('drawerOverlay').classList.toggle('open');
+            }
+            document.getElementById('wishlistDrawer').classList.toggle('open');
         }
 
         function updateCartUI() {
@@ -1429,11 +1500,11 @@ Thank you for supporting my small business and understanding the handmade nature
                     const metaText = item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
                     
                     cartItemsContainer.innerHTML += `
-                        <div class="cart-item">
-                            <div class="cart-item-details">
+                        <div class="drawer-item">
+                            <div class="drawer-item-details">
                                 <h4 style="color: ${item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
-                                <div class="cart-item-meta">${metaText}</div>
-                                <div class="cart-item-price">$${item.price.toFixed(2)} x ${item.quantity}</div>
+                                <div class="drawer-item-meta">${metaText}</div>
+                                <div class="drawer-item-price">$${item.price.toFixed(2)} x ${item.quantity}</div>
                             </div>
                             <button class="remove-item hover-target" onclick="removeFromCart(${index})">✕</button>
                         </div>
@@ -1458,6 +1529,112 @@ Thank you for supporting my small business and understanding the handmade nature
             cart.splice(index, 1);
             localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
             updateCartUI();
+        }
+
+        // --- NEW: WISHLIST LOGIC ENGINE ---
+        function addCurrentConfigToWishlist(productId, btnElement, hasVariants) {
+            const card = btnElement.closest('.product-card');
+            const name = card.querySelector('.product-title').innerText;
+            const priceText = card.querySelector('.price-tag').innerText.replace('$', '');
+            const price = parseFloat(priceText);
+            
+            const cartBtn = document.getElementById(`btn-zone-${productId}`);
+            const priceId = cartBtn ? cartBtn.getAttribute('data-price-id') : null;
+
+            let size = null, color = null;
+            if (hasVariants) {
+                size = card.querySelector('.item-size').value;
+                color = card.querySelector('.item-color').value;
+            }
+
+            const attachedDtf = window.attachedDtfs[productId] || null;
+            
+            // Generates a unique key so the user can save multiple variants of the same shirt independently!
+            const matchKey = `${productId}-${size}-${color}-${attachedDtf ? attachedDtf.id : 'none'}`;
+
+            const existingIndex = window.wishlist.findIndex(item => item.matchKey === matchKey);
+            
+            if (existingIndex > -1) {
+                window.wishlist.splice(existingIndex, 1);
+                btnElement.classList.remove('active');
+            } else {
+                window.wishlist.push({ matchKey, productId, name, price, priceId, size, color, hasVariants, attachedDtf });
+                btnElement.classList.add('active');
+            }
+            
+            localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
+            updateWishlistUI();
+        }
+
+        function updateWishlistUI() {
+            const container = document.getElementById('wishlistItems');
+            const count = document.getElementById('wishlistNavCount');
+            count.innerText = window.wishlist.length;
+            container.innerHTML = '';
+
+            if (window.wishlist.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted); font-size: 0.9rem;">Your wishlist is currently empty.</p>';
+            } else {
+                window.wishlist.forEach((item, index) => {
+                    const metaText = item.size ? `${item.size} / ${item.color}` : 'Standard Specifications';
+                    const dtfText = item.attachedDtf ? `<br><span style="color:var(--accent-pink);">+ DTF: ${item.attachedDtf.name}</span>` : '';
+                    const totalPrice = item.price + (item.attachedDtf ? parseFloat(item.attachedDtf.price) : 0);
+
+                    container.innerHTML += `
+                        <div class="drawer-item">
+                            <div class="drawer-item-details">
+                                <h4 style="color: var(--text-pure); font-size: 0.9rem;">${item.name}</h4>
+                                <div class="drawer-item-meta">${metaText}${dtfText}</div>
+                                <div class="drawer-item-price">$${totalPrice.toFixed(2)}</div>
+                                <button class="stripe-btn magnetic-btn hover-target" style="padding: 6px 12px; font-size: 0.65rem; margin-top: 5px;" onclick="moveWishlistToCart(${index})">Move to Cart</button>
+                            </div>
+                            <button class="remove-item hover-target" onclick="removeFromWishlist(${index})">✕</button>
+                        </div>
+                    `;
+                });
+            }
+            if(isDesktop) attachHoverTargets();
+        }
+
+        function removeFromWishlist(index) {
+            window.wishlist.splice(index, 1);
+            localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
+            updateWishlistUI();
+        }
+
+        function moveWishlistToCart(index) {
+            const item = window.wishlist[index];
+            const baseItemName = item.attachedDtf ? `${item.name} (w/ ${item.attachedDtf.name})` : item.name;
+
+            // Push Base Item to Cart exactly like normal checkout
+            const existingBase = cart.find(c => c.priceId === item.priceId && c.size === item.size && c.color === item.color && c.name === baseItemName);
+            if (existingBase) {
+                existingBase.quantity += 1;
+            } else {
+                cart.push({ id: Date.now(), name: baseItemName, price: item.price, priceId: item.priceId, size: item.size, color: item.color, quantity: 1 });
+            }
+
+            // Push Attached DTF to Cart
+            if (item.attachedDtf) {
+                const dtfCartName = `[ATTACHED PRINT] ${item.attachedDtf.name}`;
+                const existingDtf = cart.find(c => c.priceId === item.attachedDtf.priceId && c.name === dtfCartName);
+                if (existingDtf) {
+                    existingDtf.quantity += 1;
+                } else {
+                    cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(item.attachedDtf.price), priceId: item.attachedDtf.priceId, size: null, color: null, quantity: 1 });
+                }
+            }
+
+            // Remove from wishlist array since it's in the cart now
+            window.wishlist.splice(index, 1);
+            localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
+            localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+            
+            updateWishlistUI();
+            updateCartUI();
+            
+            // Instantly closes the Wishlist and pops open the Cart to show it worked!
+            toggleCart();
         }
 
         async function processCheckout() {
@@ -1692,6 +1869,7 @@ Thank you for supporting my small business and understanding the handmade nature
             }
 
             updateCartUI(); 
+            updateWishlistUI();
             initShopEngine(); 
         };
     </script>
