@@ -1511,11 +1511,11 @@ Thank you for supporting my small business and understanding the handmade nature
                     const metaText = item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
                     
                     cartItemsContainer.innerHTML += `
-                        <div class="cart-item">
-                            <div class="cart-item-details">
+                        <div class="drawer-item">
+                            <div class="drawer-item-details">
                                 <h4 style="color: ${item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
-                                <div class="cart-item-meta">${metaText}</div>
-                                <div class="cart-item-price">$${item.price.toFixed(2)} x ${item.quantity}</div>
+                                <div class="drawer-item-meta">${metaText}</div>
+                                <div class="drawer-item-price">$${item.price.toFixed(2)} x ${item.quantity}</div>
                             </div>
                             <button class="remove-item hover-target" onclick="removeFromCart(${index})">✕</button>
                         </div>
