@@ -89,8 +89,8 @@ export default async function handler(req, res) {
                         display_name: 'Standard Shipping',
                         // Automatically shows the customer your turnaround time!
                         delivery_estimate: {
-                            minimum: { unit: 'business_day', value: 7 },
-                            maximum: { unit: 'business_day', value: 14 },
+                            minimum: { unit: 'business_day', value: 5 },
+                            maximum: { unit: 'business_day', value: 7 },
                         },
                     },
                 },
