@@ -918,20 +918,19 @@ Thank you for supporting my small business and understanding the handmade nature
         window.attachedDtfs = {}; // Maps { productId : {dtfData} }
         
         const dtfPlacements = {
-            /* Shifted up to mid-chest */
+            // T-Shirt (1316x1195 - Standard vertical bias)
             'thread-tshirt': { top: '28%', width: '18%', height: '40%', left: '41%' },
             
-            /* Shifted up, but kept slightly lower than tshirt to clear drawstrings */
+            // Hoodie (Wider image, drop top to clear drawstrings)
             'thread-hoodie': { top: '30%', width: '18%', height: '35%', left: '41%' }, 
             
-            /* Shifted up to mid-chest */
-            'thread-crewneck': { top: '28%', width: '18%', height: '40%', left: '41%' },
+            // Crewneck (1402x1122 - Widest image, has more top/bottom empty space)
+            'thread-crewneck': { top: '30%', width: '18%', height: '38%', left: '41%' },
             
-            /* Untouched, kept exactly where you like it */
-            'thread-tanktop': { top: '35%', width: '18%', height: '35%', left: '42%' },
+            // Tanktop (1254x1254 - Perfect square, fills height)
+            'thread-tanktop': { top: '32%', width: '16%', height: '35%', left: '42%' },
 
             'corporate': { top: '40%', width: '30%', height: '35%', left: '35%' }
-         
         };
 
         // --- 4. DYNAMIC STRIPE INVENTORY & VARIANT ENGINE ---
@@ -1231,9 +1230,11 @@ Thank you for supporting my small business and understanding the handmade nature
             } else {
                 window.dtfRegistry.forEach(dtf => {
                     const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : '';
-                    const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'full_front';
                     
-                    // NEW: Grab the custom scale multiplier from Stripe (Defaults to 1.0 if not present)
+                    // DEFAULT UPGRADE: Now defaults to 'center_chest'. full_front is removed.
+                    const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'center_chest';
+                    
+                    // THE STRIPE NUDGE: Pulls the custom scale multiplier from Stripe (Defaults to 1.0)
                     const customScale = (dtf.metadata && dtf.metadata.visual_scale) ? parseFloat(dtf.metadata.visual_scale) : 1.0;
                     
                     grid.innerHTML += `
@@ -1274,42 +1275,39 @@ Thank you for supporting my small business and understanding the handmade nature
             if(overlay) {
                 overlay.style.backgroundImage = `url('${dtfImg}')`;
                 overlay.style.opacity = '1';
-                overlay.style.transformOrigin = 'top center'; 
                 
+                // UPGRADE: 2-State Engine with Garment-Specific Pocket Dials
                 if (designType === 'pocket') {
                     overlay.style.transformOrigin = 'top center';
-                    // We multiply the base 0.35 pocket scale by whatever the Stripe customScale is
                     const finalScale = 0.35 * customScale;
 
+                    // THE 4 INDEPENDENT STEERING WHEELS
                     if (category === 'thread-tshirt') {
                         overlay.style.transform = `scale(${finalScale}) translate(110%, 40%)`; 
                     } 
-                    else if (category === 'thread-hoodie') {
-                        overlay.style.transform = `scale(${finalScale}) translate(115%, 55%)`; 
-                    } 
                     else if (category === 'thread-crewneck') {
-                        overlay.style.transform = `scale(${finalScale}) translate(115%, 45%)`; 
-                    } 
+                        // Wide image needs X pushed further right to hit the pec
+                        overlay.style.transform = `scale(${finalScale}) translate(120%, 35%)`; 
+                    }
+                    else if (category === 'thread-hoodie') {
+                        // Drop Y heavily for drawstrings, push X for wide image
+                        overlay.style.transform = `scale(${finalScale}) translate(120%, 55%)`; 
+                    }
                     else if (category === 'thread-tanktop') {
-                        overlay.style.transform = `scale(${finalScale}) translate(100%, 10%)`; 
-                    } 
+                        // Square image, narrower on screen, X doesn't need to push as far right
+                        overlay.style.transform = `scale(${finalScale}) translate(95%, 25%)`; 
+                    }
                     else {
+                        // Safe fallback
                         overlay.style.transform = `scale(${finalScale}) translate(110%, 40%)`;
                     }
                 } 
-                else if (designType === 'center_chest') {
-                    // BASE BUMP: Increased from 0.65 to 0.85 so standard ones look better immediately
+                else {
+                    // CENTER CHEST (Default for everything without a tag)
+                    overlay.style.transformOrigin = 'top center';
                     const finalScale = 0.85 * customScale; 
                     overlay.style.transform = `scale(${finalScale}) translate(0%, 5%)`; 
                 } 
-                else if (designType === 'full_back') {
-                    const finalScale = 1.0 * customScale;
-                    overlay.style.transform = `scale(${finalScale}) translate(0%, 0%)`;
-                }
-                else {
-                    const finalScale = 1.0 * customScale;
-                    overlay.style.transform = `scale(${finalScale}) translate(0, 0)`; 
-                }
             }
 
             document.getElementById(`attach-btn-${targetId}`).style.display = 'none';
