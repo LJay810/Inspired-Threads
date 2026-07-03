@@ -255,7 +255,7 @@
             pointer-events: none; /* Allows lightbox clicks to pass through */
             z-index: 2;
             opacity: 0;
-            transition: opacity 0.3s ease, background-image 0.3s ease;
+            transition: opacity 0.3s ease, background-image 0.3s ease, transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .attach-btn {
@@ -1231,8 +1231,10 @@ Thank you for supporting my small business and understanding the handmade nature
             } else {
                 window.dtfRegistry.forEach(dtf => {
                     const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : '';
+                    const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'full_front';
+                    
                     grid.innerHTML += `
-                        <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${dtf.name.replace(/'/g, "\\'")}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}')">
+                        <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${dtf.name.replace(/'/g, "\\'")}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}')">
                             <img src="${imgUrl}" class="dtf-item-img">
                             <span class="dtf-item-name">${dtf.name}</span>
                             <span style="color:var(--accent-pink); font-size: 0.75rem; font-family: var(--font-mono); font-weight: 700;">+$${dtf.price}</span>
@@ -1250,7 +1252,7 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById('dtfOverlayModal').classList.remove('active');
         }
 
-        function applyDtfToTarget(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId) {
+        function applyDtfToTarget(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType) {
             const targetId = window.currentVisualizerTarget;
             if(!targetId) return;
 
@@ -1260,7 +1262,8 @@ Thank you for supporting my small business and understanding the handmade nature
                 name: dtfName,
                 image: dtfImg,
                 price: dtfPrice,
-                priceId: dtfPriceId
+                priceId: dtfPriceId,
+                designType: designType
             };
 
             // Update Overlay Canvas
@@ -1268,6 +1271,23 @@ Thank you for supporting my small business and understanding the handmade nature
             if(overlay) {
                 overlay.style.backgroundImage = `url('${dtfImg}')`;
                 overlay.style.opacity = '1';
+                overlay.style.transformOrigin = 'top center'; // Default Anchor
+                
+                // --- THE NEW MATH ENGINE ---
+                if (designType === 'pocket') {
+                    overlay.style.transformOrigin = 'top left';
+                    overlay.style.transform = 'scale(0.35) translate(10%, 10%)'; 
+                } 
+                else if (designType === 'center_chest') {
+                    overlay.style.transform = 'scale(0.65) translate(0%, 5%)'; 
+                } 
+                else if (designType === 'full_back') {
+                    overlay.style.transform = 'scale(1) translate(0%, 0%)';
+                }
+                else {
+                    // Default: Full Front (100% scale, fills the original bounds)
+                    overlay.style.transform = 'scale(1) translate(0, 0)'; 
+                }
             }
 
             // Swap the Button for the Attached Label
@@ -1286,6 +1306,7 @@ Thank you for supporting my small business and understanding the handmade nature
             if(overlay) {
                 overlay.style.backgroundImage = 'none';
                 overlay.style.opacity = '0';
+                overlay.style.transform = 'none'; // Clear the math scaling
             }
 
             // Swap the Label back to the Button
@@ -1769,7 +1790,7 @@ Thank you for supporting my small business and understanding the handmade nature
         });
 
         // --- 9. LIGHTBOX ENGINE ---
-        function openLightbox(imgSrc, isVariant = false, overlayBg = 'none', top = '0', left = '0', width = '0', height = '0', sourceW = 0, sourceH = 0) {
+        function openLightbox(imgSrc, isVariant = false, overlayBg = 'none', top = '0', left = '0', width = '0', height = '0', sourceW = 0, sourceH = 0, transform = 'none', transformOrigin = 'center') {
             const overlay = document.getElementById('lightboxOverlay');
             const container = document.getElementById('lightboxContainer');
             const standardImg = document.getElementById('lightboxStandardImg');
@@ -1792,6 +1813,8 @@ Thank you for supporting my small business and understanding the handmade nature
                     dtfOverlay.style.width = width;
                     dtfOverlay.style.height = height;
                     dtfOverlay.style.backgroundImage = overlayBg;
+                    dtfOverlay.style.transform = transform;
+                    dtfOverlay.style.transformOrigin = transformOrigin;
                     dtfOverlay.style.opacity = '1';
                 } else {
                     dtfOverlay.style.opacity = '0';
@@ -1822,6 +1845,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     
                     let overlayBg = 'none';
                     let t = '0', l = '0', w = '0', h = '0';
+                    let trans = 'none', transOrig = 'center';
 
                     // If a DTF is attached, copy its exact math
                     if (dtfLayer && dtfLayer.style.opacity === '1') {
@@ -1830,9 +1854,11 @@ Thank you for supporting my small business and understanding the handmade nature
                         l = dtfLayer.style.left;
                         w = dtfLayer.style.width;
                         h = dtfLayer.style.height;
+                        trans = dtfLayer.style.transform;
+                        transOrig = dtfLayer.style.transformOrigin;
                     }
 
-                    openLightbox(urlMatch[1], true, overlayBg, t, l, w, h, rect.width, rect.height);
+                    openLightbox(urlMatch[1], true, overlayBg, t, l, w, h, rect.width, rect.height, trans, transOrig);
                 }
             }
         }
