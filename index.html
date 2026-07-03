@@ -1286,26 +1286,24 @@ Thank you for supporting my small business and understanding the handmade nature
                         overlay.style.transform = `scale(${finalScale}) translate(110%, 40%)`; 
                     } 
                     else if (category === 'thread-crewneck') {
-                        // Wide image needs X pushed further right to hit the pec
                         overlay.style.transform = `scale(${finalScale}) translate(120%, 35%)`; 
                     }
                     else if (category === 'thread-hoodie') {
-                        // Drop Y heavily for drawstrings, push X for wide image
                         overlay.style.transform = `scale(${finalScale}) translate(120%, 55%)`; 
                     }
                     else if (category === 'thread-tanktop') {
-                        // Square image, narrower on screen, X doesn't need to push as far right
                         overlay.style.transform = `scale(${finalScale}) translate(95%, 25%)`; 
                     }
                     else {
-                        // Safe fallback
                         overlay.style.transform = `scale(${finalScale}) translate(110%, 40%)`;
                     }
                 } 
                 else {
                     // CENTER CHEST (Default for everything without a tag)
                     overlay.style.transformOrigin = 'top center';
-                    const finalScale = 0.85 * customScale; 
+                    
+                    // FIX: Cranked from 0.85 to 1.5! This blows up the default chest print.
+                    const finalScale = 1.5 * customScale; 
                     overlay.style.transform = `scale(${finalScale}) translate(0%, 5%)`; 
                 } 
             }
