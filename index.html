@@ -1302,10 +1302,12 @@ Thank you for supporting my small business and understanding the handmade nature
                     // CENTER CHEST (Default for everything without a tag)
                     overlay.style.transformOrigin = 'top center';
                     
-                    // FIX: Cranked from 0.85 to 1.5! This blows up the default chest print.
-                    const finalScale = 1.5 * customScale; 
-                    overlay.style.transform = `scale(${finalScale}) translate(0%, 5%)`; 
-                } 
+                    // FIX 1: Dialed back slightly from 1.5 to 1.35 for a realistic 11" transfer look
+                    const finalScale = 1.35 * customScale; 
+                    
+                    // FIX 2: Added a -20% Y-axis pull to yank the graphic UP from the stomach to the upper chest!
+                    overlay.style.transform = `scale(${finalScale}) translate(0%, -20%)`; 
+                }
             }
 
             document.getElementById(`attach-btn-${targetId}`).style.display = 'none';
