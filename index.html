@@ -1231,14 +1231,15 @@ Thank you for supporting my small business and understanding the handmade nature
                 window.dtfRegistry.forEach(dtf => {
                     const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : '';
                     
-                    // DEFAULT UPGRADE: Now defaults to 'center_chest'. full_front is removed.
                     const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'center_chest';
-                    
-                    // THE STRIPE NUDGE: Pulls the custom scale multiplier from Stripe (Defaults to 1.0)
                     const customScale = (dtf.metadata && dtf.metadata.visual_scale) ? parseFloat(dtf.metadata.visual_scale) : 1.0;
                     
+                    // THE NEW STRIPE NUDGE DIALS (Defaults to 0 offset if not tagged)
+                    const nudgeX = (dtf.metadata && dtf.metadata.nudge_x) ? parseFloat(dtf.metadata.nudge_x) : 0;
+                    const nudgeY = (dtf.metadata && dtf.metadata.nudge_y) ? parseFloat(dtf.metadata.nudge_y) : 0;
+                    
                     grid.innerHTML += `
-                        <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${dtf.name.replace(/'/g, "\\'")}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}', ${customScale})">
+                        <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${dtf.name.replace(/'/g, "\\'")}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}', ${customScale}, ${nudgeX}, ${nudgeY})">
                             <img src="${imgUrl}" class="dtf-item-img">
                             <span class="dtf-item-name">${dtf.name}</span>
                             <span style="color:var(--accent-pink); font-size: 0.75rem; font-family: var(--font-mono); font-weight: 700;">+$${dtf.price}</span>
@@ -1256,7 +1257,7 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById('dtfOverlayModal').classList.remove('active');
         }
 
-       function applyDtfToTarget(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType, customScale) {
+       function applyDtfToTarget(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType, customScale, nudgeX, nudgeY) {
             const targetId = window.currentVisualizerTarget;
             if(!targetId) return;
 
@@ -1276,37 +1277,32 @@ Thank you for supporting my small business and understanding the handmade nature
                 overlay.style.backgroundImage = `url('${dtfImg}')`;
                 overlay.style.opacity = '1';
                 
-                // UPGRADE: 2-State Engine with Garment-Specific Pocket Dials
                 if (designType === 'pocket') {
                     overlay.style.transformOrigin = 'top center';
                     const finalScale = 0.35 * customScale;
 
-                    // THE 4 INDEPENDENT STEERING WHEELS
+                    // BASELINES (yanked up off the belly) + STRIPE OFFSETS
                     if (category === 'thread-tshirt') {
-                        overlay.style.transform = `scale(${finalScale}) translate(110%, 40%)`; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${110 + nudgeX}%, ${-10 + nudgeY}%)`; 
                     } 
                     else if (category === 'thread-crewneck') {
-                        overlay.style.transform = `scale(${finalScale}) translate(120%, 35%)`; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${120 + nudgeX}%, ${-15 + nudgeY}%)`; 
                     }
                     else if (category === 'thread-hoodie') {
-                        overlay.style.transform = `scale(${finalScale}) translate(120%, 55%)`; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${120 + nudgeX}%, ${5 + nudgeY}%)`; 
                     }
                     else if (category === 'thread-tanktop') {
-                        overlay.style.transform = `scale(${finalScale}) translate(95%, 25%)`; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${95 + nudgeX}%, ${-20 + nudgeY}%)`; 
                     }
                     else {
-                        overlay.style.transform = `scale(${finalScale}) translate(110%, 40%)`;
+                        overlay.style.transform = `scale(${finalScale}) translate(${110 + nudgeX}%, ${-10 + nudgeY}%)`;
                     }
                 } 
                 else {
-                    // CENTER CHEST (Default for everything without a tag)
+                    // CENTER CHEST BASELINE (-20% up) + STRIPE OFFSETS
                     overlay.style.transformOrigin = 'top center';
-                    
-                    // FIX 1: Dialed back slightly from 1.5 to 1.35 for a realistic 11" transfer look
                     const finalScale = 1.35 * customScale; 
-                    
-                    // FIX 2: Added a -20% Y-axis pull to yank the graphic UP from the stomach to the upper chest!
-                    overlay.style.transform = `scale(${finalScale}) translate(0%, -20%)`; 
+                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-20 + nudgeY}%)`; 
                 }
             }
 
