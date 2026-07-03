@@ -1221,7 +1221,7 @@ Thank you for supporting my small business and understanding the handmade nature
         // --- 5. DTF VISUALIZER FUNCTIONS ---
         window.currentVisualizerTarget = null;
 
-        function openDtfSelector(productId, category) {
+       function openDtfSelector(productId, category) {
             window.currentVisualizerTarget = productId;
             const grid = document.getElementById('dtfSelectorGrid');
             grid.innerHTML = '';
@@ -1233,8 +1233,11 @@ Thank you for supporting my small business and understanding the handmade nature
                     const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : '';
                     const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'full_front';
                     
+                    // NEW: Grab the custom scale multiplier from Stripe (Defaults to 1.0 if not present)
+                    const customScale = (dtf.metadata && dtf.metadata.visual_scale) ? parseFloat(dtf.metadata.visual_scale) : 1.0;
+                    
                     grid.innerHTML += `
-                        <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${dtf.name.replace(/'/g, "\\'")}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}')">
+                        <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${dtf.name.replace(/'/g, "\\'")}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}', ${customScale})">
                             <img src="${imgUrl}" class="dtf-item-img">
                             <span class="dtf-item-name">${dtf.name}</span>
                             <span style="color:var(--accent-pink); font-size: 0.75rem; font-family: var(--font-mono); font-weight: 700;">+$${dtf.price}</span>
@@ -1252,14 +1255,12 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById('dtfOverlayModal').classList.remove('active');
         }
 
-       function applyDtfToTarget(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType) {
+       function applyDtfToTarget(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType, customScale) {
             const targetId = window.currentVisualizerTarget;
             if(!targetId) return;
 
-            // NEW: Fetch the specific garment category so the engine knows exactly which model it's targeting
             const category = window.productInventory[targetId]?.category || 'thread-tshirt';
 
-            // Save state globally so the Cart Logic can find it
             window.attachedDtfs[targetId] = {
                 id: dtfId,
                 name: dtfName,
@@ -1269,53 +1270,48 @@ Thank you for supporting my small business and understanding the handmade nature
                 designType: designType
             };
 
-            // Update Overlay Canvas
             const overlay = document.getElementById(`dtf-overlay-${targetId}`);
             if(overlay) {
                 overlay.style.backgroundImage = `url('${dtfImg}')`;
                 overlay.style.opacity = '1';
-                overlay.style.transformOrigin = 'top center'; // Default Anchor
+                overlay.style.transformOrigin = 'top center'; 
                 
-                // --- THE UPGRADED GARMENT-SPECIFIC MATH ENGINE ---
                 if (designType === 'pocket') {
                     overlay.style.transformOrigin = 'top center';
-                    
-                    // Precision tuning based on the 4 specific models from your layout
+                    // We multiply the base 0.35 pocket scale by whatever the Stripe customScale is
+                    const finalScale = 0.35 * customScale;
+
                     if (category === 'thread-tshirt') {
-                        // Drops down and pulls slightly inward to hit the pink dot perfectly
-                        overlay.style.transform = 'scale(0.35) translate(110%, 40%)'; 
+                        overlay.style.transform = `scale(${finalScale}) translate(110%, 40%)`; 
                     } 
                     else if (category === 'thread-hoodie') {
-                        // Drops even lower to completely clear the hood bunching and drawstrings
-                        overlay.style.transform = 'scale(0.35) translate(115%, 55%)'; 
+                        overlay.style.transform = `scale(${finalScale}) translate(115%, 55%)`; 
                     } 
                     else if (category === 'thread-crewneck') {
-                        // Adjusts for broader posture, drops onto the lower pec
-                        overlay.style.transform = 'scale(0.35) translate(115%, 45%)'; 
+                        overlay.style.transform = `scale(${finalScale}) translate(115%, 45%)`; 
                     } 
                     else if (category === 'thread-tanktop') {
-                        // Tanktop base is already lower, needs less Y drop, pulls right to clear straps
-                        overlay.style.transform = 'scale(0.35) translate(100%, 10%)'; 
+                        overlay.style.transform = `scale(${finalScale}) translate(100%, 10%)`; 
                     } 
                     else {
-                        // Safe default fallback
-                        overlay.style.transform = 'scale(0.35) translate(110%, 40%)';
+                        overlay.style.transform = `scale(${finalScale}) translate(110%, 40%)`;
                     }
                 } 
                 else if (designType === 'center_chest') {
-                    // Keeps it dead center, slightly scaled down and dropped from collar
-                    overlay.style.transform = 'scale(0.65) translate(0%, 5%)'; 
+                    // BASE BUMP: Increased from 0.65 to 0.85 so standard ones look better immediately
+                    const finalScale = 0.85 * customScale; 
+                    overlay.style.transform = `scale(${finalScale}) translate(0%, 5%)`; 
                 } 
                 else if (designType === 'full_back') {
-                    overlay.style.transform = 'scale(1) translate(0%, 0%)';
+                    const finalScale = 1.0 * customScale;
+                    overlay.style.transform = `scale(${finalScale}) translate(0%, 0%)`;
                 }
                 else {
-                    // Default: Full Front (100% scale, fills the original bounds)
-                    overlay.style.transform = 'scale(1) translate(0, 0)'; 
+                    const finalScale = 1.0 * customScale;
+                    overlay.style.transform = `scale(${finalScale}) translate(0, 0)`; 
                 }
             }
 
-            // Swap the Button for the Attached Label
             document.getElementById(`attach-btn-${targetId}`).style.display = 'none';
             document.getElementById(`attached-dtf-label-${targetId}`).style.display = 'block';
             document.getElementById(`dtf-name-${targetId}`).innerText = dtfName;
