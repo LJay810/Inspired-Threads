@@ -1273,19 +1273,24 @@ Thank you for supporting my small business and understanding the handmade nature
                 overlay.style.opacity = '1';
                 overlay.style.transformOrigin = 'top center'; // Default Anchor
                 
-                // --- THE NEW MATH ENGINE ---
+              // --- THE NEW MATH ENGINE ---
                 if (designType === 'pocket') {
-                    overlay.style.transformOrigin = 'top left';
-                    overlay.style.transform = 'scale(0.35) translate(10%, 10%)'; 
+                    // FIX: Shifts the logo to the Wearer's Left breast (Viewer's Right)
+                    overlay.style.transformOrigin = 'top center';
+                    overlay.style.transform = 'scale(0.35) translate(140%, 15%)'; 
                 } 
                 else if (designType === 'center_chest') {
+                    // Keeps it dead center, slightly scaled down and dropped from collar
+                    overlay.style.transformOrigin = 'top center';
                     overlay.style.transform = 'scale(0.65) translate(0%, 5%)'; 
                 } 
                 else if (designType === 'full_back') {
+                    overlay.style.transformOrigin = 'top center';
                     overlay.style.transform = 'scale(1) translate(0%, 0%)';
                 }
                 else {
                     // Default: Full Front (100% scale, fills the original bounds)
+                    overlay.style.transformOrigin = 'top center';
                     overlay.style.transform = 'scale(1) translate(0, 0)'; 
                 }
             }
