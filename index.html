@@ -850,8 +850,13 @@ Thank you for supporting my small business and understanding the handmade nature
                         const y = e.clientY - rect.top;
                         const centerX = rect.width / 2;
                         const centerY = rect.height / 2;
-                        const rotateX = ((y - centerY) / centerY) * -3;
-                        const rotateY = ((x - centerX) / centerX) * 3;
+
+                        // FIX: Dial down the tilt specifically for DTF cards so transparent PNGs don't warp
+                        const isDTF = card.getAttribute('data-category') === 'dtf';
+                        const multiplier = isDTF ? 1.2 : 3; 
+
+                        const rotateX = ((y - centerY) / centerY) * -multiplier;
+                        const rotateY = ((x - centerX) / centerX) * multiplier;
                         card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
                     });
                     
@@ -1232,33 +1237,36 @@ Thank you for supporting my small business and understanding the handmade nature
        function openDtfSelector(productId, category) {
             window.currentVisualizerTarget = productId;
             const grid = document.getElementById('dtfSelectorGrid');
-            grid.innerHTML = '';
             
             if(window.dtfRegistry.length === 0) {
                 grid.innerHTML = '<p style="color:var(--text-muted); font-family: var(--font-mono);">No DTF prints currently available.</p>';
             } else {
+                // FIX: Build the HTML in memory first instead of updating the live DOM 50 times in a row!
+                let gridHTML = '';
+                
                 window.dtfRegistry.forEach(dtf => {
-
                     const stockCount = dtf.metadata && dtf.metadata.stock !== undefined ? parseInt(dtf.metadata.stock) : null;
-                    if (stockCount !== null && stockCount <= 0) return; // Completely skips rendering this card
+                    if (stockCount !== null && stockCount <= 0) return; 
                    
                     const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : '';
                     
                     const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'center_chest';
                     const customScale = (dtf.metadata && dtf.metadata.visual_scale) ? parseFloat(dtf.metadata.visual_scale) : 1.0;
                     
-                    // THE NEW STRIPE NUDGE DIALS (Defaults to 0 offset if not tagged)
                     const nudgeX = (dtf.metadata && dtf.metadata.nudge_x) ? parseFloat(dtf.metadata.nudge_x) : 0;
                     const nudgeY = (dtf.metadata && dtf.metadata.nudge_y) ? parseFloat(dtf.metadata.nudge_y) : 0;
                     
-                    grid.innerHTML += `
+                    gridHTML += `
                         <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${dtf.name.replace(/'/g, "\\'")}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}', ${customScale}, ${nudgeX}, ${nudgeY})">
-                            <img src="${imgUrl}" class="dtf-item-img">
+                            <img src="${imgUrl}" class="dtf-item-img" loading="lazy" decoding="async" alt="DTF Graphic">
                             <span class="dtf-item-name">${dtf.name}</span>
                             <span style="color:var(--accent-pink); font-size: 0.75rem; font-family: var(--font-mono); font-weight: 700;">+$${dtf.price}</span>
                         </div>
                     `;
                 });
+                
+                // Inject the entire buffered HTML into the grid all at once
+                grid.innerHTML = gridHTML;
             }
             
             document.getElementById('dtfOverlayModal').classList.add('active');
