@@ -1,4 +1,3 @@
-// api/products.js
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 export default async function handler(req, res) {
@@ -7,16 +6,16 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Fetch active products, expanding the default price data
+        // THE FIX: Uses Auto-Pagination to pull up to 1,000 products, bypassing the 100 limit cap!
         const products = await stripe.products.list({
             active: true,
-            limit: 100, // Safe limit for Stripe payload size
+            limit: 100, 
             expand: ['data.default_price'],
-        });
+        }).autoPagingToArray({ limit: 1000 }); 
 
         // Filter out any products missing a price, then format
-        const formattedProducts = products.data
-            .filter(product => product.default_price && product.default_price.unit_amount) // <-- THE SAFETY NET
+        const formattedProducts = products
+            .filter(product => product.default_price && product.default_price.unit_amount) 
             .map(product => ({
                 id: product.id,
                 name: product.name,
