@@ -334,8 +334,8 @@
         
         .product-card { 
             background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden;
-            display: flex; flex-direction: column; transition: box-shadow 0.15s ease-out, border-color 0.15s ease-out, opacity 0.4s ease; 
-            opacity: 1; position: relative; transform-style: preserve-3d; z-index: 1;
+            display: flex; flex-direction: column; opacity: 1; position: relative; transform-style: preserve-3d; z-index: 1;
+            transition: transform 0.15s ease-out, box-shadow 0.15s ease-out, border-color 0.15s ease-out, opacity 0.4s ease; 
         }
         .product-card.hidden-filter { display: none !important; opacity: 0; transform: scale(0.95); }
         .product-card:hover { border-color: var(--accent-pink); box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255, 0, 127, 0.15); z-index: 50; }
@@ -629,7 +629,7 @@
                 <label style="margin-bottom: 0;">Print Quantity</label>
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <button class="qty-btn hover-target" onclick="changeTikTokQty(-1)">-</button>
-                    <span id="tiktokQty" style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--text-pure);">1</span>
+  <input type="number" id="tiktokQty" value="1" min="1" onchange="updateTikTokTotal()" style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--text-pure); background: transparent; border: none; width: 60px; text-align: center; outline: none; -moz-appearance: textfield;">
                     <button class="qty-btn hover-target" onclick="changeTikTokQty(1)">+</button>
                 </div>
             </div>
@@ -850,8 +850,8 @@ Thank you for supporting my small business and understanding the handmade nature
                         const y = e.clientY - rect.top;
                         const centerX = rect.width / 2;
                         const centerY = rect.height / 2;
-                        const rotateX = ((y - centerY) / centerY) * -8;
-                        const rotateY = ((x - centerX) / centerX) * 8;
+                        const rotateX = ((y - centerY) / centerY) * -3;
+                        const rotateY = ((x - centerX) / centerX) * 3;
                         card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
                     });
                     
@@ -1238,6 +1238,10 @@ Thank you for supporting my small business and understanding the handmade nature
                 grid.innerHTML = '<p style="color:var(--text-muted); font-family: var(--font-mono);">No DTF prints currently available.</p>';
             } else {
                 window.dtfRegistry.forEach(dtf => {
+
+                    const stockCount = dtf.metadata && dtf.metadata.stock !== undefined ? parseInt(dtf.metadata.stock) : null;
+                    if (stockCount !== null && stockCount <= 0) return; // Completely skips rendering this card
+                   
                     const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : '';
                     
                     const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'center_chest';
@@ -1892,8 +1896,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
         function openTikTokModal() {
             document.getElementById('tiktokOverlay').classList.add('active');
-            currentTikTokQty = 1;
-            document.getElementById('tiktokQty').innerText = currentTikTokQty;
+            document.getElementById('tiktokQty').value = 1; // Resets to 1 natively
             document.getElementById('tiktokTier').selectedIndex = 0; 
             updateTikTokTotal();
         }
@@ -1904,15 +1907,26 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         function changeTikTokQty(change) {
-            currentTikTokQty += change;
-            if (currentTikTokQty < 1) currentTikTokQty = 1;
-            document.getElementById('tiktokQty').innerText = currentTikTokQty;
+            const qtyInput = document.getElementById('tiktokQty');
+            let current = parseInt(qtyInput.value) || 1;
+            current += change;
+            if (current < 1) current = 1;
+            qtyInput.value = current;
             updateTikTokTotal();
         }
 
         function updateTikTokTotal() {
+            const qtyInput = document.getElementById('tiktokQty');
+            let current = parseInt(qtyInput.value) || 1;
+            
+            // Safety catch: If user types "0" or negative, force it back to 1
+            if (current < 1) {
+                current = 1;
+                qtyInput.value = 1;
+            }
+            
             const tierPrice = parseFloat(document.getElementById('tiktokTier').value);
-            const total = tierPrice * currentTikTokQty;
+            const total = tierPrice * current;
             document.getElementById('tiktokTotal').innerText = `$${total.toFixed(2)}`;
         }
 
@@ -1922,7 +1936,7 @@ Thank you for supporting my small business and understanding the handmade nature
             
             const price = parseFloat(selectedOption.value);
             const priceId = selectedOption.getAttribute('data-price-id');
-            const quantity = currentTikTokQty;
+            const quantity = parseInt(document.getElementById('tiktokQty').value) || 1;
             
             const tierText = selectedOption.innerText.split(' - ')[0];
             const name = `TikTok Live Claim (${tierText})`;
@@ -1966,6 +1980,18 @@ Thank you for supporting my small business and understanding the handmade nature
             });
         });
 
+        // --- NEW: BFCache Checkout Button Reset ---
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                const checkoutBtn = document.querySelector('.checkout-btn');
+                if (checkoutBtn) {
+                    checkoutBtn.innerText = "Secure Checkout via Stripe";
+                    checkoutBtn.disabled = false;
+                    checkoutBtn.style.background = "";
+                    checkoutBtn.style.fontSize = "0.9rem";
+                }
+            }
+        });
 
         window.onload = () => { 
             onScroll();  
