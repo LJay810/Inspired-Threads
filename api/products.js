@@ -10,23 +10,26 @@ export default async function handler(req, res) {
         // Fetch active products, expanding the default price data
         const products = await stripe.products.list({
             active: true,
-            limit: 200,
+            limit: 100, // Safe limit for Stripe payload size
             expand: ['data.default_price'],
         });
 
-        // Format the data for your frontend
-        const formattedProducts = products.data.map(product => ({
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            images: product.images, // <--- CHANGED: Passes the entire array of image URLs from Stripe
-            metadata: product.metadata, // Crucial for the hasVariants and category logic
-            price: (product.default_price.unit_amount / 100).toFixed(2), 
-            priceId: product.default_price.id
-        }));
+        // Filter out any products missing a price, then format
+        const formattedProducts = products.data
+            .filter(product => product.default_price && product.default_price.unit_amount) // <-- THE SAFETY NET
+            .map(product => ({
+                id: product.id,
+                name: product.name,
+                description: product.description,
+                images: product.images,
+                metadata: product.metadata,
+                price: (product.default_price.unit_amount / 100).toFixed(2), 
+                priceId: product.default_price.id
+            }));
 
         res.status(200).json(formattedProducts);
     } catch (error) {
+        console.error("Stripe API Error:", error.message);
         res.status(500).json({ error: error.message });
     }
 }
