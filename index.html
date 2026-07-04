@@ -1241,20 +1241,28 @@ Thank you for supporting my small business and understanding the handmade nature
             if(window.dtfRegistry.length === 0) {
                 grid.innerHTML = '<p style="color:var(--text-muted); font-family: var(--font-mono);">No DTF prints currently available.</p>';
             } else {
-                // FIX: Build the HTML in memory first instead of updating the live DOM 50 times in a row!
                 let gridHTML = '';
+                
+                // Creates a short name for Stripe metadata (e.g., 'tshirt', 'hoodie', 'corporate')
+                const shortCategory = category.replace('thread-', '');
                 
                 window.dtfRegistry.forEach(dtf => {
                     const stockCount = dtf.metadata && dtf.metadata.stock !== undefined ? parseInt(dtf.metadata.stock) : null;
                     if (stockCount !== null && stockCount <= 0) return; 
                    
                     const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : '';
-                    
                     const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'center_chest';
-                    const customScale = (dtf.metadata && dtf.metadata.visual_scale) ? parseFloat(dtf.metadata.visual_scale) : 1.0;
                     
-                    const nudgeX = (dtf.metadata && dtf.metadata.nudge_x) ? parseFloat(dtf.metadata.nudge_x) : 0;
-                    const nudgeY = (dtf.metadata && dtf.metadata.nudge_y) ? parseFloat(dtf.metadata.nudge_y) : 0;
+                    // NEW: Garment-Specific Scale (Falls back to global visual_scale, then 1.0)
+                    const customScale = (dtf.metadata && dtf.metadata[`scale_${shortCategory}`] !== undefined) ? parseFloat(dtf.metadata[`scale_${shortCategory}`]) :
+                                        (dtf.metadata && dtf.metadata.visual_scale !== undefined) ? parseFloat(dtf.metadata.visual_scale) : 1.0;
+                    
+                    // NEW: Garment-Specific X & Y Nudges (Falls back to global nudge, then 0)
+                    const nudgeX = (dtf.metadata && dtf.metadata[`nudge_x_${shortCategory}`] !== undefined) ? parseFloat(dtf.metadata[`nudge_x_${shortCategory}`]) : 
+                                   (dtf.metadata && dtf.metadata.nudge_x !== undefined) ? parseFloat(dtf.metadata.nudge_x) : 0;
+                                   
+                    const nudgeY = (dtf.metadata && dtf.metadata[`nudge_y_${shortCategory}`] !== undefined) ? parseFloat(dtf.metadata[`nudge_y_${shortCategory}`]) : 
+                                   (dtf.metadata && dtf.metadata.nudge_y !== undefined) ? parseFloat(dtf.metadata.nudge_y) : 0;
                     
                     gridHTML += `
                         <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${dtf.name.replace(/'/g, "\\'")}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}', ${customScale}, ${nudgeX}, ${nudgeY})">
@@ -1265,7 +1273,6 @@ Thank you for supporting my small business and understanding the handmade nature
                     `;
                 });
                 
-                // Inject the entire buffered HTML into the grid all at once
                 grid.innerHTML = gridHTML;
             }
             
@@ -1302,28 +1309,36 @@ Thank you for supporting my small business and understanding the handmade nature
                     overlay.style.transformOrigin = 'top center';
                     const finalScale = 0.35 * customScale;
 
-                    // BASELINES (yanked up off the belly) + STRIPE OFFSETS
+                    // BASELINES (Pushed further right onto the pec) + STRIPE OFFSETS
                     if (category === 'thread-tshirt') {
-                        overlay.style.transform = `scale(${finalScale}) translate(${110 + nudgeX}%, ${-10 + nudgeY}%)`; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${140 + nudgeX}%, ${-10 + nudgeY}%)`; 
                     } 
                     else if (category === 'thread-crewneck') {
-                        overlay.style.transform = `scale(${finalScale}) translate(${120 + nudgeX}%, ${-15 + nudgeY}%)`; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${150 + nudgeX}%, ${-15 + nudgeY}%)`; 
                     }
                     else if (category === 'thread-hoodie') {
-                        overlay.style.transform = `scale(${finalScale}) translate(${120 + nudgeX}%, ${5 + nudgeY}%)`; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${155 + nudgeX}%, ${5 + nudgeY}%)`; 
                     }
                     else if (category === 'thread-tanktop') {
-                        overlay.style.transform = `scale(${finalScale}) translate(${95 + nudgeX}%, ${-20 + nudgeY}%)`; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${125 + nudgeX}%, ${-20 + nudgeY}%)`; 
                     }
                     else {
-                        overlay.style.transform = `scale(${finalScale}) translate(${110 + nudgeX}%, ${-10 + nudgeY}%)`;
+                        overlay.style.transform = `scale(${finalScale}) translate(${140 + nudgeX}%, ${-10 + nudgeY}%)`;
                     }
                 } 
                 else {
-                    // CENTER CHEST BASELINE (-20% up) + STRIPE OFFSETS
+                    // CENTER CHEST
                     overlay.style.transformOrigin = 'top center';
-                    const finalScale = 1.35 * customScale; 
-                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-20 + nudgeY}%)`; 
+                    
+                    if (category === 'corporate') {
+                        // TOTE BAG FIX: Uses a much smaller baseline scale (0.8) so it fits in the wide 30% box
+                        const finalScale = 0.8 * customScale; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${0 + nudgeY}%)`; 
+                    } else {
+                        // STANDARD APPAREL: Uses the 1.35 scale and pulls it off the belly
+                        const finalScale = 1.35 * customScale; 
+                        overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-20 + nudgeY}%)`; 
+                    }
                 }
             }
 
