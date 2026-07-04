@@ -2032,5 +2032,51 @@ Thank you for supporting my small business and understanding the handmade nature
             initShopEngine(); 
         };
     </script>
+
+    <div id="dev-calibration-panel" style="position: fixed; bottom: 20px; left: 20px; background: rgba(15,15,15,0.95); border: 2px solid var(--accent-pink); padding: 20px; z-index: 9999; border-radius: 8px; font-family: var(--font-mono); width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.9);">
+        <h3 style="color: var(--accent-pink); margin-bottom: 15px; font-size: 1rem; text-transform: uppercase;">Calibration Bench</h3>
+        
+        <label style="display:block; color:var(--text-pure); font-size:0.8rem; margin-bottom:5px;">Scale: <span id="val-scale" style="color:var(--accent-pink); font-weight:bold;">1.0</span></label>
+        <input type="range" id="cal-scale" min="0.1" max="2.5" step="0.05" value="1.0" style="width: 100%; margin-bottom: 15px; accent-color: var(--accent-pink);">
+        
+        <label style="display:block; color:var(--text-pure); font-size:0.8rem; margin-bottom:5px;">X Coordinate (Left/Right): <span id="val-x" style="color:var(--accent-pink); font-weight:bold;">140</span>%</label>
+        <input type="range" id="cal-x" min="-100" max="300" step="1" value="140" style="width: 100%; margin-bottom: 15px; accent-color: var(--accent-pink);">
+        
+        <label style="display:block; color:var(--text-pure); font-size:0.8rem; margin-bottom:5px;">Y Coordinate (Up/Down): <span id="val-y" style="color:var(--accent-pink); font-weight:bold;">-10</span>%</label>
+        <input type="range" id="cal-y" min="-150" max="150" step="1" value="-10" style="width: 100%; accent-color: var(--accent-pink);">
+    </div>
+
+    <script>
+        function updateCalibration() {
+            const targetId = window.currentVisualizerTarget;
+            if(!targetId) return;
+
+            const overlay = document.getElementById(`dtf-overlay-${targetId}`);
+            if(!overlay) return;
+
+            const scale = document.getElementById('cal-scale').value;
+            const x = document.getElementById('cal-x').value;
+            const y = document.getElementById('cal-y').value;
+
+            document.getElementById('val-scale').innerText = scale;
+            document.getElementById('val-x').innerText = x;
+            document.getElementById('val-y').innerText = y;
+
+            // Overrides the HTML engine live
+            overlay.style.transform = `scale(${scale}) translate(${x}%, ${y}%)`;
+        }
+
+        document.getElementById('cal-scale').addEventListener('input', updateCalibration);
+        document.getElementById('cal-x').addEventListener('input', updateCalibration);
+        document.getElementById('cal-y').addEventListener('input', updateCalibration);
+        
+        // Auto-hook into the visualizer when a DTF is clicked
+        const originalApply = applyDtfToTarget;
+        applyDtfToTarget = function(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType, customScale, nudgeX, nudgeY) {
+            originalApply(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType, customScale, nudgeX, nudgeY);
+            setTimeout(updateCalibration, 50); 
+        };
+    </script>
+
 </body>
 </html>
