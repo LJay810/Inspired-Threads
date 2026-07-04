@@ -1023,12 +1023,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         
                         // DTF Overlay Logic Calculation (Upgraded for Metadata Overrides)
                         let overlayStyle = "";
-                        // If it has a category default OR specific Stripe metadata, build the box
                         if (dtfPlacements[category] || product.metadata.dtf_top) {
-                            
-                            // 1. Look for custom Stripe metadata first. 
-                            // 2. If null, fallback to our dtfPlacements dictionary.
-                            // 3. If category doesn't exist, use a safe default center placement.
                             const top = product.metadata.dtf_top || dtfPlacements[category]?.top || '35%';
                             const left = product.metadata.dtf_left || dtfPlacements[category]?.left || '40%';
                             const width = product.metadata.dtf_width || dtfPlacements[category]?.width || '20%';
@@ -1037,9 +1032,9 @@ Thank you for supporting my small business and understanding the handmade nature
                             overlayStyle = `top: ${top}; left: ${left}; width: ${width}; height: ${height};`;
                         }
 
-                        // Builds image zone with Absolute Positioned Overlay inside it
+                        // FIX: Converted background-image inline style to data-bg attribute for Lazy Loading
                         imageZoneHTML = `
-                            <div class="product-image-zone hover-target" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="openVariantLightbox(this)">
+                            <div class="product-image-zone hover-target lazy-bg" id="img-zone-${product.id}" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="openVariantLightbox(this)">
                                 <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
                             </div>
                         `;
@@ -1061,7 +1056,6 @@ Thank you for supporting my small business and understanding the handmade nature
                             </div>
                         `;
 
-                        // Evaluate default color selection inventory bounds string
                         const defaultSize = sizes[0];
                         const defaultColor = colors[0];
                         const stockKey = `stock_${defaultSize}_${defaultColor}`;
@@ -1109,14 +1103,13 @@ Thank you for supporting my small business and understanding the handmade nature
                              }
                              imageZoneHTML = `
                                 <div class="binder-gallery">
-                                    <img src="${defaultImage || 'placeholder.jpg'}" class="main-binder-img hover-target" alt="${product.name}" onclick="openLightbox(this.src)">
+                                    <img src="${defaultImage || 'placeholder.jpg'}" loading="lazy" class="main-binder-img hover-target" alt="${product.name}" onclick="openLightbox(this.src)">
                                     <div class="binder-thumbnails">
                                         ${thumbnailsHTML}
                                     </div>
                                 </div>
                             `;
                         } else if (category === 'corporate') {
-                            // --- NEW TOTE BAG LOGIC ---
                             let overlayStyle = "";
                             if (dtfPlacements[category] || product.metadata.dtf_top) {
                                 const top = product.metadata.dtf_top || dtfPlacements[category]?.top || '35%';
@@ -1126,14 +1119,13 @@ Thank you for supporting my small business and understanding the handmade nature
                                 overlayStyle = `top: ${top}; left: ${left}; width: ${width}; height: ${height};`;
                             }
 
-                            // Builds the image box WITH the absolute-positioned overlay canvas inside it
+                            // FIX: Converted background-image inline style to data-bg attribute for Lazy Loading
                             imageZoneHTML = `
-                                <div class="product-image-zone hover-target" id="img-zone-${product.id}" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">
+                                <div class="product-image-zone hover-target lazy-bg" id="img-zone-${product.id}" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">
                                     <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
                                 </div>
                             `;
  
-                            // Injects the "+ Attach Design" button and the active label (No dropdowns needed!)
                             variantHTML = `
                                 <button class="attach-btn hover-target" id="attach-btn-${product.id}" onclick="openDtfSelector('${product.id}', '${category}')">+ Attach Design (WIP)</button>
                                 <div id="attached-dtf-label-${product.id}" style="display:none; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); margin-bottom: 20px; text-align: center; background: rgba(255,0,127,0.05); border: 1px solid var(--accent-pink); padding: 8px; border-radius: 4px;">
@@ -1142,8 +1134,8 @@ Thank you for supporting my small business and understanding the handmade nature
                                 </div>
                             `;
                         } else {
-                            // Standard Non-variant items (Like the raw DTF transfers themselves)
-                            imageZoneHTML = `<div class="product-image-zone hover-target" style="background-image: url('${defaultImage}'); background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
+                            // FIX: Converted background-image inline style to data-bg attribute for Lazy Loading
+                            imageZoneHTML = `<div class="product-image-zone hover-target lazy-bg" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
                         }
 
                         const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
@@ -1176,7 +1168,6 @@ Thank you for supporting my small business and understanding the handmade nature
                         }
                     }
 
-                    // Pre-fill the heart if a variant of this product is already in the wishlist
                     const isInWishlist = window.wishlist && window.wishlist.some(w => w.productId === product.id);
                     const heartClass = isInWishlist ? 'wishlist-heart hover-target active' : 'wishlist-heart hover-target';
 
@@ -1208,7 +1199,25 @@ Thank you for supporting my small business and understanding the handmade nature
                 attachDynamicListeners();
                 applyFilter('dtf', document.getElementById('defaultFilter')); 
                 
-                // Re-bind isolated visual upgrades to the newly generated products
+                // --- NEW: LAZY LOAD ENGINE FOR BACKGROUND IMAGES ---
+                // This tracks when the card is close to entering the screen and triggers the image download
+                const lazyBgObserver = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const element = entry.target;
+                            const bgUrl = element.getAttribute('data-bg');
+                            if (bgUrl && bgUrl !== '') {
+                                element.style.backgroundImage = `url('${bgUrl}')`;
+                            }
+                            observer.unobserve(element); // Stop tracking it once the image is loaded
+                        }
+                    });
+                }, { rootMargin: "400px 0px" }); // Pre-loads it exactly 400px before you scroll to it
+
+                // Bind the observer to every image box we just created
+                document.querySelectorAll('.lazy-bg').forEach(bg => lazyBgObserver.observe(bg));
+                // ---------------------------------------------------
+
                 if(isDesktop) { attach3DTracking(); attachMagnetics(); attachHoverTargets(); }
 
             } catch (error) {
