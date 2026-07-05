@@ -978,7 +978,7 @@ Thank you for supporting my small business and understanding the handmade nature
             // Tanktop (1254x1254 - Perfect square, fills height)
             'thread-tanktop': { top: '32%', width: '16%', height: '35%', left: '42%' },
 
-            'corporate': { top: '40%', width: '30%', height: '35%', left: '35%' }
+            'corporate': { top: '48%', width: '40%', height: '40%', left: '30%' }
         };
 
         // --- 4. DYNAMIC STRIPE INVENTORY & VARIANT ENGINE ---
@@ -1422,21 +1422,26 @@ Thank you for supporting my small business and understanding the handmade nature
                 };
                 
                 img.src = dtfImg; // This triggers the sensor to run
-            } 
+           } 
             else {
                 // CENTER CHEST (Bypasses the sensor entirely)
                 overlay.style.transformOrigin = 'top center';
                 
                 if (category === 'corporate') {
-                    const finalScale = 0.8 * customScale; 
-                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${0 + nudgeY}%)`; 
+                    // TOTE BAGS: Bigger scale (1.0 up from 0.8) and lowered (+15% Y)
+                    const finalScale = 1.0 * customScale; 
+                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${15 + nudgeY}%)`; 
+                } else if (category === 'thread-tshirt') {
+                    // T-SHIRTS: Raised slightly higher (-35% Y up from -20%)
+                    const finalScale = 1.35 * customScale; 
+                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-35 + nudgeY}%)`; 
                 } else {
+                    // HOODIES & CREWNECKS: Default center chest math
                     const finalScale = 1.35 * customScale; 
                     overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-20 + nudgeY}%)`; 
                 }
 
               fireSparkBurst(overlay);          
- 
             }
 
             document.getElementById(`attach-btn-${targetId}`).style.display = 'none';
