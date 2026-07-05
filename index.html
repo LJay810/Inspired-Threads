@@ -1306,7 +1306,9 @@ Thank you for supporting my small business and understanding the handmade nature
                     const stockCount = dtf.metadata && dtf.metadata.stock !== undefined ? parseInt(dtf.metadata.stock) : null;
                     if (stockCount !== null && stockCount <= 0) return; 
                    
-                    const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : '';
+                    // FIX: Provide a safe fallback if the Stripe image is missing
+                    const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : 'images/inspiredthreadsLogoIcon2.png'; 
+                    
                     const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'center_chest';
                     
                     // NEW: Garment-Specific Scale (Falls back to global visual_scale, then 1.0)
@@ -1320,9 +1322,13 @@ Thank you for supporting my small business and understanding the handmade nature
                     const nudgeY = (dtf.metadata && dtf.metadata[`nudge_y_${shortCategory}`] !== undefined) ? parseFloat(dtf.metadata[`nudge_y_${shortCategory}`]) : 
                                    (dtf.metadata && dtf.metadata.nudge_y !== undefined) ? parseFloat(dtf.metadata.nudge_y) : 0;
                     
+                    // FIX: Escape both single AND double quotes to prevent HTML corruption
+                    const safeName = dtf.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    
                     gridHTML += `
-                        <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${dtf.name.replace(/'/g, "\\'")}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}', ${customScale}, ${nudgeX}, ${nudgeY})">
-                            <img src="${imgUrl}" class="dtf-item-img" loading="lazy" decoding="async" alt="DTF Graphic">
+                        <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${safeName}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}', ${customScale}, ${nudgeX}, ${nudgeY})">
+                            <!-- FIX: Removed loading="lazy" so modal images load instantly -->
+                            <img src="${imgUrl}" class="dtf-item-img" decoding="async" alt="DTF Graphic">
                             <span class="dtf-item-name">${dtf.name}</span>
                             <span style="color:var(--accent-pink); font-size: 0.75rem; font-family: var(--font-mono); font-weight: 700;">+$${dtf.price}</span>
                         </div>
