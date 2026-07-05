@@ -1040,6 +1040,20 @@ Thank you for supporting my small business and understanding the handmade nature
                 products.sort((a, b) => {
                     const orderA = a.metadata && a.metadata.sort_order ? parseInt(a.metadata.sort_order) : 99;
                     const orderB = b.metadata && b.metadata.sort_order ? parseInt(b.metadata.sort_order) : 99;
+                    
+                    // If both are DTF, check for the "Pocket" name tag
+                    const catA = a.metadata ? a.metadata.category : '';
+                    const catB = b.metadata ? b.metadata.category : '';
+
+                    if (catA === 'dtf' && catB === 'dtf') {
+                        const isPocketA = a.name.toLowerCase().includes('pocket');
+                        const isPocketB = b.name.toLowerCase().includes('pocket');
+
+                        if (isPocketA && !isPocketB) return 1;  // Pocket goes after non-pocket
+                        if (!isPocketA && isPocketB) return -1; // Non-pocket goes before pocket
+                    }
+
+                    // Fallback to existing sort order
                     return orderA - orderB;
                 });
                 
