@@ -498,17 +498,40 @@
         
         .cart-breakdown { font-size: 0.85rem; color: var(--text-muted); display: flex; justify-content: space-between; margin-bottom: 10px; font-family: var(--font-mono); }
 
+        .spark-particle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 3px;
+            height: 18px;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--accent-pink), 0 0 20px var(--accent-pink), 0 0 5px #fff;
+            pointer-events: none;
+            z-index: 50;
+            transform-origin: center;
+            transform: translate(-50%, -50%) rotate(var(--rot)) scale(0);
+            animation: spark-pop 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        @keyframes spark-pop {
+            0% { transform: translate(-50%, -50%) rotate(var(--rot)) scale(0); opacity: 1; }
+            50% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) rotate(var(--rot)) scale(1.2); opacity: 1; }
+            100% { transform: translate(calc(-50% + var(--tx) * 1.5), calc(-50% + var(--ty) * 1.5)) rotate(var(--rot)) scale(0); opacity: 0; }
+        }
+
         /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 900px) {
-            header { padding: 15px 10px; justify-content: center; background: rgba(3, 3, 3, 0.98); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(10px); flex-wrap: wrap;}
+            header { padding: 10px 5px; justify-content: center; background: rgba(3, 3, 3, 0.98); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(10px); flex-wrap: wrap;}
             .brand-text { display: none; }
-            header nav { width: 100%; display: flex; justify-content: space-around; padding: 0; }
-            .nav-tab { flex: 1; padding: 5px 0; font-size: 0.65rem; }
+            
+            header nav { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 5px 0 0 0; }
+            .nav-tab { flex: 0 1 auto; padding: 6px 12px; font-size: 0.7rem; }
             
             /* Tighten up mobile nav buttons to fit the new wishlist */
-            .wishlist-btn, .cart-btn { font-size: 0.6rem; padding: 5px 8px; margin: 0 2px;}
+            .wishlist-btn, .cart-btn { font-size: 0.7rem; padding: 6px 12px; margin: 0;}
             
-            #indicator { bottom: -16px; top: auto; }
+            #indicator { display: none; } /* Hide moving line on mobile layout wrap */
             .page-section { padding: 120px 20px 80px 20px; } 
             
             #home { flex-direction: column; justify-content: flex-start; text-align: center; padding-top: 130px; padding-bottom: 80px; background: transparent; }
@@ -518,9 +541,9 @@
             .filter-bar { justify-content: center; }
             
             .cart-drawer { width: 100%; right: -100%; padding: 20px;}
-            .wishlist-drawer { width: 100%; left: -100%; padding: 20px;} /* Mobile Left Slide */
+            .wishlist-drawer { width: 100%; left: -100%; padding: 20px;} 
             
-            #mainDtfSearch { margin-right: 0px; } /* Reset bumper for mobile stacking */
+            #mainDtfSearch { margin-right: 0px; } 
             .contact-layout { grid-template-columns: 1fr; gap: 40px; }
             .lightbox-close { top: 20px; right: 20px; }
             
@@ -1285,6 +1308,27 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById('dtfOverlayModal').classList.remove('active');
         }
 
+       function fireSparkBurst(overlayElement) {
+            for (let i = 0; i < 8; i++) {
+                const spark = document.createElement('div');
+                spark.className = 'spark-particle';
+                
+                const angle = (Math.PI * 2 / 8) * i + (Math.random() * 0.4 - 0.2);
+                const distance = 40 + Math.random() * 30; 
+                
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                const rot = (angle * 180 / Math.PI) + 90;
+
+                spark.style.setProperty('--tx', `${tx}px`);
+                spark.style.setProperty('--ty', `${ty}px`);
+                spark.style.setProperty('--rot', `${rot}deg`);
+                
+                overlayElement.appendChild(spark);
+                setTimeout(() => spark.remove(), 600); 
+            }
+        }
+
        function applyDtfToTarget(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType, customScale, nudgeX, nudgeY) {
             const targetId = window.currentVisualizerTarget;
             if(!targetId) return;
@@ -1350,6 +1394,8 @@ Thank you for supporting my small business and understanding the handmade nature
                     const finalY = targetVals.y + nudgeY;
 
                     overlay.style.transform = `scale(${finalScale}) translate(${finalX}%, ${finalY}%)`;
+
+                    fireSparkBurst(overlay);
                 };
                 
                 img.src = dtfImg; // This triggers the sensor to run
@@ -1365,6 +1411,9 @@ Thank you for supporting my small business and understanding the handmade nature
                     const finalScale = 1.35 * customScale; 
                     overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-20 + nudgeY}%)`; 
                 }
+
+              fireSparkBurst(overlay);          
+ 
             }
 
             document.getElementById(`attach-btn-${targetId}`).style.display = 'none';
