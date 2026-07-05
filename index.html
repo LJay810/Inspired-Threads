@@ -133,11 +133,12 @@
         .social-stack {
             position: fixed;
             top: 100px;
-            right: 45px;
+            right: 20px; /* Pushed much closer to the right edge on Desktop */
             display: flex;
             flex-direction: column;
             gap: 15px;
             z-index: 900; 
+            pointer-events: none; /* Allows clicks to pass through the invisible box */
         }
 
         .social-btn {
@@ -154,6 +155,7 @@
             -webkit-backdrop-filter: blur(10px);
             transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             text-decoration: none;
+            pointer-events: auto; /* Keeps the actual buttons fully clickable */
         }
 
         .social-btn:hover {
@@ -164,13 +166,17 @@
             transform: scale(1.1) translateY(-2px);
         }
 
-        /* Shift to a horizontal layout at the bottom for mobile screens */
+        /* Split Facebook to Top-Left and TikTok to Top-Right for mobile screens */
         @media (max-width: 900px) {
             .social-stack {
-                top: auto;
-                bottom: 20px;
-                right: 20px;
-                flex-direction: row;
+                top: 95px; /* Sits cleanly just beneath your sticky header */
+                bottom: auto;
+                left: 0;
+                right: 0;
+                width: 100%;
+                padding: 0 15px; 
+                flex-direction: row-reverse; /* Reverses HTML order to put TikTok Right, FB Left */
+                justify-content: space-between; /* Shoves them to extreme opposite corners */
             }
         }
          
