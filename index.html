@@ -1038,23 +1038,20 @@ Thank you for supporting my small business and understanding the handmade nature
                 
                 // Sorts products by your custom Stripe metadata (1, 2, 3...)
                 products.sort((a, b) => {
-                    const orderA = a.metadata && a.metadata.sort_order ? parseInt(a.metadata.sort_order) : 99;
-                    const orderB = b.metadata && b.metadata.sort_order ? parseInt(b.metadata.sort_order) : 99;
-                    
-                    // If both are DTF, check for the "Pocket" name tag
                     const catA = a.metadata ? a.metadata.category : '';
                     const catB = b.metadata ? b.metadata.category : '';
+                    const orderA = a.metadata && a.metadata.sort_order ? parseInt(a.metadata.sort_order) : 99;
+                    const orderB = b.metadata && b.metadata.sort_order ? parseInt(b.metadata.sort_order) : 99;
 
-                    if (catA === 'dtf' && catB === 'dtf') {
-                        const isPocketA = a.name.toLowerCase().includes('pocket');
-                        const isPocketB = b.name.toLowerCase().includes('pocket');
+                    // Standard items use their default sort_order. 
+                    // Pocket DTFs get 1000 added to their score, forcing them to the absolute bottom.
+                    let scoreA = orderA;
+                    let scoreB = orderB;
 
-                        if (isPocketA && !isPocketB) return 1;  // Pocket goes after non-pocket
-                        if (!isPocketA && isPocketB) return -1; // Non-pocket goes before pocket
-                    }
+                    if (catA === 'dtf' && a.name.toLowerCase().includes('pocket')) scoreA += 1000;
+                    if (catB === 'dtf' && b.name.toLowerCase().includes('pocket')) scoreB += 1000;
 
-                    // Fallback to existing sort order
-                    return orderA - orderB;
+                    return scoreA - scoreB;
                 });
                 
                 shopGrid.innerHTML = ''; 
@@ -1303,6 +1300,16 @@ Thank you for supporting my small business and understanding the handmade nature
                 // Creates a short name for Stripe metadata (e.g., 'tshirt', 'hoodie', 'corporate')
                 const shortCategory = category.replace('thread-', '');
                 
+                // SORT THE REGISTRY BEFORE BUILDING THE GRID
+                window.dtfRegistry.sort((a, b) => {
+                    const scoreA = a.name.toLowerCase().includes('pocket') ? 1 : 0;
+                    const scoreB = b.name.toLowerCase().includes('pocket') ? 1 : 0;
+                    return scoreA - scoreB;
+                });
+                
+                // Creates a short name for Stripe metadata (e.g., 'tshirt', 'hoodie', 'corporate')
+                const shortCategory = category.replace('thread-', '');
+ 
                 window.dtfRegistry.forEach(dtf => {
                     const stockCount = dtf.metadata && dtf.metadata.stock !== undefined ? parseInt(dtf.metadata.stock) : null;
                     if (stockCount !== null && stockCount <= 0) return; 
