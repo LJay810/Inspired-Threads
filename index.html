@@ -1300,15 +1300,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 // Creates a short name for Stripe metadata (e.g., 'tshirt', 'hoodie', 'corporate')
                 const shortCategory = category.replace('thread-', '');
                 
-                // SORT THE REGISTRY BEFORE BUILDING THE GRID
-                window.dtfRegistry.sort((a, b) => {
-                    const scoreA = a.name.toLowerCase().includes('pocket') ? 1 : 0;
-                    const scoreB = b.name.toLowerCase().includes('pocket') ? 1 : 0;
-                    return scoreA - scoreB;
-                });
                 
-                // Creates a short name for Stripe metadata (e.g., 'tshirt', 'hoodie', 'corporate')
-                const shortCategory = category.replace('thread-', '');
  
                 window.dtfRegistry.forEach(dtf => {
                     const stockCount = dtf.metadata && dtf.metadata.stock !== undefined ? parseInt(dtf.metadata.stock) : null;
