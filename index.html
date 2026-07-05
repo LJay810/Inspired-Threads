@@ -1301,44 +1301,69 @@ Thank you for supporting my small business and understanding the handmade nature
             };
 
             const overlay = document.getElementById(`dtf-overlay-${targetId}`);
-            if(overlay) {
-                overlay.style.backgroundImage = `url('${dtfImg}')`;
-                overlay.style.opacity = '1';
-                
-                if (designType === 'pocket') {
-                    overlay.style.transformOrigin = 'top center';
-                    const finalScale = 0.35 * customScale;
+            if(!overlay) return;
 
-                    // BASELINES (Pushed further right onto the pec) + STRIPE OFFSETS
-                    if (category === 'thread-tshirt') {
-                        overlay.style.transform = `scale(${finalScale}) translate(${140 + nudgeX}%, ${-10 + nudgeY}%)`; 
-                    } 
-                    else if (category === 'thread-crewneck') {
-                        overlay.style.transform = `scale(${finalScale}) translate(${150 + nudgeX}%, ${-15 + nudgeY}%)`; 
-                    }
-                    else if (category === 'thread-hoodie') {
-                        overlay.style.transform = `scale(${finalScale}) translate(${155 + nudgeX}%, ${5 + nudgeY}%)`; 
-                    }
-                    else if (category === 'thread-tanktop') {
-                        overlay.style.transform = `scale(${finalScale}) translate(${125 + nudgeX}%, ${-20 + nudgeY}%)`; 
-                    }
-                    else {
-                        overlay.style.transform = `scale(${finalScale}) translate(${140 + nudgeX}%, ${-10 + nudgeY}%)`;
-                    }
-                } 
-                else {
-                    // CENTER CHEST
-                    overlay.style.transformOrigin = 'top center';
+            overlay.style.backgroundImage = `url('${dtfImg}')`;
+            overlay.style.opacity = '1';
+            
+            if (designType === 'pocket') {
+                overlay.style.transformOrigin = 'top center';
+                
+                // THE SENSOR: Read the raw image file to determine its shape
+                const img = new Image();
+                img.onload = function() {
+                    const ratio = img.naturalWidth / img.naturalHeight;
                     
-                    if (category === 'corporate') {
-                        // TOTE BAG FIX: Uses a much smaller baseline scale (0.8) so it fits in the wide 30% box
-                        const finalScale = 0.8 * customScale; 
-                        overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${0 + nudgeY}%)`; 
-                    } else {
-                        // STANDARD APPAREL: Uses the 1.35 scale and pulls it off the belly
-                        const finalScale = 1.35 * customScale; 
-                        overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-20 + nudgeY}%)`; 
-                    }
+                    let shape = 'square'; // Default fallback
+                    if (ratio < 0.85) shape = 'tall';
+                    else if (ratio > 1.2) shape = 'wide';
+
+                    // THE GOLDEN MATRIX: Your exact calibration values
+                    const matrix = {
+                        'tall': {
+                            'thread-hoodie':   { s: 0.60, x: 94,  y: -23 },
+                            'thread-crewneck': { s: 0.50, x: 110, y: -23 },
+                            'thread-tshirt':   { s: 0.55, x: 110, y: -47 },
+                            'thread-tanktop':  { s: 0.50, x: 110, y: -32 }
+                        },
+                        'wide': {
+                            'thread-hoodie':   { s: 0.55, x: 100, y: -31 },
+                            'thread-crewneck': { s: 0.55, x: 100, y: -35 },
+                            'thread-tshirt':   { s: 0.55, x: 100, y: -55 },
+                            'thread-tanktop':  { s: 0.55, x: 89,  y: -45 }
+                        },
+                        'square': {
+                            'thread-hoodie':   { s: 0.65, x: 93,  y: -24 },
+                            'thread-crewneck': { s: 0.60, x: 85,  y: -28 },
+                            'thread-tshirt':   { s: 0.65, x: 85,  y: -46 },
+                            'thread-tanktop':  { s: 0.60, x: 85,  y: -43 }
+                        }
+                    };
+
+                    // Fetch the correct numbers, with a generic fallback just in case
+                    const fallbackVals = { s: 0.60, x: 100, y: -30 };
+                    const targetVals = matrix[shape][category] || fallbackVals;
+
+                    // THE MATH: Matrix Value + Custom Stripe Overrides
+                    const finalScale = targetVals.s * customScale;
+                    const finalX = targetVals.x + nudgeX;
+                    const finalY = targetVals.y + nudgeY;
+
+                    overlay.style.transform = `scale(${finalScale}) translate(${finalX}%, ${finalY}%)`;
+                };
+                
+                img.src = dtfImg; // This triggers the sensor to run
+            } 
+            else {
+                // CENTER CHEST (Bypasses the sensor entirely)
+                overlay.style.transformOrigin = 'top center';
+                
+                if (category === 'corporate') {
+                    const finalScale = 0.8 * customScale; 
+                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${0 + nudgeY}%)`; 
+                } else {
+                    const finalScale = 1.35 * customScale; 
+                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-20 + nudgeY}%)`; 
                 }
             }
 
@@ -2033,50 +2058,5 @@ Thank you for supporting my small business and understanding the handmade nature
         };
     </script>
 
-    <div id="dev-calibration-panel" style="position: fixed; bottom: 20px; left: 20px; background: rgba(15,15,15,0.95); border: 2px solid var(--accent-pink); padding: 20px; z-index: 9999; border-radius: 8px; font-family: var(--font-mono); width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.9);">
-        <h3 style="color: var(--accent-pink); margin-bottom: 15px; font-size: 1rem; text-transform: uppercase;">Calibration Bench</h3>
-        
-        <label style="display:block; color:var(--text-pure); font-size:0.8rem; margin-bottom:5px;">Scale: <span id="val-scale" style="color:var(--accent-pink); font-weight:bold;">1.0</span></label>
-        <input type="range" id="cal-scale" min="0.1" max="2.5" step="0.05" value="1.0" style="width: 100%; margin-bottom: 15px; accent-color: var(--accent-pink);">
-        
-        <label style="display:block; color:var(--text-pure); font-size:0.8rem; margin-bottom:5px;">X Coordinate (Left/Right): <span id="val-x" style="color:var(--accent-pink); font-weight:bold;">140</span>%</label>
-        <input type="range" id="cal-x" min="-100" max="300" step="1" value="140" style="width: 100%; margin-bottom: 15px; accent-color: var(--accent-pink);">
-        
-        <label style="display:block; color:var(--text-pure); font-size:0.8rem; margin-bottom:5px;">Y Coordinate (Up/Down): <span id="val-y" style="color:var(--accent-pink); font-weight:bold;">-10</span>%</label>
-        <input type="range" id="cal-y" min="-150" max="150" step="1" value="-10" style="width: 100%; accent-color: var(--accent-pink);">
-    </div>
-
-    <script>
-        function updateCalibration() {
-            const targetId = window.currentVisualizerTarget;
-            if(!targetId) return;
-
-            const overlay = document.getElementById(`dtf-overlay-${targetId}`);
-            if(!overlay) return;
-
-            const scale = document.getElementById('cal-scale').value;
-            const x = document.getElementById('cal-x').value;
-            const y = document.getElementById('cal-y').value;
-
-            document.getElementById('val-scale').innerText = scale;
-            document.getElementById('val-x').innerText = x;
-            document.getElementById('val-y').innerText = y;
-
-            // Overrides the HTML engine live
-            overlay.style.transform = `scale(${scale}) translate(${x}%, ${y}%)`;
-        }
-
-        document.getElementById('cal-scale').addEventListener('input', updateCalibration);
-        document.getElementById('cal-x').addEventListener('input', updateCalibration);
-        document.getElementById('cal-y').addEventListener('input', updateCalibration);
-        
-        // Auto-hook into the visualizer when a DTF is clicked
-        const originalApply = applyDtfToTarget;
-        applyDtfToTarget = function(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType, customScale, nudgeX, nudgeY) {
-            originalApply(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType, customScale, nudgeX, nudgeY);
-            setTimeout(updateCalibration, 50); 
-        };
-    </script>
-
-</body>
+    </body>
 </html>
