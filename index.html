@@ -1258,7 +1258,7 @@ Thank you for supporting my small business and understanding the handmade nature
                                 stockHTML = `<div class="stock-badge sold-out" id="stock-badge-${product.id}">STATUS: OUT OF STOCK</div>`;
                                 checkoutButtonHTML = `<span id="btn-zone-${product.id}" style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
                             } else {
-                                stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}">INVENTORY COUNTER: ${stockCount}</div>`;
+                                stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}">In Stock</div>`;
                                 checkoutButtonHTML = `
                                     <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
                                         data-name="${product.name}" 
@@ -1336,7 +1336,7 @@ Thank you for supporting my small business and understanding the handmade nature
                                 stockHTML = `<div class="stock-badge sold-out">STATUS: OUT OF STOCK</div>`;
                                 checkoutButtonHTML = `<span style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
                             } else {
-                                stockHTML = `<div class="stock-badge">INVENTORY COUNTER: ${stockCount}</div>`;
+                                stockHTML = `<div class="stock-badge">In Stock</div>`;
                                 checkoutButtonHTML = `
                                     <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}" 
                                         data-name="${product.name}" 
@@ -1715,7 +1715,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         }
                     } else {
                         badge.className = 'stock-badge';
-                        badge.innerText = `INVENTORY COUNTER: ${stockCount}`;
+                        badge.innerText = `In Stock`;
                         
                         if (btnZone && btnZone.tagName === 'SPAN') {
                             const btn = document.createElement('button');
