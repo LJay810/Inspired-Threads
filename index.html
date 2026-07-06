@@ -2450,6 +2450,11 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         function resize() {
+            // Once the intro has already played, there's nothing left to redraw — stop
+            // doing any work at all. This is what was crashing iOS Safari during fast
+            // scrolling: scrolling toggles the address bar, which fires 'resize'
+            // repeatedly, and this used to rebuild 7 canvases from scratch every time.
+            if (canvas.classList.contains('portal-done')) return;
             W = window.innerWidth; H = window.innerHeight;
             DPR = Math.min(window.devicePixelRatio || 1, DPR_CAP);
             canvas.width = Math.round(W * DPR);
@@ -2590,6 +2595,8 @@ Thank you for supporting my small business and understanding the handmade nature
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             canvas.classList.add('portal-done');
+            // Fully release the sprite canvases from memory — nothing needs them again.
+            veilSprite = null; holeSprite = null; puffSprites = [];
             document.dispatchEvent(new CustomEvent('portal-intro-done'));
         }
 
