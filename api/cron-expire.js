@@ -14,7 +14,7 @@ export default async function handler(req, res) {
             limit: 100,
         });
 
-        const cutoff = Math.floor(Date.now() / 1000) - (5 * 60); // 5-minute abandonment window
+        const cutoff = Math.floor(Date.now() / 1000) - (10 * 60); // 10-minute abandonment window
         let expiredCount = 0;
 
         for (const session of openSessions.data) {
