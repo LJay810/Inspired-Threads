@@ -79,7 +79,7 @@ export default async function handler(req, res) {
             metadata: sessionMetadata,
             payment_intent_data: { metadata: sessionMetadata },
             success_url: `${req.headers.origin}/?success=true`,
-            cancel_url: `${req.headers.origin}/?canceled=true`,
+            cancel_url: `${req.headers.origin}/?canceled=true&session_id={CHECKOUT_SESSION_ID}`,
             billing_address_collection: 'required',
             // Stripe's hard floor is 30 minutes — this is enforced as a failsafe.
             // The actual abandonment window is tightened by the cron-expire job (see cron-expire.js).
