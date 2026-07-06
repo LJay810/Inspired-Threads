@@ -213,16 +213,17 @@
         }
 
         /* --- LIVE SCHEDULE BANNER --- */
-        .schedule-banner { width: 100%; max-width: 900px; margin: 0 auto; display: flex; justify-content: center; }
-        .schedule-banner-img {
-            width: 100%; height: auto; max-height: 500px; object-fit: contain; border-radius: 12px;
-            border: 1px solid var(--border-subtle); background: var(--bg-card); box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-        }
-        @media (max-width: 900px) {
-            .schedule-banner { max-width: 100%; padding: 0 10px; box-sizing: border-box; }
-            .schedule-banner-img { max-height: 320px; }
-        }
-
+        .schedule-banner { width: 100%; max-width: 900px; margin: 0 auto; }
+.schedule-banner-img {
+    display: block; width: 100%; height: 450px; object-fit: cover; object-position: center; border-radius: 12px;
+    border: 1px solid var(--border-subtle); box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+@media (max-width: 900px) {
+    .schedule-banner { max-width: 100%; padding: 0 10px; box-sizing: border-box; }
+    .schedule-banner-img { height: 260px; }
+    }
+.schedule-text { max-width: 800px; margin: 30px auto 0 auto; text-align: center; padding: 0 20px; box-sizing: border-box; }
+.schedule-text p { color: var(--text-muted); font-size: clamp(0.95rem, 2vw, 1.15rem); line-height: 1.8; }
        /* --- HERO --- */
         #home { 
             flex-direction: column; justify-content: center; align-items: center; text-align: center; max-width: 100%; border-bottom: none; background: transparent;
@@ -932,8 +933,8 @@ Thank you for supporting my small business and understanding the handmade nature
             <img src="images/TikTokLiveSchedule.png" alt="Live Sale Schedule" class="schedule-banner-img hover-target" onclick="openLightbox(this.src)">
         </div>
 
-        <div style="max-width: 800px; margin: 30px auto 0 auto; text-align: center;" class="reveal stagger-2">
-            <p style="color: var(--text-muted); font-size: 1rem; line-height: 1.7;">
+        <div class="schedule-text reveal stagger-2">
+            <p>
                 Catch our next TikTok Live sale for first access to new drops, limited restocks, and Live-exclusive claim pricing. Follow along on TikTok so you never miss a start time.
             </p>
         </div>
