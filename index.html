@@ -515,9 +515,10 @@
         .drawer-items::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
 
         /* --- CONTACT FORM --- */
-        .contact-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 80px; max-width: 1000px; margin: 0 auto; }
-        .contact-info p { color: var(--text-muted); font-size: 1.15rem; margin-bottom: 24px; }
-        .location-tag { font-family: var(--font-mono); color: var(--accent-pink); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-top: 50px; }
+        .contact-layout { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 35px; max-width: 700px; margin: 0 auto; }
+.contact-info { display: flex; flex-direction: column; align-items: center; }
+.contact-info p { color: var(--text-muted); font-size: 1.15rem; margin-bottom: 24px; max-width: 550px; }
+        .location-tag { font-family: var(--font-mono); color: var(--accent-pink); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-top: 10px; }
         
         .form-group { margin-bottom: 30px; position: relative; }
         .form-group label { display: block; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; color: var(--text-muted); transition: var(--transition-snappy); }
@@ -646,7 +647,7 @@
             .wishlist-drawer { width: 100%; left: -100%; padding: 20px;} 
             
             #mainDtfSearch { margin-right: 0px; } 
-            .contact-layout { grid-template-columns: 1fr; gap: 40px; }
+            .contact-layout { gap: 25px; }
             .lightbox-close { top: 20px; right: 20px; }
             
             .home-layout { flex-direction: column; gap: 40px; margin-top: 40px; }
@@ -879,7 +880,7 @@ Questions? Ready to order?
                 <span class="location-tag reveal stagger-3">Base of Operations: SouthEast, MI</span>
             </div>
             
-            <div style="background: var(--bg-card); padding: 40px; border: 1px solid var(--border-subtle); border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+            <div style="background: var(--bg-card); padding: 40px; border: 1px solid var(--border-subtle); border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); width: 100%; box-sizing: border-box; text-align: left;">
                 <form id="contactForm">
                     <div class="form-group">
                         <label for="name">Full Name / Organization</label>
