@@ -1265,16 +1265,36 @@ Thank you for supporting my small business and understanding the handmade nature
                      shopGrid.insertAdjacentHTML('beforeend', cardHTML);
                 });
 
-                // Silently pre-warm the browser's cache for every DTF thumbnail. This runs
-                // immediately after product data loads, regardless of scroll position, so the
-                // "Attach Design" modal never has to cold-fetch a batch of images all at once.
-                window.dtfRegistry.forEach(dtf => {
-                    const preloadUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : null;
-                    if (preloadUrl) {
-                        const preloadImg = new Image();
-                        preloadImg.src = preloadUrl;
+                // Silently pre-warm the browser's cache for every DTF thumbnail, in small batches,
+                // so we don't flood the browser's per-host connection limit and create a backlog.
+                (function preloadDtfImages() {
+                    const urls = window.dtfRegistry
+                        .map(dtf => (dtf.images && dtf.images.length > 0) ? dtf.images[0] : null)
+                        .filter(Boolean);
+
+                    const BATCH_SIZE = 4;
+                    window._dtfPreloadCache = window._dtfPreloadCache || [];
+                    let index = 0;
+
+                    function loadNextBatch() {
+                        const batch = urls.slice(index, index + BATCH_SIZE);
+                        index += BATCH_SIZE;
+                        if (batch.length === 0) return;
+
+                        let remaining = batch.length;
+                        batch.forEach(url => {
+                            const img = new Image();
+                            window._dtfPreloadCache.push(img);
+                            img.onload = img.onerror = () => {
+                                remaining--;
+                                if (remaining === 0) loadNextBatch();
+                            };
+                            img.src = url;
+                        });
                     }
-                });
+
+                    loadNextBatch();
+                })();
 
                 attachDynamicListeners();
                 applyFilter('dtf', document.getElementById('defaultFilter')); 
