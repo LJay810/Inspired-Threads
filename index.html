@@ -20,6 +20,17 @@
     <script src="https://js.stripe.com/v3/"></script>
     <link rel="icon" type="image/png" href="images/inspiredthreadsLogoIcon2.png">
     <style>
+        /* ======================================================================
+           PORTAL INTRO — CSS
+           ====================================================================== */
+        #portalIntroCanvas {
+            position: fixed; inset: 0; z-index: 99999;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            display: block;
+        }
+        #portalIntroCanvas.portal-done { display: none; }
+
         /* --- ADVANCED DESIGN SYSTEM --- */
         :root {
             --bg-main: #030303;
@@ -2353,5 +2364,249 @@ Thank you for supporting my small business and understanding the handmade nature
         };
     </script>
 
-    </body>
+    <!-- ================= PORTAL INTRO ================= -->
+    <canvas id="portalIntroCanvas"></canvas>
+    <script>
+    /* ==========================================================================
+       PORTAL INTRO — JS 
+       --------------------------------------------------------------------------
+       Design notes for smoothness (why this version doesn't stutter):
+       - Everything renders on ONE canvas. The dark veil, the hole, the ring and
+         the smoke are all drawn per-frame on the GPU-backed canvas; there are
+         ZERO per-frame DOM/style mutations (the old version rewrote a CSS mask
+         string on a fullscreen element every frame — a main-thread repaint).
+       - All soft/glowy shapes are PRE-RENDERED once into small offscreen sprite
+         canvases (tinted puffs, hole eraser, background veil). Per frame we only
+         do cheap drawImage calls — no gradient creation, no ctx.filter.
+       - Physics uses real delta-time (clamped), so motion speed is identical on
+         60Hz, 120Hz, or a phone that dips to 45fps — no fast/slow skipping.
+       - Spawning is per-SECOND via an accumulator (not per-frame), so smoke
+         density is framerate-independent.
+       - Device tiering: mobile gets a lower pixel-ratio cap and particle cap to
+         protect fill-rate; desktop gets the full HD treatment.
+       ========================================================================== */
+    (() => {
+        const canvas = document.getElementById('portalIntroCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d', { alpha: true });
+
+        // ---------- Device tiering ----------
+        const IS_MOBILE = (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) || ('ontouchstart' in window && window.innerWidth < 1024);
+        const DPR_CAP       = IS_MOBILE ? 1.5 : 2;
+        const MAX_PARTICLES = IS_MOBILE ? 220 : 420;
+        const SPAWN_IGNITE  = IS_MOBILE ? 110 : 170;  // particles per second
+        const SPAWN_OPEN    = IS_MOBILE ? 300 : 520;
+
+        // ---------- State ----------
+        let W = 0, H = 0, CX = 0, CY = 0, MAXR = 0, DPR = 1;
+        let running = false, rafId = 0, startTime = 0, lastNow = 0, spawnAcc = 0;
+        const particles = [];
+
+        // ---------- Offscreen sprites (built once / on resize) ----------
+        let veilSprite = null;   // the dark background covering the site
+        let holeSprite = null;   // soft-edged white disc used to erase the hole
+        let puffSprites = [];    // pre-tinted smoke puffs, one per palette hue
+
+        const HUES = [326, 316, 302, 288, 272];
+
+        function buildSprites() {
+            // Veil: pre-rendered dark gradient background (drawn 1:1 each frame)
+            veilSprite = document.createElement('canvas');
+            veilSprite.width = Math.max(2, Math.round(W / 2));   // half-res: it's a soft gradient, upscaling is invisible
+            veilSprite.height = Math.max(2, Math.round(H / 2));
+            const vg = veilSprite.getContext('2d');
+            const base = vg.createRadialGradient(veilSprite.width/2, veilSprite.height*0.45, 0, veilSprite.width/2, veilSprite.height/2, Math.max(veilSprite.width, veilSprite.height)*0.75);
+            base.addColorStop(0, '#1a1225');
+            base.addColorStop(0.55, '#100c16');
+            base.addColorStop(1, '#0a0a0a');
+            vg.fillStyle = base;
+            vg.fillRect(0, 0, veilSprite.width, veilSprite.height);
+
+            // Hole eraser: solid center, soft rim (last 6%) — scales with radius
+            holeSprite = document.createElement('canvas');
+            holeSprite.width = holeSprite.height = 256;
+            const hg = holeSprite.getContext('2d');
+            const hgrad = hg.createRadialGradient(128, 128, 0, 128, 128, 128);
+            hgrad.addColorStop(0.0, 'rgba(255,255,255,1)');
+            hgrad.addColorStop(0.94, 'rgba(255,255,255,1)');
+            hgrad.addColorStop(1.0, 'rgba(255,255,255,0)');
+            hg.fillStyle = hgrad;
+            hg.fillRect(0, 0, 256, 256);
+
+            // Smoke puffs: one pre-tinted soft sprite per hue (bright pink core → colored haze)
+            puffSprites = HUES.map(hue => {
+                const c = document.createElement('canvas');
+                c.width = c.height = 128;
+                const g = c.getContext('2d');
+                const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+                grad.addColorStop(0.0,  `hsla(${hue}, 100%, 88%, 0.85)`);
+                grad.addColorStop(0.22, `hsla(${hue}, 95%, 68%, 0.45)`);
+                grad.addColorStop(0.55, `hsla(${hue}, 90%, 55%, 0.16)`);
+                grad.addColorStop(1.0,  `hsla(${hue}, 90%, 50%, 0)`);
+                g.fillStyle = grad;
+                g.fillRect(0, 0, 128, 128);
+                return c;
+            });
+        }
+
+        function resize() {
+            W = window.innerWidth; H = window.innerHeight;
+            DPR = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+            canvas.width = Math.round(W * DPR);
+            canvas.height = Math.round(H * DPR);
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+            CX = W / 2; CY = H / 2;
+            MAXR = Math.hypot(CX, CY) + 60;
+            buildSprites();
+        }
+        window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', resize);
+
+        // ---------- Timeline ----------
+        const T1 = 0.85, T2 = 2.45, TEND = 3.3; // ignite end / open end / hard stop (seconds)
+        const easeInOutQuint = t => t < 0.5 ? 16*t*t*t*t*t : 1 - Math.pow(-2*t + 2, 5) / 2;
+
+        function holeRadiusAt(t) {
+            if (t <= T1) {
+                const pulse = Math.sin(t * 8.5) * 2.5;
+                return 8 + (t / T1) * 24 + pulse;
+            }
+            const k = Math.min((t - T1) / (T2 - T1), 1);
+            return 32 + easeInOutQuint(k) * (MAXR - 32);
+        }
+
+        // ---------- Particles ----------
+        function spawnWisp(radius, intensity) {
+            if (particles.length >= MAX_PARTICLES) return;
+            const a = Math.random() * Math.PI * 2;
+            const cos = Math.cos(a), sin = Math.sin(a);
+            const outward = 22 + Math.random() * 60;          // px/sec
+            const swirl = (Math.random() - 0.5) * 110;        // px/sec tangential
+            particles.push({
+                x: CX + cos * radius,
+                y: CY + sin * radius,
+                vx: cos * outward + -sin * swirl,
+                vy: sin * outward +  cos * swirl,
+                life: 0,
+                ttl: 0.9 + Math.random() * 1.2,
+                size: (16 + Math.random() * 52) * intensity,  // px diameter at birth
+                grow: 28 + Math.random() * 55,                // px/sec
+                alpha: 0.35 + Math.random() * 0.35,
+                sprite: puffSprites[(Math.random() * puffSprites.length) | 0],
+                wobbleSeed: Math.random() * 1000,
+                squash: 0.7 + Math.random() * 0.3,
+            });
+        }
+
+        // ---------- Frame ----------
+        function frame(now) {
+            const t = (now - startTime) / 1000;
+            const dt = Math.min((now - lastNow) / 1000, 0.033); // clamp: tab-switch can't cause a jump
+            lastNow = now;
+
+            const R = holeRadiusAt(t);
+            const opening = t > T1;
+
+            // Spawn via per-second accumulator (framerate-independent density)
+            if (t < T2 + 0.1) {
+                spawnAcc += (opening ? SPAWN_OPEN : SPAWN_IGNITE) * dt;
+                const intensity = opening ? 1.1 : 0.65;
+                while (spawnAcc >= 1) { spawnWisp(R, intensity); spawnAcc -= 1; }
+            }
+
+            // ----- Draw -----
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1;
+            ctx.clearRect(0, 0, W, H);
+
+            // 1) Dark veil covering the site (skip once the hole exceeds the screen)
+            if (R < MAXR) {
+                ctx.drawImage(veilSprite, 0, 0, W, H);
+                // 2) Erase the hole (soft edge scales with radius)
+                ctx.globalCompositeOperation = 'destination-out';
+                const d = R * 2 * (1 / 0.94); // compensate: sprite is solid to 94% of its radius
+                ctx.drawImage(holeSprite, CX - d / 2, CY - d / 2, d, d);
+            }
+
+            // 3) Smoke wisps (additive glow)
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life += dt;
+                if (p.life >= p.ttl) {
+                    const lastP = particles.pop();
+                    if (i < particles.length) particles[i] = lastP;
+                    continue;
+                }
+                const k = p.life / p.ttl;
+
+                // wispy drift: outward velocity + sine wobble + gentle upward lift
+                const wob = Math.sin(p.wobbleSeed + p.life * 3.0);
+                p.x += (p.vx + Math.cos(p.wobbleSeed + p.life * 2.1) * 32) * dt;
+                p.y += (p.vy + wob * 32 - 14) * dt;
+
+                const size = p.size + p.grow * k;
+                const fadeIn = k < 0.12 ? k / 0.12 : 1;
+                ctx.globalAlpha = p.alpha * (1 - k) * fadeIn;
+                const w = size, h = size * (p.squash + 0.25 * wob);
+                ctx.drawImage(p.sprite, p.x - w / 2, p.y - h / 2, w, h);
+            }
+            ctx.globalAlpha = 1;
+
+            // 4) The glowing ring
+            if (t < T2 + 0.2 && R < MAXR) {
+                const ringAlpha = t > T2 ? Math.max(1 - (t - T2) / 0.2, 0) : 1;
+                ctx.globalCompositeOperation = 'lighter';
+                const layers = [
+                    { w: 24, l: 58, a: 0.06 }, { w: 13, l: 60, a: 0.13 },
+                    { w: 6,  l: 66, a: 0.34 }, { w: 2.5, l: 74, a: 0.85 },
+                ];
+                for (const L of layers) {
+                    ctx.beginPath();
+                    ctx.arc(CX, CY, R, 0, Math.PI * 2);
+                    ctx.strokeStyle = `hsla(318, 100%, ${L.l}%, ${L.a * ringAlpha})`;
+                    ctx.lineWidth = L.w;
+                    ctx.stroke();
+                }
+                ctx.beginPath();
+                ctx.arc(CX, CY, R, 0, Math.PI * 2);
+                ctx.strokeStyle = `hsla(322, 100%, 93%, ${0.5 * ringAlpha})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            // 5) End conditions
+            if (t >= TEND || (t >= T2 + 0.25 && particles.length === 0)) {
+                stopPortalIntro();
+                return;
+            }
+            rafId = requestAnimationFrame(frame);
+        }
+
+        function stopPortalIntro() {
+            running = false;
+            cancelAnimationFrame(rafId);
+            particles.length = 0;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.classList.add('portal-done');
+            document.dispatchEvent(new CustomEvent('portal-intro-done'));
+        }
+
+        window.startPortalIntro = function () {
+            if (running) return;
+            running = true;
+            canvas.classList.remove('portal-done');
+            resize();
+            spawnAcc = 0;
+            startTime = performance.now();
+            lastNow = startTime;
+            rafId = requestAnimationFrame(frame);
+        };
+
+        // Triggers unconditionally on load per user instructions
+        window.startPortalIntro();
+    })();
+    </script>
+</body>
 </html>
