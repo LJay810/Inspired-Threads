@@ -861,7 +861,14 @@
         <div class="shop-controls reveal">
             <h2 class="section-header">Featured Collection</h2>
             <div class="filter-bar">
-                <button class="filter-btn active hover-target" data-filter="dtf" id="defaultFilter">DTF Transfers</button>
+                <div class="dropdown hover-target" tabindex="0">
+    <button class="filter-btn dropdown-toggle active hover-target" data-filter="dtf" id="defaultFilter">DTF Transfers</button>
+    <div class="dropdown-content">
+        <button class="filter-btn active hover-target" data-filter="dtf">All DTF Transfers</button>
+        <button class="filter-btn hover-target" data-filter="dtf-pocket">Pocket DTF's</button>
+        <button class="filter-btn hover-target" data-filter="dtf-kids">Kid's DTF's</button>
+    </div>
+</div>
                 <button class="filter-btn hover-target" data-filter="thread">Thread Choice</button>
                 <button class="filter-btn hover-target" data-filter="loaded-binders">Loaded Binders</button>
                 <button class="filter-btn hover-target" data-filter="corporate">Graphic Tote Bags</button>
@@ -1057,7 +1064,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         const centerY = rect.height / 2;
 
                         // FIX: Dial down the tilt specifically for DTF cards so transparent PNGs don't warp
-                        const isDTF = card.getAttribute('data-category') === 'dtf';
+                        const isDTF = card.getAttribute('data-category').startsWith('dtf');
                         const multiplier = isDTF ? 1.2 : 3; 
 
                         const rotateX = ((y - centerY) / centerY) * -multiplier;
@@ -1146,7 +1153,7 @@ Thank you for supporting my small business and understanding the handmade nature
         // --- 4. DYNAMIC STRIPE INVENTORY & VARIANT ENGINE ---
         const variantConfig = {
             'thread-tshirt': {
-                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL', '3X', '4X'],
+                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL', '3X', '4X', 'YXS', 'YS', 'YM', 'YL', 'YXL'],
                 colors: {
                     'Black': 'images/IMG_8033.JPEG', 'White': 'images/IMG_8034.JPEG', 'Gray': 'images/GreyTShirt.png', 
                     'RoyalBlue': 'images/RoyalBlueT.png', 'LightBlue': 'images/LightBlueT.png', 'NavyBlue': 'images/NavyBlueShirt.png', 
@@ -1157,7 +1164,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 }
             },
             'thread-hoodie': {
-                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL', '3X', '4X'],
+                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL', '3X', '4X', 'YXS', 'YS', 'YM', 'YL', 'YXL'],
                 colors: {
                     'Black': 'images/BlackHoodie.png', 'Navy': 'images/NavyHoodie.png', 'Pink': 'images/PinkHoodie.png', 
                     'Red': 'images/RedHoodie.png', 'White': 'images/WhiteHoodie.png', 'Sport Grey': 'images/SportGreyHoodie.png', 
@@ -1167,7 +1174,8 @@ Thank you for supporting my small business and understanding the handmade nature
                 }
             },
             'thread-crewneck': {
-                sizes: ['Small', 'Medium', 'Large', 'XL', '3X', '4X'],
+                sizes: ['Small', 'Medium', 'Large', 'XL', '3X', '4X', 'YXS', 'YS', 'YM', 'YL', 'YXL'],
+
                 colors: {
                  'Black': 'images/BlackCrewNeck.png', 'White': 'images/WhiteCrewNeck.png', 'Gray': 'images/AthleticGreyCrewNeck.png', 
                  'LightPink': 'images/LightPinkCrewNeck.png', 'Sand': 'images/SandCrewNeck.png', 'Red': 'images/RedCrewNeck.png', 
@@ -1177,7 +1185,8 @@ Thank you for supporting my small business and understanding the handmade nature
                 }
             },
             'thread-tanktop': {
-                sizes: ['Small', 'Medium', 'Large', '3X', '4X'],
+                sizes: ['Small', 'Medium', 'Large', '3X', '4X', 'YXS', 'YS', 'YM', 'YL', 'YXL'],
+
                 colors: {
                     'Black': 'images/BlackTanktop.png', 'White': 'images/WhiteTankTop.png', 'Grey': 'images/GreyTankTop.png', 
                     'HotPink': 'images/HotPinkTankTop.png', 'TahitiBlue': 'images/TahitiBlueTankTop.png', 
@@ -1200,21 +1209,10 @@ Thank you for supporting my small business and understanding the handmade nature
                 
                 // Sorts products by your custom Stripe metadata (1, 2, 3...)
                 products.sort((a, b) => {
-                    const catA = a.metadata ? a.metadata.category : '';
-                    const catB = b.metadata ? b.metadata.category : '';
-                    const orderA = a.metadata && a.metadata.sort_order ? parseInt(a.metadata.sort_order) : 99;
-                    const orderB = b.metadata && b.metadata.sort_order ? parseInt(b.metadata.sort_order) : 99;
-
-                    // Standard items use their default sort_order. 
-                    // Pocket DTFs get 1000 added to their score, forcing them to the absolute bottom.
-                    let scoreA = orderA;
-                    let scoreB = orderB;
-
-                    if (catA === 'dtf' && a.name.toLowerCase().includes('pocket')) scoreA += 1000;
-                    if (catB === 'dtf' && b.name.toLowerCase().includes('pocket')) scoreB += 1000;
-
-                    return scoreA - scoreB;
-                });
+    const orderA = a.metadata && a.metadata.sort_order ? parseInt(a.metadata.sort_order) : 99;
+    const orderB = b.metadata && b.metadata.sort_order ? parseInt(b.metadata.sort_order) : 99;
+    return orderA - orderB;
+});
                 
                 shopGrid.innerHTML = ''; 
                 window.productInventory = {}; 
@@ -1223,6 +1221,18 @@ Thank you for supporting my small business and understanding the handmade nature
                 products.forEach(product => {
                     const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
                     const category = product.metadata ? product.metadata.category : 'dtf';
+           
+                    let cardCategory = category;
+if (category === 'dtf') {
+    const dtfName = product.name.toLowerCase();
+    if (product.metadata && product.metadata.sub_category) {
+        cardCategory = product.metadata.sub_category;
+    } else if (dtfName.includes('pocket')) {
+        cardCategory = 'dtf-pocket';
+    } else if (dtfName.includes('kid') || dtfName.includes('youth')) {
+        cardCategory = 'dtf-kids';
+    }
+}
                     
                     window.productInventory[product.id] = product.metadata || {};
                     window.productMeta = window.productMeta || {};
@@ -1395,7 +1405,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     const heartClass = isInWishlist ? 'wishlist-heart hover-target active' : 'wishlist-heart hover-target';
 
                     const cardHTML = `
-                        <div class="product-card reveal active" data-category="${category}" data-product-id="${product.id}">
+                        <div class="product-card reveal active" data-category="${cardCategory}" data-product-id="${product.id}">
                             
                             <button class="${heartClass}" data-heart-id="${product.id}" onclick="addCurrentConfigToWishlist('${product.id}', this, ${hasVariants})">
                                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
@@ -1403,7 +1413,8 @@ Thank you for supporting my small business and understanding the handmade nature
 
                             ${imageZoneHTML}
                             <div class="product-details">
-                                <span class="product-tag">${category.replace('-', ' ').toUpperCase()}</span>
+                                <span class="product-tag">${cardCategory.replace('-', ' ').toUpperCase()}</span>
+
                                 <h3 class="product-title">${product.name}</h3>
                                 ${stockHTML}
                                 <p class="product-desc">${product.description || 'Ready To Press Direct To Fabric Transfers. (Heat Press Only)'}</p>
@@ -2553,7 +2564,7 @@ Thank you for supporting my small business and understanding the handmade nature
         document.getElementById('mainDtfSearch').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             document.querySelectorAll('.product-card').forEach(card => {
-                if (card.getAttribute('data-category') === 'dtf') {
+                if (card.getAttribute('data-category').startsWith('dtf')) {
                     const title = card.querySelector('.product-title').innerText.toLowerCase();
                     if(title.includes(term)) card.classList.remove('hidden-search');
                     else card.classList.add('hidden-search');
