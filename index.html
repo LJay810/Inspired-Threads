@@ -734,7 +734,7 @@
                 <h4 style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-pure); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px;">Fulfillment Method</h4>
                 <label class="fulfill-option hover-target">
                     <input type="radio" name="fulfillment" value="shipping" checked onchange="updateCartUI()">
-                    Standard Shipping ($10.00)
+                    Priority Shipping ($9.00)
                 </label>
                 <label class="fulfill-option hover-target">
                     <input type="radio" name="fulfillment" value="pickup" onchange="updateCartUI()">
@@ -743,7 +743,7 @@
             </div>
 
             <div class="cart-breakdown"><span>Subtotal:</span><span id="cartSubtotal">$0.00</span></div>
-            <div class="cart-breakdown" style="margin-bottom: 15px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;"><span>Shipping:</span><span id="cartShipping">$10.00</span></div>
+            <div class="cart-breakdown" style="margin-bottom: 15px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;"><span>Shipping:</span><span id="cartShipping">$9.00</span></div>
 
             <div class="cart-total-row">
                 <span>Total:</span>
@@ -2151,11 +2151,11 @@ if (category === 'dtf') {
             
             // FULFILLMENT MATH
             const fulfillmentMethod = document.querySelector('input[name="fulfillment"]:checked').value;
-            const shippingCost = (fulfillmentMethod === 'shipping' && cart.length > 0) ? 10.00 : 0.00;
+            const shippingCost = (fulfillmentMethod === 'shipping' && cart.length > 0) ? 9.00 : 0.00;
             const grandTotal = subTotalPrice + shippingCost;
 
             document.getElementById('cartSubtotal').innerText = `$${subTotalPrice.toFixed(2)}`;
-            document.getElementById('cartShipping').innerText = fulfillmentMethod === 'shipping' && cart.length > 0 ? '$10.00' : 'Free';
+            document.getElementById('cartShipping').innerText = fulfillmentMethod === 'shipping' && cart.length > 0 ? '$9.00' : 'Free';
             document.getElementById('cartTotal').innerText = `$${grandTotal.toFixed(2)}`;
             cartNavCount.innerText = totalItems;
             
