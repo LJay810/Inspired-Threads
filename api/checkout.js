@@ -46,8 +46,20 @@ export default async function handler(req, res) {
                         await kv.incrby(rollbackItem.key, rollbackItem.qty);
                     }
 
+                    // Read the true current count so the customer (and the client-side cart) can be
+                    // corrected to match reality instead of just being told "someone bought it."
+                    const rawAvailable = await kv.get(redisKey);
+                    const availableStock = Math.max(0, parseInt(rawAvailable) || 0);
+
                     return res.status(400).json({
-                        error: `STOCK ALERT: Someone just grabbed the last of ${product.name}! Cart has been updated.`
+                        error: availableStock > 0
+                            ? `STOCK ALERT: Only ${availableStock} of "${product.name}" left in stock. We've updated your cart to match.`
+                            : `STOCK ALERT: "${product.name}" just sold out. We've removed it from your cart.`,
+                        stockAlert: true,
+                        cartIndex: i,
+                        productId: product.id,
+                        productName: product.name,
+                        availableStock
                     });
                 }
 

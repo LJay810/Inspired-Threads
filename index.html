@@ -1196,6 +1196,8 @@ Thank you for supporting my small business and understanding the handmade nature
                     const category = product.metadata ? product.metadata.category : 'dtf';
                     
                     window.productInventory[product.id] = product.metadata || {};
+                    window.productMeta = window.productMeta || {};
+                    window.productMeta[product.id] = { name: product.name, price: product.price, priceId: product.priceId };
 
                     // Load all DTF transfers into visualizer memory bank silently
                     if(category === 'dtf') window.dtfRegistry.push(product);
@@ -1333,10 +1335,10 @@ Thank you for supporting my small business and understanding the handmade nature
                         const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
                         if (stockCount !== null) {
                             if (stockCount <= 0) {
-                                stockHTML = `<div class="stock-badge sold-out">STATUS: OUT OF STOCK</div>`;
-                                checkoutButtonHTML = `<span style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
+                                stockHTML = `<div class="stock-badge sold-out" id="stock-badge-${product.id}">STATUS: OUT OF STOCK</div>`;
+                                checkoutButtonHTML = `<span id="btn-zone-${product.id}" style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
                             } else {
-                                stockHTML = `<div class="stock-badge">In Stock</div>`;
+                                stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}">In Stock</div>`;
                                 checkoutButtonHTML = `
                                     <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}" 
                                         data-name="${product.name}" 
@@ -1364,7 +1366,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     const heartClass = isInWishlist ? 'wishlist-heart hover-target active' : 'wishlist-heart hover-target';
 
                     const cardHTML = `
-                        <div class="product-card reveal active" data-category="${category}">
+                        <div class="product-card reveal active" data-category="${category}" data-product-id="${product.id}">
                             
                             <button class="${heartClass}" data-heart-id="${product.id}" onclick="addCurrentConfigToWishlist('${product.id}', this, ${hasVariants})">
                                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
@@ -1442,6 +1444,8 @@ Thank you for supporting my small business and understanding the handmade nature
                 // ---------------------------------------------------
 
                 if(isDesktop) { attach3DTracking(); attachMagnetics(); attachHoverTargets(); }
+
+                startLiveStockPolling();
 
             } catch (error) {
                 console.error("Transmission Error:", error);
@@ -1693,7 +1697,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     window.currentPriceIdCache = window.currentPriceIdCache || {};
                     window.currentPriceIdCache[productId] = btnZone.getAttribute('data-price-id');
                 }
-                const actualPriceId = btnZone?.getAttribute('data-price-id') || window.currentPriceIdCache?.[productId] || '';
+                const actualPriceId = btnZone?.getAttribute('data-price-id') || window.currentPriceIdCache?.[productId] || window.productMeta?.[productId]?.priceId || '';
                 const price = card.querySelector('.price-tag').innerText.replace('$', '');
 
                 if (stockCount !== null) {
@@ -1771,6 +1775,25 @@ Thank you for supporting my small business and understanding the handmade nature
                     
                     // Modifies the base item name so the user knows it's bundled in the cart UI
                     const baseItemName = attachedDtf ? `${name} (w/ ${attachedDtf.name})` : name;
+                    const dtfCartName = attachedDtf ? `[ATTACHED PRINT] ${attachedDtf.name}` : null;
+
+                    // STOCK GUARD: block the add entirely (base garment or attached DTF) if it
+                    // would push either item's cart quantity past what's actually in stock.
+                    const availableBase = getAvailableStock(productId, size, color);
+                    const inCartBase = getCartQuantityFor(priceId, size, color, baseItemName);
+                    if (availableBase !== null && inCartBase + 1 > availableBase) {
+                        showStockLimitAlert(name, availableBase);
+                        return;
+                    }
+
+                    if (attachedDtf) {
+                        const availableDtf = getAvailableStock(attachedDtf.id, null, null);
+                        const inCartDtf = getCartQuantityFor(attachedDtf.priceId, null, null, dtfCartName);
+                        if (availableDtf !== null && inCartDtf + 1 > availableDtf) {
+                            showStockLimitAlert(attachedDtf.name, availableDtf);
+                            return;
+                        }
+                    }
 
                     // PUSH #1: THE BASE GARMENT
                     const existingBaseItem = cart.find(item => item.priceId === priceId && item.size === size && item.color === color && item.name === baseItemName);
@@ -1782,7 +1805,6 @@ Thank you for supporting my small business and understanding the handmade nature
 
                     // PUSH #2: THE ATTACHED DTF PRINT (DUAL PAYLOAD)
                     if (attachedDtf) {
-                        const dtfCartName = `[ATTACHED PRINT] ${attachedDtf.name}`;
                         const existingDtf = cart.find(item => item.priceId === attachedDtf.priceId && item.name === dtfCartName);
                         if (existingDtf) {
                             existingDtf.quantity += 1;
@@ -1823,6 +1845,11 @@ Thank you for supporting my small business and understanding the handmade nature
             document.querySelectorAll('.add-cart-btn').forEach(btn => {
                 attachCartListenerToElement(btn);
             });
+
+            // Exposed so the live-stock poller (outside this closure) can re-run the exact
+            // same variant/button rebuild logic when fresh numbers come in from the server.
+            window.updateVariantStock = updateVariantStock;
+            window.attachCartListenerToElement = attachCartListenerToElement;
         }
 
         // Filter Logic
@@ -1869,6 +1896,164 @@ Thank you for supporting my small business and understanding the handmade nature
         
         let cart = JSON.parse(localStorage.getItem('inspiredThreadsCart')) || [];
         window.wishlist = JSON.parse(localStorage.getItem('inspiredThreadsWishlist')) || [];
+
+        // --- STOCK GUARD HELPERS ---
+        // Reconstructs the exact Redis/Stripe metadata key format used everywhere else
+        // (products.js, checkout.js): 'stock' for standard items, 'stock_Size_Color' for variants.
+        function getStockKeyFor(size, color) {
+            return (size && color) ? `stock_${size}_${color}` : 'stock';
+        }
+
+        // Returns the last-known live stock count for a product/variant, or null if the
+        // item is untracked (made-to-order / unlimited) or we simply have no data on it yet.
+        // Returning null means "don't block" -- we never want a missing-data edge case to
+        // wrongly stop someone from buying a made-to-order item.
+        function getAvailableStock(productId, size, color) {
+            const metadata = window.productInventory ? window.productInventory[productId] : null;
+            if (!metadata) return null;
+            const key = getStockKeyFor(size, color);
+            if (metadata[key] === undefined) return null;
+            const val = parseInt(metadata[key]);
+            return isNaN(val) ? null : val;
+        }
+
+        function getCartQuantityFor(priceId, size, color, name) {
+            const existing = cart.find(item => item.priceId === priceId && item.size === size && item.color === color && item.name === name);
+            return existing ? existing.quantity : 0;
+        }
+
+        // Reuses the same "looks nice" payment-status modal for the stock-limit warning so
+        // the whole storefront speaks with one visual voice for alerts.
+        function showStockLimitAlert(itemLabel, available) {
+            const msg = available > 0
+                ? `Only ${available} unit${available === 1 ? '' : 's'} of "${itemLabel}" left in stock -- your cart already has all of it.`
+                : `"${itemLabel}" just sold out.`;
+            showPaymentStatusModal('fail', 'Limited Stock', msg);
+        }
+
+        // --- LIVE STOCK POLLING ---
+        // Walks everything we know about (window.productInventory, populated once at page
+        // load) and lists every Redis key we'd need to re-check. Built the same way
+        // products.js builds them server-side, so this always matches.
+        function collectAllStockKeys() {
+            const keyMap = [];
+            const inventory = window.productInventory || {};
+            Object.keys(inventory).forEach(productId => {
+                const metadata = inventory[productId] || {};
+                Object.keys(metadata).forEach(metaKey => {
+                    if (metaKey === 'stock' || metaKey.startsWith('stock_')) {
+                        keyMap.push({ redisKey: `stock_${productId}_${metaKey}`, productId, metaKey });
+                    }
+                });
+            });
+            return keyMap;
+        }
+
+        async function pollLiveStock() {
+            const keyMap = collectAllStockKeys();
+            if (keyMap.length === 0) return;
+
+            try {
+                const response = await fetch('/api/stock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keys: keyMap.map(k => k.redisKey) })
+                });
+                if (!response.ok) return;
+
+                const data = await response.json();
+                if (!data || !data.stock) return;
+
+                keyMap.forEach(({ redisKey, productId, metaKey }) => {
+                    const val = data.stock[redisKey];
+                    // productInventory[productId] IS the same object as the product's Stripe
+                    // metadata everywhere else in the app (dtfRegistry, etc.), so mutating it
+                    // in place keeps every other reference to it in sync for free.
+                    if (val !== null && val !== undefined && window.productInventory[productId]) {
+                        window.productInventory[productId][metaKey] = val.toString();
+                    }
+                });
+
+                refreshAllStockBadges();
+            } catch (err) {
+                console.error('Live stock poll failed:', err);
+            }
+        }
+
+        function refreshAllStockBadges() {
+            document.querySelectorAll('.product-card[data-product-id]').forEach(card => {
+                const productId = card.getAttribute('data-product-id');
+                if (card.querySelector('.item-size')) {
+                    if (typeof window.updateVariantStock === 'function') window.updateVariantStock(productId);
+                } else {
+                    refreshSimpleStock(productId);
+                }
+            });
+        }
+
+        // Non-variant equivalent of updateVariantStock (DTFs, one-off items). Pulls from the
+        // productMeta cache instead of scraping the DOM, so it works even if the item was
+        // rendered SOLD OUT on the very first page load.
+        function refreshSimpleStock(productId) {
+            const metadata = (window.productInventory && window.productInventory[productId]) || {};
+            if (metadata.stock === undefined) return; // untracked / made-to-order, nothing to refresh
+
+            const stockCount = parseInt(metadata.stock);
+            const badge = document.getElementById(`stock-badge-${productId}`);
+            const btnZone = document.getElementById(`btn-zone-${productId}`);
+            if (!badge) return;
+
+            const meta = (window.productMeta && window.productMeta[productId]) || {};
+
+            if (stockCount <= 0) {
+                badge.className = 'stock-badge sold-out';
+                badge.innerText = 'STATUS: OUT OF STOCK';
+
+                if (btnZone && btnZone.tagName !== 'SPAN') {
+                    const span = document.createElement('span');
+                    span.id = `btn-zone-${productId}`;
+                    span.style.cssText = 'color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;';
+                    span.innerText = 'SOLD OUT';
+                    btnZone.replaceWith(span);
+                }
+            } else {
+                badge.className = 'stock-badge';
+                badge.innerText = 'In Stock';
+
+                if (btnZone && btnZone.tagName === 'SPAN') {
+                    const btn = document.createElement('button');
+                    btn.className = 'stripe-btn add-cart-btn magnetic-btn hover-target';
+                    btn.id = `btn-zone-${productId}`;
+                    btn.setAttribute('data-name', meta.name || '');
+                    btn.setAttribute('data-price', meta.price || '');
+                    btn.setAttribute('data-price-id', meta.priceId || '');
+                    btn.setAttribute('data-has-variants', 'false');
+                    btn.innerText = 'Add to Cart';
+                    btnZone.replaceWith(btn);
+                    if (typeof window.attachCartListenerToElement === 'function') window.attachCartListenerToElement(btn);
+                    if (isDesktop) { attachMagnetics(); attachHoverTargets(); }
+                }
+            }
+        }
+
+        // Poll every 20s while the tab is visible. Pausing on hidden tabs keeps this cheap --
+        // it's a single Redis MGET per poll (see api/stock.js), no Stripe calls at all.
+        function startLiveStockPolling() {
+            if (window._stockPollTimer) clearInterval(window._stockPollTimer);
+            window._stockPollTimer = setInterval(pollLiveStock, 20000);
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    if (window._stockPollTimer) {
+                        clearInterval(window._stockPollTimer);
+                        window._stockPollTimer = null;
+                    }
+                } else {
+                    pollLiveStock();
+                    if (!window._stockPollTimer) window._stockPollTimer = setInterval(pollLiveStock, 20000);
+                }
+            });
+        }
         const stripe = Stripe('pk_live_51TnjXXFWt379RB9CQuAZ3roCVW8l892C9ffUstWDP6TjNAtlmYZ4gWWnad9kPpqGveHGqA54LAjtGE3eKNfYy6FM00dGd8t5Hr');
         
         function closeAllDrawers() {
@@ -2021,6 +2206,24 @@ Thank you for supporting my small business and understanding the handmade nature
         function moveWishlistToCart(index) {
             const item = window.wishlist[index];
             const baseItemName = item.attachedDtf ? `${item.name} (w/ ${item.attachedDtf.name})` : item.name;
+            const dtfCartNameForWishlist = item.attachedDtf ? `[ATTACHED PRINT] ${item.attachedDtf.name}` : null;
+
+            // STOCK GUARD: an item can sit in the wishlist for a while -- re-check live stock
+            // before it actually lands in the cart, same rule as adding fresh from the shop grid.
+            const availableBase = getAvailableStock(item.productId, item.size, item.color);
+            const inCartBase = getCartQuantityFor(item.priceId, item.size, item.color, baseItemName);
+            if (availableBase !== null && inCartBase + 1 > availableBase) {
+                showStockLimitAlert(item.name, availableBase);
+                return;
+            }
+            if (item.attachedDtf) {
+                const availableDtf = getAvailableStock(item.attachedDtf.id, null, null);
+                const inCartDtf = getCartQuantityFor(item.attachedDtf.priceId, null, null, dtfCartNameForWishlist);
+                if (availableDtf !== null && inCartDtf + 1 > availableDtf) {
+                    showStockLimitAlert(item.attachedDtf.name, availableDtf);
+                    return;
+                }
+            }
 
             // Push Base Item to Cart exactly like normal checkout
             const existingBase = cart.find(c => c.priceId === item.priceId && c.size === item.size && c.color === item.color && c.name === baseItemName);
@@ -2073,7 +2276,23 @@ Thank you for supporting my small business and understanding the handmade nature
                 });
 
                 const session = await response.json();
-                if (session.error) throw new Error(session.error);
+                if (session.error) {
+                    // Server-side race: someone else grabbed stock between add-to-cart and
+                    // checkout. Bring the client cart back in line with reality (server already
+                    // tells us the true remaining count) so the "we've updated your cart" line
+                    // in the error message is actually true.
+                    if (session.stockAlert && typeof session.cartIndex === 'number' && cart[session.cartIndex]) {
+                        if (session.availableStock > 0) {
+                            cart[session.cartIndex].quantity = session.availableStock;
+                        } else {
+                            cart.splice(session.cartIndex, 1);
+                        }
+                        localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+                        updateCartUI();
+                        pollLiveStock(); // refresh product-card badges immediately, don't wait for the next tick
+                    }
+                    throw new Error(session.error);
+                }
 
                 await stripe.redirectToCheckout({ sessionId: session.id });
                 
