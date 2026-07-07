@@ -1900,7 +1900,7 @@ if (category === 'dtf') {
 
             // Toggle Search Bar Visibility
             const searchInput = document.getElementById('mainDtfSearch');
-            if(filterValue === 'dtf') {
+            if(filterValue.startsWith('dtf')) {
                 searchInput.style.display = 'block';
             } else {
                 searchInput.style.display = 'none';
