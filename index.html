@@ -668,6 +668,29 @@
             .home-img-wrapper { width: 85%; max-width: 320px; }
             .about-layout { grid-template-columns: 1fr; gap: 40px; }
         }
+
+       /* --- SITE FOOTER (COPYRIGHT) --- */
+.site-footer {
+    width: 100%;
+    text-align: center;
+    padding: 30px 20px;
+    background: rgba(3, 3, 3, 0.85);
+    border-top: 1px solid var(--border-subtle);
+    position: relative;
+    z-index: 10;
+}
+.site-footer p {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+@media (max-width: 900px) {
+    .site-footer { padding: 22px 15px; }
+    .site-footer p { font-size: 0.7rem; letter-spacing: 0.05em; }
+}
+
     </style>
 </head>
 <body>
@@ -957,6 +980,12 @@ Thank you for supporting my small business and understanding the handmade nature
             </p>
         </div>
     </section>
+
+     <footer class="site-footer">
+    <p>&copy; <span id="footerYear"></span> Inspired Threads LLC. All Rights Reserved.</p>
+</footer>
+
+<script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>
 
     <script>
         // --- 0. HARDWARE ACCELERATED UI ENGINE ---
