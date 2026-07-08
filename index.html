@@ -365,7 +365,9 @@
         .account-summary .account-email { font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-pure); word-break: break-all; margin-bottom: 4px; }
         .account-summary .account-sub { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 30px; }
         .account-signout-btn { width: 100%; border: 1px solid var(--border-subtle); background: none; color: var(--text-muted); padding: 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; transition: var(--transition-snappy); }
-        .account-signout-btn:hover { border-color: #ef4444; color: #ef4444; }
+        @media (hover: hover) and (pointer: fine) {
+            .account-signout-btn:hover { border-color: #ef4444; color: #ef4444; }
+        }
 
         /* --- TIER / XP / BADGES --- */
         .profile-tier-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
@@ -401,14 +403,18 @@
             color: var(--text-muted); display: flex; align-items: center; justify-content: center;
             transition: var(--transition-snappy);
         }
-        .settings-gear-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); background: rgba(255,0,127,0.08); }
         .settings-gear-btn svg { width: 17px; height: 17px; }
+        @media (hover: hover) and (pointer: fine) {
+            .settings-gear-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); background: rgba(255,0,127,0.08); }
+        }
 
         .account-actions-row { display: flex; align-items: center; gap: 10px; }
         .account-actions-row .account-signout-btn { flex: 1; width: auto; }
 
         .auth-settings-back { background: none; border: none; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 25px; display: flex; align-items: center; gap: 6px; }
-        .auth-settings-back:hover { color: var(--accent-pink); }
+        @media (hover: hover) and (pointer: fine) {
+            .auth-settings-back:hover { color: var(--accent-pink); }
+        }
 
         .auth-settings-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-pure); margin-bottom: 25px; }
 
@@ -2423,11 +2429,20 @@ if (category === 'dtf') {
                 // for any account created before the username field existed.
                 let displayName = session.user.email.split('@')[0];
                 try {
-                    const { data: profile } = await supabaseClient
+                    // Race against a timeout -- if this fetch stalls indefinitely (no error,
+                    // just never resolving, which is what was happening on Safari after a
+                    // refresh) we still want the nav button to update with the fallback name
+                    // instead of getting stuck forever waiting on it.
+                    const timeout = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Profile fetch timed out')), 4000)
+                    );
+                    const fetchProfile = supabaseClient
                         .from('profiles')
                         .select('username, xp, badges')
                         .eq('id', session.user.id)
                         .single();
+
+                    const { data: profile } = await Promise.race([fetchProfile, timeout]);
                     if (profile) {
                         if (profile.username) displayName = profile.username;
                         renderTierAndBadges(profile.xp || 0, profile.badges || []);
