@@ -384,7 +384,7 @@
             padding: 12px 6px; border-radius: 10px; border: 1px solid var(--border-subtle);
             background: rgba(255,255,255,0.02); text-align: center;
         }
-        .badge-item .badge-icon { font-size: 1.4rem; opacity: 0.3; }
+        .badge-item .badge-icon { width: 36px; height: 36px; object-fit: contain; opacity: 0.3; }
         .badge-item .badge-label { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
 
         .badge-item.earned { border-color: var(--accent-pink); box-shadow: 0 0 12px rgba(255,0,127,0.15); }
@@ -2326,15 +2326,15 @@ if (category === 'dtf') {
         ];
 
         const BADGES = [
-            { slug: 'first_order',    icon: '🎯', label: 'First Order' },
-            { slug: 'regular',        icon: '🔥', label: 'Regular' },
-            { slug: 'big_spender',    icon: '💎', label: 'Big Spender' },
-            { slug: 'custom_creator', icon: '🎨', label: 'Custom Creator' },
-            { slug: 'early_adopter',  icon: '🕰️', label: 'Early Adopter' },
-            { slug: 'vip',            icon: '👑', label: 'VIP' },
-            { slug: 'referral',       icon: '🔗', label: 'Referral' },
-            { slug: 'reviewer',       icon: '📝', label: 'Reviewer' },
-            { slug: 'anniversary',    icon: '🎉', label: 'Anniversary' },
+            { slug: 'first_order',      img: 'first_order.png',      icon: '🎯', label: 'First Order' },
+            { slug: 'regular',          img: 'regular.png',          icon: '🔥', label: 'Regular' },
+            { slug: 'big_spender',      img: 'big_spender.png',      icon: '💎', label: 'Big Spender' },
+            { slug: 'bundle_builder',   img: 'bundle_builder.png',   icon: '📦', label: 'Bundle Builder' },
+            { slug: 'founding_member',  img: 'founding_member.png',  icon: '👑', label: 'Founding Member' },
+            { slug: 'vip',              img: 'vip.png',              icon: '👑', label: 'VIP' },
+            { slug: 'referral',         img: 'referral.png',         icon: '🔗', label: 'Referral' },
+            { slug: 'reviewer',         img: 'reviewer.png',         icon: '📝', label: 'Reviewer' },
+            { slug: 'anniversary',      img: 'anniversary.png',      icon: '🎉', label: 'Anniversary' },
         ];
 
         function toggleAccountSettings(showSettings) {
@@ -2372,7 +2372,8 @@ if (category === 'dtf') {
                 const earned = earnedBadges.includes(b.slug);
                 return `
                     <div class="badge-item ${earned ? 'earned' : ''}">
-                        <span class="badge-icon">${b.icon}</span>
+                        <img class="badge-icon" src="images/badges/${b.img}" alt="${b.label}" loading="lazy"
+                             onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-icon',textContent:'${b.icon}'}))">
                         <span class="badge-label">${b.label}</span>
                     </div>`;
             }).join('');
