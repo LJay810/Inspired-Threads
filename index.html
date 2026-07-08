@@ -1218,6 +1218,14 @@ Thank you for supporting my small business and understanding the handmade nature
 <script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>
 
     <script>
+        // --- FIX: iOS "double tap" bug ---
+        // Any element with a CSS :hover rule (every nav button here has one) makes iOS Safari
+        // treat the first tap as simulating :hover and only fires the actual click on a second
+        // tap. This is why Home/Shop/About etc. sometimes needed two taps to trigger a scroll.
+        // A no-op touchstart listener is the standard, well-known fix -- it makes iOS treat taps
+        // as immediate clicks instead of doing the hover-simulation step first.
+        document.addEventListener('touchstart', function () {}, { passive: true });
+
         // --- 0. HARDWARE ACCELERATED UI ENGINE ---
         let attachHoverTargets = () => {};
         let attachMagnetics = () => {};
