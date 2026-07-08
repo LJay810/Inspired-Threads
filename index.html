@@ -311,6 +311,19 @@
         .account-btn { border: 1px solid var(--border-subtle); color: var(--text-pure); border-radius: 20px; padding: 8px 18px; transition: var(--transition-snappy); background: none; }
         .account-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); background: rgba(255,0,127,0.1); }
 
+        .account-btn-active {
+            border-color: var(--accent-pink);
+            color: var(--accent-pink);
+            animation: accountGlowPulse 2.2s ease-in-out infinite;
+        }
+        @keyframes accountGlowPulse {
+            0%, 100% { box-shadow: 0 0 4px rgba(255,0,127,0.25), 0 0 0px rgba(255,0,127,0.0); }
+            50% { box-shadow: 0 0 14px rgba(255,0,127,0.75), 0 0 22px rgba(255,0,127,0.35); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .account-btn-active { animation: none; box-shadow: 0 0 10px rgba(255,0,127,0.4); }
+        }
+
         .auth-overlay {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3000;
             display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; backdrop-filter: blur(10px);
@@ -830,6 +843,10 @@
                 </form>
 
                 <form class="auth-panel" id="authPanelRegister" onsubmit="handleAuthSubmit(event, 'register')">
+                    <div class="form-group">
+                        <input type="text" id="registerUsername" class="hover-target" required minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]+" autocomplete="username">
+                        <label>Username</label>
+                    </div>
                     <div class="form-group">
                         <input type="email" id="registerEmail" class="hover-target" required autocomplete="email">
                         <label>Email</label>
@@ -2076,9 +2093,14 @@ if (category === 'dtf') {
                     if (error) throw error;
                     closeAuthModal();
                 } else {
+                    const username = document.getElementById('registerUsername').value.trim();
                     const email = document.getElementById('registerEmail').value.trim();
                     const password = document.getElementById('registerPassword').value;
-                    const { error } = await supabaseClient.auth.signUp({ email, password });
+                    const { error } = await supabaseClient.auth.signUp({
+                        email,
+                        password,
+                        options: { data: { username } }
+                    });
                     if (error) throw error;
                     statusEl.textContent = 'Check your email to confirm your account.';
                 }
@@ -2095,17 +2117,36 @@ if (category === 'dtf') {
             closeAuthModal();
         }
 
-        function refreshAuthUI(session) {
+        async function refreshAuthUI(session) {
             const navBtn = document.getElementById('accountNavBtn');
             const loggedOutView = document.getElementById('authLoggedOutView');
             const loggedInView = document.getElementById('authLoggedInView');
+
             if (session && session.user) {
-                navBtn.textContent = session.user.email.split('@')[0];
                 loggedOutView.style.display = 'none';
                 loggedInView.style.display = 'block';
                 document.getElementById('accountEmailDisplay').textContent = session.user.email;
+
+                // Look up the display name from profiles; fall back to email prefix
+                // for any account created before the username field existed.
+                let displayName = session.user.email.split('@')[0];
+                try {
+                    const { data: profile } = await supabaseClient
+                        .from('profiles')
+                        .select('username')
+                        .eq('id', session.user.id)
+                        .single();
+                    if (profile && profile.username) displayName = profile.username;
+                } catch (err) {
+                    // Non-fatal -- just keep the email-prefix fallback
+                    console.warn('Could not load username:', err.message);
+                }
+
+                navBtn.textContent = displayName;
+                navBtn.classList.add('account-btn-active');
             } else {
                 navBtn.textContent = 'Account';
+                navBtn.classList.remove('account-btn-active');
                 loggedOutView.style.display = 'block';
                 loggedInView.style.display = 'none';
             }
