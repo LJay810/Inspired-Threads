@@ -380,6 +380,36 @@
         .badge-item.earned .badge-icon { filter: none; opacity: 1; }
         .badge-item.earned .badge-label { color: var(--text-pure); }
 
+        /* --- ACCOUNT SETTINGS PANEL --- */
+        .settings-gear-btn {
+            position: absolute; bottom: 18px; right: 18px;
+            width: 34px; height: 34px; border-radius: 50%;
+            background: rgba(255,255,255,0.04); border: 1px solid var(--border-subtle);
+            color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+            transition: var(--transition-snappy);
+        }
+        .settings-gear-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); background: rgba(255,0,127,0.08); }
+        .settings-gear-btn svg { width: 17px; height: 17px; }
+
+        .auth-settings-back { background: none; border: none; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 25px; display: flex; align-items: center; gap: 6px; }
+        .auth-settings-back:hover { color: var(--accent-pink); }
+
+        .auth-settings-title { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-pure); margin-bottom: 25px; }
+
+        .settings-field { margin-bottom: 25px; }
+        .settings-field-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+        .settings-field-value { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-pure); word-break: break-all; }
+
+        .settings-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--border-subtle); }
+        .settings-toggle-row-label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-pure); }
+
+        .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-switch-slider { position: absolute; inset: 0; background: rgba(255,255,255,0.1); border: 1px solid var(--border-subtle); border-radius: 30px; cursor: pointer; transition: var(--transition-snappy); }
+        .toggle-switch-slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; top: 2px; background: var(--text-muted); border-radius: 50%; transition: var(--transition-snappy); }
+        .toggle-switch input:checked + .toggle-switch-slider { background: rgba(255,0,127,0.2); border-color: var(--accent-pink); }
+        .toggle-switch input:checked + .toggle-switch-slider::before { transform: translateX(20px); background: var(--accent-pink); box-shadow: 0 0 8px rgba(255,0,127,0.6); }
+
         /* --- PAYMENT STATUS MODAL (SUCCESS / FAIL) --- */
         .status-modal { text-align: center; }
         .status-icon-wrap {
@@ -882,22 +912,49 @@
             </div>
 
             <!-- LOGGED IN VIEW -->
-            <div id="authLoggedInView" style="display:none;">
-                <div class="profile-tier-row">
-                    <span class="profile-tier-name" id="profileTierName">Member</span>
-                    <span class="profile-xp-label" id="profileXpLabel">0 XP</span>
-                </div>
-                <div class="xp-bar-track">
-                    <div class="xp-bar-fill" id="xpBarFill" style="width:0%;"></div>
-                </div>
-                <div class="xp-to-next" id="xpToNextLabel">100 XP to Silver</div>
+            <div id="authLoggedInView" style="display:none; position: relative;">
+                <div id="authLoggedInMain">
+                    <div class="profile-tier-row">
+                        <span class="profile-tier-name" id="profileTierName">Member</span>
+                        <span class="profile-xp-label" id="profileXpLabel">0 XP</span>
+                    </div>
+                    <div class="xp-bar-track">
+                        <div class="xp-bar-fill" id="xpBarFill" style="width:0%;"></div>
+                    </div>
+                    <div class="xp-to-next" id="xpToNextLabel">100 XP to Silver</div>
 
-                <div class="badge-grid" id="badgeGrid"></div>
+                    <div class="badge-grid" id="badgeGrid"></div>
 
-                <div class="account-summary">
-                    <div class="account-email" id="accountEmailDisplay"></div>
-                    <div class="account-sub">Signed In</div>
-                    <button class="account-signout-btn hover-target" onclick="handleSignOut()">Sign Out</button>
+                    <div class="account-summary">
+                        <div class="account-email" id="accountEmailDisplay"></div>
+                        <div class="account-sub">Signed In</div>
+                        <button class="account-signout-btn hover-target" onclick="handleSignOut()">Sign Out</button>
+                    </div>
+
+                    <button class="settings-gear-btn hover-target" onclick="toggleAccountSettings(true)" aria-label="Account Settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="authSettingsView" style="display:none;">
+                    <button class="auth-settings-back hover-target" onclick="toggleAccountSettings(false)">← Back</button>
+                    <div class="auth-settings-title">Account Settings</div>
+
+                    <div class="settings-field">
+                        <div class="settings-field-label">Email</div>
+                        <div class="settings-field-value" id="settingsEmailDisplay"></div>
+                    </div>
+
+                    <div class="settings-toggle-row">
+                        <span class="settings-toggle-row-label">Stock Alerts</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="stockAlertsToggle" onchange="handleStockAlertsToggle(this.checked)">
+                            <span class="toggle-switch-slider"></span>
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2164,7 +2221,21 @@ if (category === 'dtf') {
             { slug: 'custom_creator', icon: '🎨', label: 'Custom Creator' },
             { slug: 'early_adopter',  icon: '🕰️', label: 'Early Adopter' },
             { slug: 'vip',            icon: '👑', label: 'VIP' },
+            { slug: 'referral',       icon: '🔗', label: 'Referral' },
+            { slug: 'reviewer',       icon: '📝', label: 'Reviewer' },
+            { slug: 'anniversary',    icon: '🎉', label: 'Anniversary' },
         ];
+
+        function toggleAccountSettings(showSettings) {
+            document.getElementById('authLoggedInMain').style.display = showSettings ? 'none' : 'block';
+            document.getElementById('authSettingsView').style.display = showSettings ? 'block' : 'none';
+        }
+
+        function handleStockAlertsToggle(isOn) {
+            // TODO: wire this up to actually save the preference (Supabase profiles column
+            // or a separate table) and hook into restock notifications once that system exists.
+            console.log('Stock Alerts toggle set to:', isOn);
+        }
 
         function renderTierAndBadges(xp, earnedBadges) {
             const currentTier = TIERS.find(t => xp >= t.minXp);
@@ -2205,6 +2276,7 @@ if (category === 'dtf') {
                 loggedOutView.style.display = 'none';
                 loggedInView.style.display = 'block';
                 document.getElementById('accountEmailDisplay').textContent = session.user.email;
+                document.getElementById('settingsEmailDisplay').textContent = session.user.email;
 
                 // Look up the display name from profiles; fall back to email prefix
                 // for any account created before the username field existed.
