@@ -1328,8 +1328,36 @@ Thank you for supporting my small business and understanding the handmade nature
             });
         }
 
-        window.addEventListener('scroll', onScroll, { passive: true });
-        window.addEventListener('resize', () => updateIndicator(document.querySelector('.nav-tab.active')));
+        // Both scroll and resize fire far more often than the screen actually repaints --
+        // especially during a scrollIntoView() animation (near-continuous scroll events) and
+        // on iOS Safari where the address bar collapsing/expanding during scroll fires a burst
+        // of resize events too. Without throttling, onScroll's forced-layout reads (offsetTop,
+        // offsetWidth, offsetLeft) interleaved with DOM writes run on every single one of those
+        // raw events -- classic layout-thrashing that can pin the main thread long enough for
+        // iOS to consider the tab unresponsive and kill/reload it. Coalescing to one rAF-timed
+        // run per rendered frame keeps all the same behavior at a fraction of the work.
+        let scrollTicking = false;
+        function onScrollThrottled() {
+            if (scrollTicking) return;
+            scrollTicking = true;
+            requestAnimationFrame(() => {
+                onScroll();
+                scrollTicking = false;
+            });
+        }
+
+        let resizeTicking = false;
+        function onIndicatorResizeThrottled() {
+            if (resizeTicking) return;
+            resizeTicking = true;
+            requestAnimationFrame(() => {
+                updateIndicator(document.querySelector('.nav-tab.active'));
+                resizeTicking = false;
+            });
+        }
+
+        window.addEventListener('scroll', onScrollThrottled, { passive: true });
+        window.addEventListener('resize', onIndicatorResizeThrottled);
         
         // --- 2. INTERSECTION OBSERVER (SCROLL ANIMATIONS) ---
         const revealElements = document.querySelectorAll('.reveal');
