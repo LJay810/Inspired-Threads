@@ -342,6 +342,16 @@
         @media (max-width: 900px) {
             .auth-modal { padding: 65px 22px 30px 22px; max-height: 92vh; width: 94vw; max-width: 480px; }
         }
+        @media (min-width: 901px) {
+            .auth-overlay.desktop-dropdown {
+                background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none;
+                align-items: flex-start; justify-content: flex-start;
+            }
+            .auth-overlay.desktop-dropdown .auth-modal {
+                position: fixed; width: 460px; max-width: 460px; max-height: 640px;
+                margin: 0; transform-origin: top right; transform: translateY(-10px) scale(0.97);
+            }
+        }
         .auth-overlay.active .auth-modal { transform: translateY(0) scale(1); }
 
         .auth-tabs { display: flex; gap: 0; margin-bottom: 30px; border-bottom: 1px solid var(--border-subtle); }
@@ -369,6 +379,37 @@
             .account-signout-btn:hover { border-color: #ef4444; color: #ef4444; }
         }
 
+        /* --- BADGE DETAIL MODAL --- */
+        .badge-detail-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3100;
+            display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; backdrop-filter: blur(8px);
+        }
+        .badge-detail-overlay.active { opacity: 1; pointer-events: all; }
+        .badge-detail-modal {
+            background: rgba(15, 15, 15, 0.97); border: 1px solid var(--accent-pink); border-radius: 16px; padding: 36px; width: 90%; max-width: 360px;
+            text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px rgba(255,0,127,0.15);
+            transform: scale(0.92); transition: transform 0.35s cubic-bezier(0.25,1,0.5,1); position: relative;
+        }
+        .badge-detail-overlay.active .badge-detail-modal { transform: scale(1); }
+        .badge-detail-icon-wrap {
+            width: 120px; height: 120px; margin: 0 auto 20px auto; border-radius: 16px; background: rgba(255,255,255,0.95);
+            display: flex; align-items: center; justify-content: center; padding: 14px; box-sizing: border-box; transition: opacity 0.2s ease;
+        }
+        .badge-detail-icon-wrap img { width: 100%; height: 100%; object-fit: contain; }
+        .badge-detail-status { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 800; margin-bottom: 10px; }
+        .badge-detail-status.locked { color: var(--text-muted); }
+        .badge-detail-status.unlocked { color: var(--accent-pink); }
+        .badge-detail-title { font-size: 1.3rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; color: var(--text-pure); }
+        .badge-detail-desc { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+
+        /* --- STOCK ALERT METHOD SUB-PANEL --- */
+        .stock-alert-method { margin-top: 4px; padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; }
+        .stock-alert-method-label { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+        .stock-alert-option { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-pure); margin-bottom: 10px; cursor: pointer; }
+        .stock-alert-option:last-of-type { margin-bottom: 0; }
+        .stock-alert-option input[type="radio"] { accent-color: var(--accent-pink); width: 16px; height: 16px; cursor: pointer; }
+        #stockAlertPhoneGroup input { font-size: 0.9rem; }
+
         /* --- TIER / XP / BADGES --- */
         .profile-tier-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
         .profile-tier-name { font-family: var(--font-mono); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-pink); font-weight: 800; }
@@ -378,22 +419,47 @@
         .xp-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent-pink-hover), var(--accent-pink)); border-radius: 4px; transition: width 0.6s cubic-bezier(0.25,1,0.5,1); box-shadow: 0 0 10px rgba(255,0,127,0.5); }
         .xp-to-next { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); text-align: right; margin-bottom: 25px; }
 
-        .badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 30px; }
+        .badge-grid-scroll { max-height: 340px; overflow-y: auto; margin-bottom: 30px; padding-right: 4px; }
+        .badge-grid-scroll::-webkit-scrollbar { width: 6px; }
+        .badge-grid-scroll::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
+
+        .badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
         .badge-item {
-            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
             padding: 12px 6px; border-radius: 10px; border: 1px solid var(--border-subtle);
-            background: rgba(255,255,255,0.02); text-align: center;
+            background: rgba(255,255,255,0.02); text-align: center; cursor: pointer;
+            transition: var(--transition-snappy);
         }
-        .badge-item .badge-icon { width: 36px; height: 36px; object-fit: contain; opacity: 0.3; }
+        @media (hover: hover) and (pointer: fine) {
+            .badge-item:hover { border-color: var(--accent-pink); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+        }
+        .badge-icon-wrap {
+            width: 56px; height: 56px; border-radius: 10px; background: rgba(255,255,255,0.92);
+            display: flex; align-items: center; justify-content: center; position: relative;
+            padding: 6px; box-sizing: border-box; transition: var(--transition-snappy);
+        }
+        .badge-item .badge-icon { width: 100%; height: 100%; object-fit: contain; opacity: 0.35; }
         .badge-item .badge-label { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
 
         .badge-item.earned { border-color: var(--accent-pink); box-shadow: 0 0 12px rgba(255,0,127,0.15); }
+        .badge-item.earned .badge-icon-wrap { box-shadow: 0 0 14px rgba(255,0,127,0.45); }
         .badge-item.earned .badge-icon { opacity: 1; }
         .badge-item.earned .badge-label { color: var(--text-pure); }
 
+        .badge-earned-check {
+            position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%;
+            background: var(--accent-pink); color: #fff; display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 900; box-shadow: 0 2px 6px rgba(0,0,0,0.5); border: 2px solid #0a0a0a;
+        }
+
         @media (max-width: 900px) {
+            .badge-grid-scroll { max-height: 260px; }
             .badge-grid { gap: 8px; }
             .badge-item { padding: 10px 4px; }
+            .badge-icon-wrap { width: 52px; height: 52px; }
+        }
+        @media (min-width: 901px) {
+            .badge-icon-wrap { width: 64px; height: 64px; }
         }
 
         /* --- ACCOUNT SETTINGS PANEL --- */
@@ -958,7 +1024,9 @@
                     </div>
                     <div class="xp-to-next" id="xpToNextLabel">100 XP to Silver</div>
 
-                    <div class="badge-grid" id="badgeGrid"></div>
+                    <div class="badge-grid-scroll">
+                        <div class="badge-grid" id="badgeGrid"></div>
+                    </div>
 
                     <div class="account-summary">
                         <div class="account-sub">Signed In</div>
@@ -990,8 +1058,36 @@
                             <span class="toggle-switch-slider"></span>
                         </label>
                     </div>
+
+                    <div class="stock-alert-method" id="stockAlertMethod" style="display:none;">
+                        <div class="stock-alert-method-label">Send Alerts Via</div>
+                        <label class="stock-alert-option hover-target">
+                            <input type="radio" name="stockAlertMethod" value="email" checked onchange="handleStockAlertMethodChange(this.value)">
+                            <span>Email (<span id="stockAlertEmailDisplay"></span>)</span>
+                        </label>
+                        <label class="stock-alert-option hover-target">
+                            <input type="radio" name="stockAlertMethod" value="phone" onchange="handleStockAlertMethodChange(this.value)">
+                            <span>Phone Number</span>
+                        </label>
+                        <div class="form-group" id="stockAlertPhoneGroup" style="display:none; margin-top:15px; margin-bottom:0;">
+                            <input type="tel" id="stockAlertPhoneInput" class="hover-target" placeholder="(555) 123-4567">
+                            <label>Phone Number</label>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="badge-detail-overlay" id="badgeDetailOverlay" onclick="closeBadgeDetail(event)">
+        <div class="badge-detail-modal" onclick="event.stopPropagation()">
+            <button class="close-tiktok hover-target" onclick="closeBadgeDetail()">✕</button>
+            <div class="badge-detail-icon-wrap" id="badgeDetailIconWrap">
+                <img id="badgeDetailImg" src="" alt="">
+            </div>
+            <div class="badge-detail-status" id="badgeDetailStatus"></div>
+            <h3 class="badge-detail-title" id="badgeDetailTitle"></h3>
+            <p class="badge-detail-desc" id="badgeDetailDesc"></p>
         </div>
     </div>
 
@@ -2242,8 +2338,35 @@ if (category === 'dtf') {
             : null;
 
         function openAuthModal() {
-            document.getElementById('authOverlay').classList.add('active');
+            const overlay = document.getElementById('authOverlay');
+            const modal = overlay.querySelector('.auth-modal');
+
+            if (isDesktop) {
+                overlay.classList.add('desktop-dropdown');
+                const btn = document.getElementById('accountNavBtn');
+                const rect = btn.getBoundingClientRect();
+                const modalWidth = 460;
+                let left = rect.right - modalWidth;
+                left = Math.max(16, Math.min(left, window.innerWidth - modalWidth - 16));
+                modal.style.top = `${rect.bottom + 12}px`;
+                modal.style.left = `${left}px`;
+            } else {
+                overlay.classList.remove('desktop-dropdown');
+                modal.style.top = '';
+                modal.style.left = '';
+            }
+
+            overlay.classList.add('active');
         }
+
+        // Keeps the desktop dropdown anchored correctly under the Account button if the
+        // window gets resized while it's open, instead of drifting out of position.
+        window.addEventListener('resize', () => {
+            const overlay = document.getElementById('authOverlay');
+            if (overlay.classList.contains('active') && overlay.classList.contains('desktop-dropdown')) {
+                openAuthModal();
+            }
+        });
         function closeAuthModal(e) {
             if (e && e.target !== e.currentTarget) return;
             document.getElementById('authOverlay').classList.remove('active');
@@ -2326,15 +2449,24 @@ if (category === 'dtf') {
         ];
 
         const BADGES = [
-            { slug: 'first_order',      img: 'first_order.png',      icon: '🎯', label: 'First Order' },
-            { slug: 'regular',          img: 'regular.png',          icon: '🔥', label: 'Regular' },
-            { slug: 'big_spender',      img: 'big_spender.png',      icon: '💎', label: 'Big Spender' },
-            { slug: 'bundle_builder',   img: 'bundle_builder.png',   icon: '📦', label: 'Bundle Builder' },
-            { slug: 'founding_member',  img: 'founding_member.png',  icon: '👑', label: 'Founding Member' },
-            { slug: 'vip',              img: 'vip.png',              icon: '👑', label: 'VIP' },
-            { slug: 'referral',         img: 'referral.png',         icon: '🔗', label: 'Referral' },
-            { slug: 'reviewer',         img: 'reviewer.png',         icon: '📝', label: 'Reviewer' },
-            { slug: 'anniversary',      img: 'anniversary.png',      icon: '🎉', label: 'Anniversary' },
+            { slug: 'first_order',      img: 'first_order.png',      icon: '🎯', label: 'First Order',
+              description: 'Awarded the moment your first order is placed. Every journey starts with a stitch.' },
+            { slug: 'regular',          img: 'regular.png',          icon: '🔥', label: 'Regular',
+              description: 'Unlocked after 5 or more completed orders. Loyalty looks good on you.' },
+            { slug: 'big_spender',      img: 'big_spender.png',      icon: '💎', label: 'Big Spender',
+              description: 'Unlocked once your total spend crosses a set threshold. Big taste, bigger receipts.' },
+            { slug: 'bundle_builder',   img: 'bundle_builder.png',   icon: '📦', label: 'Bundle Builder',
+              description: 'Unlocked by placing an order with 3 or more items in a single checkout.' },
+            { slug: 'founding_member',  img: 'founding_member.png',  icon: '👑', label: 'Founding Member',
+              description: "Reserved for the earliest accounts ever created on Inspired Threads. Can't be earned later -- you had to be here." },
+            { slug: 'vip',              img: 'vip.png',              icon: '👑', label: 'VIP',
+              description: 'Reached by climbing all the way to the VIP tier through accumulated XP. The top of the ladder.' },
+            { slug: 'referral',         img: 'referral.png',         icon: '🔗', label: 'Referral',
+              description: 'Unlocked when someone you referred completes their first purchase.' },
+            { slug: 'reviewer',         img: 'reviewer.png',         icon: '📝', label: 'Reviewer',
+              description: 'Unlocked after leaving your first product review.' },
+            { slug: 'anniversary',      img: 'anniversary.png',      icon: '🎉', label: 'Anniversary',
+              description: "Unlocked once your account has been active for a full year. Here's to another one." },
         ];
 
         function toggleAccountSettings(showSettings) {
@@ -2342,13 +2474,49 @@ if (category === 'dtf') {
             document.getElementById('authSettingsView').style.display = showSettings ? 'block' : 'none';
         }
 
+        // Tracks which badges are currently earned so the detail modal (opened by clicking
+        // a badge) knows whether to show it as locked or unlocked without a second lookup.
+        let currentEarnedBadges = [];
+
+        function openBadgeDetail(slug) {
+            const badge = BADGES.find(b => b.slug === slug);
+            if (!badge) return;
+            const earned = currentEarnedBadges.includes(slug);
+
+            document.getElementById('badgeDetailImg').src = `images/badges/${badge.img}`;
+            document.getElementById('badgeDetailImg').alt = badge.label;
+            document.getElementById('badgeDetailTitle').textContent = badge.label;
+            document.getElementById('badgeDetailDesc').textContent = badge.description;
+
+            const statusEl = document.getElementById('badgeDetailStatus');
+            statusEl.textContent = earned ? '✓ Unlocked' : '🔒 Locked';
+            statusEl.className = 'badge-detail-status ' + (earned ? 'unlocked' : 'locked');
+            document.getElementById('badgeDetailIconWrap').style.opacity = earned ? '1' : '0.5';
+
+            document.getElementById('badgeDetailOverlay').classList.add('active');
+        }
+
+        function closeBadgeDetail(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('badgeDetailOverlay').classList.remove('active');
+        }
+
         function handleStockAlertsToggle(isOn) {
+            document.getElementById('stockAlertMethod').style.display = isOn ? 'block' : 'none';
             // TODO: wire this up to actually save the preference (Supabase profiles column
             // or a separate table) and hook into restock notifications once that system exists.
             console.log('Stock Alerts toggle set to:', isOn);
         }
 
+        function handleStockAlertMethodChange(method) {
+            document.getElementById('stockAlertPhoneGroup').style.display = method === 'phone' ? 'block' : 'none';
+            // TODO: persist the selected alert method once the backend preference exists.
+            console.log('Stock alert method set to:', method);
+        }
+
         function renderTierAndBadges(xp, earnedBadges) {
+            currentEarnedBadges = earnedBadges;
+
             const currentTier = TIERS.find(t => xp >= t.minXp);
             const currentIndex = TIERS.indexOf(currentTier);
             const nextTier = currentIndex > 0 ? TIERS[currentIndex - 1] : null;
@@ -2371,9 +2539,12 @@ if (category === 'dtf') {
             grid.innerHTML = BADGES.map(b => {
                 const earned = earnedBadges.includes(b.slug);
                 return `
-                    <div class="badge-item ${earned ? 'earned' : ''}">
-                        <img class="badge-icon" src="images/badges/${b.img}" alt="${b.label}" loading="lazy"
-                             onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-icon',textContent:'${b.icon}'}))">
+                    <div class="badge-item hover-target ${earned ? 'earned' : ''}" onclick="openBadgeDetail('${b.slug}')">
+                        <div class="badge-icon-wrap">
+                            <img class="badge-icon" src="images/badges/${b.img}" alt="${b.label}" loading="lazy"
+                                 onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'badge-icon',textContent:'${b.icon}'}))">
+                            ${earned ? '<span class="badge-earned-check">✓</span>' : ''}
+                        </div>
                         <span class="badge-label">${b.label}</span>
                     </div>`;
             }).join('');
@@ -2394,6 +2565,7 @@ if (category === 'dtf') {
                 loggedOutView.style.display = 'none';
                 loggedInView.style.display = 'block';
                 document.getElementById('settingsEmailDisplay').textContent = session.user.email;
+                document.getElementById('stockAlertEmailDisplay').textContent = session.user.email;
 
                 // Look up the display name from profiles; fall back to email prefix
                 // for any account created before the username field existed.
