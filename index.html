@@ -1016,7 +1016,7 @@
             <div id="authLoggedInView" style="display:none; position: relative;">
                 <div id="authLoggedInMain">
                     <div class="profile-tier-row">
-                        <span class="profile-tier-name" id="profileTierName">Member</span>
+                        <span class="profile-tier-name" id="profileTierName">Bronze</span>
                         <span class="profile-xp-label" id="profileXpLabel">0 XP</span>
                     </div>
                     <div class="xp-bar-track">
@@ -2422,7 +2422,7 @@ if (category === 'dtf') {
             } finally {
                 submitBtn.disabled = false;
             }
-        }
+        } 
 
         async function handleSignOut() {
             if (!supabaseClient) return;
@@ -2445,7 +2445,7 @@ if (category === 'dtf') {
             { name: 'VIP',    minXp: 2000 },
             { name: 'Gold',   minXp: 500 },
             { name: 'Silver', minXp: 100 },
-            { name: 'Member', minXp: 0 },
+            { name: 'Bronze', minXp: 0 },
         ];
 
         const BADGES = [
