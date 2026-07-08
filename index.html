@@ -18,6 +18,7 @@
     <script defer src="/_vercel/speed-insights/script.js"></script>
 
     <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="icon" type="image/png" href="images/inspiredthreadsLogoIcon2.png">
     <style>
         /* ======================================================================
@@ -305,6 +306,44 @@
         .tiktok-overlay.active .tiktok-modal { transform: translateY(0) scale(1); }
         .close-tiktok { position: absolute; top: 15px; right: 20px; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: color 0.2s; }
         .close-tiktok:hover { color: var(--accent-pink); }
+
+        /* --- AUTH (ACCOUNT) MODAL --- */
+        .account-btn { border: 1px solid var(--border-subtle); color: var(--text-pure); border-radius: 20px; padding: 8px 18px; transition: var(--transition-snappy); background: none; }
+        .account-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); background: rgba(255,0,127,0.1); }
+
+        .auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3000;
+            display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; backdrop-filter: blur(10px);
+        }
+        .auth-overlay.active { opacity: 1; pointer-events: all; }
+        .auth-modal {
+            background: rgba(15, 15, 15, 0.95); border: 1px solid var(--accent-pink); border-radius: 16px; padding: 40px; width: 90%; max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px rgba(255,0,127,0.15); transform: translateY(30px) scale(0.95); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); position: relative;
+        }
+        .auth-overlay.active .auth-modal { transform: translateY(0) scale(1); }
+
+        .auth-tabs { display: flex; gap: 0; margin-bottom: 30px; border-bottom: 1px solid var(--border-subtle); }
+        .auth-tab-btn {
+            flex: 1; background: none; border: none; padding: 12px 0; font-family: var(--font-mono); font-size: 0.75rem;
+            letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); border-bottom: 2px solid transparent;
+            transition: var(--transition-snappy); position: relative; top: 1px;
+        }
+        .auth-tab-btn.active { color: var(--text-pure); border-bottom-color: var(--accent-pink); }
+
+        .auth-panel { display: none; }
+        .auth-panel.active { display: block; }
+
+        .auth-error { color: #ef4444; font-size: 0.8rem; font-family: var(--font-mono); margin-bottom: 15px; min-height: 1em; }
+        .auth-status-msg { color: var(--accent-pink); font-size: 0.8rem; font-family: var(--font-mono); margin-bottom: 15px; min-height: 1em; }
+
+        .auth-submit-btn { width: 100%; margin-top: 10px; }
+        .auth-submit-btn:disabled { opacity: 0.5; pointer-events: none; }
+
+        .account-summary { text-align: center; }
+        .account-summary .account-email { font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-pure); word-break: break-all; margin-bottom: 4px; }
+        .account-summary .account-sub { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 30px; }
+        .account-signout-btn { width: 100%; border: 1px solid var(--border-subtle); background: none; color: var(--text-muted); padding: 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; transition: var(--transition-snappy); }
+        .account-signout-btn:hover { border-color: #ef4444; color: #ef4444; }
 
         /* --- PAYMENT STATUS MODAL (SUCCESS / FAIL) --- */
         .status-modal { text-align: center; }
@@ -711,6 +750,7 @@
             <button class="nav-tab hover-target" onclick="scrollToSection('contact')">Contact</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('schedule')">Live Schedule</button>
             
+            <button class="nav-tab account-btn hover-target" id="accountNavBtn" onclick="openAuthModal()">Account</button>
             <button class="nav-tab wishlist-btn hover-target" onclick="toggleWishlist()">Wishlist (<span id="wishlistNavCount">0</span>)</button>
             <button class="nav-tab cart-btn hover-target" onclick="toggleCart()">Cart (<span id="cartNavCount">0</span>)</button>
         </nav>
@@ -760,6 +800,56 @@
         </div>
         <div class="drawer-items" id="wishlistItems">
             <p style="color:var(--text-muted); font-size: 0.9rem;">Your wishlist is currently empty.</p>
+        </div>
+    </div>
+
+    <div class="auth-overlay" id="authOverlay" onclick="closeAuthModal(event)">
+        <div class="auth-modal" onclick="event.stopPropagation()">
+            <button class="close-tiktok hover-target" onclick="closeAuthModal()">✕</button>
+
+            <!-- LOGGED OUT VIEW -->
+            <div id="authLoggedOutView">
+                <div class="auth-tabs">
+                    <button class="auth-tab-btn active hover-target" id="authTabLoginBtn" onclick="switchAuthTab('login')">Log In</button>
+                    <button class="auth-tab-btn hover-target" id="authTabRegisterBtn" onclick="switchAuthTab('register')">Register</button>
+                </div>
+
+                <div class="auth-error" id="authErrorMsg"></div>
+                <div class="auth-status-msg" id="authStatusMsg"></div>
+
+                <form class="auth-panel active" id="authPanelLogin" onsubmit="handleAuthSubmit(event, 'login')">
+                    <div class="form-group">
+                        <input type="email" id="loginEmail" class="hover-target" required autocomplete="email">
+                        <label>Email</label>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="loginPassword" class="hover-target" required autocomplete="current-password">
+                        <label>Password</label>
+                    </div>
+                    <button type="submit" class="stripe-btn magnetic-btn hover-target auth-submit-btn" id="loginSubmitBtn">Log In</button>
+                </form>
+
+                <form class="auth-panel" id="authPanelRegister" onsubmit="handleAuthSubmit(event, 'register')">
+                    <div class="form-group">
+                        <input type="email" id="registerEmail" class="hover-target" required autocomplete="email">
+                        <label>Email</label>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="registerPassword" class="hover-target" required autocomplete="new-password" minlength="6">
+                        <label>Password (min. 6 characters)</label>
+                    </div>
+                    <button type="submit" class="stripe-btn magnetic-btn hover-target auth-submit-btn" id="registerSubmitBtn">Create Account</button>
+                </form>
+            </div>
+
+            <!-- LOGGED IN VIEW -->
+            <div id="authLoggedInView" style="display:none;">
+                <div class="account-summary">
+                    <div class="account-email" id="accountEmailDisplay"></div>
+                    <div class="account-sub">Signed In</div>
+                    <button class="account-signout-btn hover-target" onclick="handleSignOut()">Sign Out</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1931,6 +2021,100 @@ if (category === 'dtf') {
         filterBtns.forEach(btn => {
             btn.addEventListener('click', () => applyFilter(btn.getAttribute('data-filter'), btn));
         });
+
+        // --- 6b. AUTH (SUPABASE) ---
+
+        // TODO: replace with your actual Supabase project values (Settings -> API).
+        // The anon/public key is safe to expose client-side -- it only works within
+        // whatever Row Level Security policies you define in Postgres.
+        const SUPABASE_URL = 'https://qdwruisviyifpangaqrx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkd3J1aXN2aXlpZnBhbmdhcXJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NzQxMDUsImV4cCI6MjA5OTA1MDEwNX0.AkRvjsv5B130EOaqMWEq4Egk5ZC9Yxg-B7pL57hSfCU';
+
+        const supabaseClient = (SUPABASE_URL.startsWith('http'))
+            ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+            : null;
+
+        function openAuthModal() {
+            document.getElementById('authOverlay').classList.add('active');
+        }
+        function closeAuthModal(e) {
+            if (e && e.target !== e.currentTarget) return;
+            document.getElementById('authOverlay').classList.remove('active');
+            document.getElementById('authErrorMsg').textContent = '';
+            document.getElementById('authStatusMsg').textContent = '';
+        }
+
+        function switchAuthTab(tab) {
+            document.getElementById('authTabLoginBtn').classList.toggle('active', tab === 'login');
+            document.getElementById('authTabRegisterBtn').classList.toggle('active', tab === 'register');
+            document.getElementById('authPanelLogin').classList.toggle('active', tab === 'login');
+            document.getElementById('authPanelRegister').classList.toggle('active', tab === 'register');
+            document.getElementById('authErrorMsg').textContent = '';
+            document.getElementById('authStatusMsg').textContent = '';
+        }
+
+        async function handleAuthSubmit(event, mode) {
+            event.preventDefault();
+            const errorEl = document.getElementById('authErrorMsg');
+            const statusEl = document.getElementById('authStatusMsg');
+            errorEl.textContent = '';
+            statusEl.textContent = '';
+
+            if (!supabaseClient) {
+                errorEl.textContent = 'Auth isn\'t configured yet -- add your Supabase URL/key in the code.';
+                return;
+            }
+
+            const submitBtn = document.getElementById(mode === 'login' ? 'loginSubmitBtn' : 'registerSubmitBtn');
+            submitBtn.disabled = true;
+
+            try {
+                if (mode === 'login') {
+                    const email = document.getElementById('loginEmail').value.trim();
+                    const password = document.getElementById('loginPassword').value;
+                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) throw error;
+                    closeAuthModal();
+                } else {
+                    const email = document.getElementById('registerEmail').value.trim();
+                    const password = document.getElementById('registerPassword').value;
+                    const { error } = await supabaseClient.auth.signUp({ email, password });
+                    if (error) throw error;
+                    statusEl.textContent = 'Check your email to confirm your account.';
+                }
+            } catch (err) {
+                errorEl.textContent = err.message || 'Something went wrong. Try again.';
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        async function handleSignOut() {
+            if (!supabaseClient) return;
+            await supabaseClient.auth.signOut();
+            closeAuthModal();
+        }
+
+        function refreshAuthUI(session) {
+            const navBtn = document.getElementById('accountNavBtn');
+            const loggedOutView = document.getElementById('authLoggedOutView');
+            const loggedInView = document.getElementById('authLoggedInView');
+            if (session && session.user) {
+                navBtn.textContent = session.user.email.split('@')[0];
+                loggedOutView.style.display = 'none';
+                loggedInView.style.display = 'block';
+                document.getElementById('accountEmailDisplay').textContent = session.user.email;
+            } else {
+                navBtn.textContent = 'Account';
+                loggedOutView.style.display = 'block';
+                loggedInView.style.display = 'none';
+            }
+        }
+
+        if (supabaseClient) {
+            supabaseClient.auth.getSession().then(({ data }) => refreshAuthUI(data.session));
+            supabaseClient.auth.onAuthStateChange((_event, session) => refreshAuthUI(session));
+        }
 
         // --- 7. CART & WISHLIST ENGINES ---
         
