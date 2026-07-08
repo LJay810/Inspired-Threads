@@ -50,7 +50,7 @@
             --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; scroll-behavior: smooth; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         html { background: var(--bg-main); overflow-x: hidden; } 
         body { 
             background: transparent; /* Lets the parallax show through */
@@ -1306,8 +1306,17 @@ Thank you for supporting my small business and understanding the handmade nature
             indicator.style.left = tab.offsetLeft + 'px';
         }
 
+        // Guards against rapid repeated taps stacking multiple overlapping smooth-scroll
+        // animations on top of each other -- interrupting an in-progress WebKit smooth
+        // scroll with a new one has been a known source of iOS Safari hangs. Ignoring
+        // new requests for the duration of a typical scroll animation is a safe fix
+        // since retapping the same destination mid-animation has no useful effect anyway.
+        let scrollNavLocked = false;
         function scrollToSection(id) {
+            if (scrollNavLocked) return;
+            scrollNavLocked = true;
             document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+            setTimeout(() => { scrollNavLocked = false; }, 900);
         }
 
         function onScroll() {
