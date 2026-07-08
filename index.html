@@ -358,6 +358,28 @@
         .account-signout-btn { width: 100%; border: 1px solid var(--border-subtle); background: none; color: var(--text-muted); padding: 14px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; transition: var(--transition-snappy); }
         .account-signout-btn:hover { border-color: #ef4444; color: #ef4444; }
 
+        /* --- TIER / XP / BADGES --- */
+        .profile-tier-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .profile-tier-name { font-family: var(--font-mono); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-pink); font-weight: 800; }
+        .profile-xp-label { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); }
+
+        .xp-bar-track { width: 100%; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+        .xp-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent-pink-hover), var(--accent-pink)); border-radius: 4px; transition: width 0.6s cubic-bezier(0.25,1,0.5,1); box-shadow: 0 0 10px rgba(255,0,127,0.5); }
+        .xp-to-next { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); text-align: right; margin-bottom: 25px; }
+
+        .badge-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 30px; }
+        .badge-item {
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            padding: 12px 6px; border-radius: 10px; border: 1px solid var(--border-subtle);
+            background: rgba(255,255,255,0.02); text-align: center;
+        }
+        .badge-item .badge-icon { font-size: 1.4rem; filter: grayscale(1); opacity: 0.35; }
+        .badge-item .badge-label { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+
+        .badge-item.earned { border-color: var(--accent-pink); box-shadow: 0 0 12px rgba(255,0,127,0.15); }
+        .badge-item.earned .badge-icon { filter: none; opacity: 1; }
+        .badge-item.earned .badge-label { color: var(--text-pure); }
+
         /* --- PAYMENT STATUS MODAL (SUCCESS / FAIL) --- */
         .status-modal { text-align: center; }
         .status-icon-wrap {
@@ -861,6 +883,17 @@
 
             <!-- LOGGED IN VIEW -->
             <div id="authLoggedInView" style="display:none;">
+                <div class="profile-tier-row">
+                    <span class="profile-tier-name" id="profileTierName">Member</span>
+                    <span class="profile-xp-label" id="profileXpLabel">0 XP</span>
+                </div>
+                <div class="xp-bar-track">
+                    <div class="xp-bar-fill" id="xpBarFill" style="width:0%;"></div>
+                </div>
+                <div class="xp-to-next" id="xpToNextLabel">100 XP to Silver</div>
+
+                <div class="badge-grid" id="badgeGrid"></div>
+
                 <div class="account-summary">
                     <div class="account-email" id="accountEmailDisplay"></div>
                     <div class="account-sub">Signed In</div>
@@ -2117,6 +2150,52 @@ if (category === 'dtf') {
             closeAuthModal();
         }
 
+        const TIERS = [
+            { name: 'VIP',    minXp: 2000 },
+            { name: 'Gold',   minXp: 500 },
+            { name: 'Silver', minXp: 100 },
+            { name: 'Member', minXp: 0 },
+        ];
+
+        const BADGES = [
+            { slug: 'first_order',    icon: '🎯', label: 'First Order' },
+            { slug: 'regular',        icon: '🔥', label: 'Regular' },
+            { slug: 'big_spender',    icon: '💎', label: 'Big Spender' },
+            { slug: 'custom_creator', icon: '🎨', label: 'Custom Creator' },
+            { slug: 'early_adopter',  icon: '🕰️', label: 'Early Adopter' },
+            { slug: 'vip',            icon: '👑', label: 'VIP' },
+        ];
+
+        function renderTierAndBadges(xp, earnedBadges) {
+            const currentTier = TIERS.find(t => xp >= t.minXp);
+            const currentIndex = TIERS.indexOf(currentTier);
+            const nextTier = currentIndex > 0 ? TIERS[currentIndex - 1] : null;
+
+            document.getElementById('profileTierName').textContent = currentTier.name;
+            document.getElementById('profileXpLabel').textContent = `${xp} XP`;
+
+            if (nextTier) {
+                const rangeStart = currentTier.minXp;
+                const rangeEnd = nextTier.minXp;
+                const pct = Math.min(100, Math.round(((xp - rangeStart) / (rangeEnd - rangeStart)) * 100));
+                document.getElementById('xpBarFill').style.width = `${pct}%`;
+                document.getElementById('xpToNextLabel').textContent = `${rangeEnd - xp} XP to ${nextTier.name}`;
+            } else {
+                document.getElementById('xpBarFill').style.width = '100%';
+                document.getElementById('xpToNextLabel').textContent = 'Max tier reached';
+            }
+
+            const grid = document.getElementById('badgeGrid');
+            grid.innerHTML = BADGES.map(b => {
+                const earned = earnedBadges.includes(b.slug);
+                return `
+                    <div class="badge-item ${earned ? 'earned' : ''}">
+                        <span class="badge-icon">${b.icon}</span>
+                        <span class="badge-label">${b.label}</span>
+                    </div>`;
+            }).join('');
+        }
+
         async function refreshAuthUI(session) {
             const navBtn = document.getElementById('accountNavBtn');
             const loggedOutView = document.getElementById('authLoggedOutView');
@@ -2133,10 +2212,13 @@ if (category === 'dtf') {
                 try {
                     const { data: profile } = await supabaseClient
                         .from('profiles')
-                        .select('username')
+                        .select('username, xp, badges')
                         .eq('id', session.user.id)
                         .single();
-                    if (profile && profile.username) displayName = profile.username;
+                    if (profile) {
+                        if (profile.username) displayName = profile.username;
+                        renderTierAndBadges(profile.xp || 0, profile.badges || []);
+                    }
                 } catch (err) {
                     // Non-fatal -- just keep the email-prefix fallback
                     console.warn('Could not load username:', err.message);
