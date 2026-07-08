@@ -2294,8 +2294,19 @@ if (category === 'dtf') {
 
         async function handleSignOut() {
             if (!supabaseClient) return;
-            await supabaseClient.auth.signOut();
-            closeAuthModal();
+            try {
+                // 'local' scope clears the session on this device immediately without
+                // requiring a successful round-trip to Supabase's servers first -- important
+                // if the stored session token is already stale/invalid, since a full server
+                // sign-out call can itself fail in that exact situation, silently leaving
+                // the button looking like it does nothing.
+                await supabaseClient.auth.signOut({ scope: 'local' });
+            } catch (err) {
+                console.warn('Sign out request failed, forcing local logout anyway:', err.message);
+            } finally {
+                closeAuthModal();
+                refreshAuthUI(null); // guarantee the UI reflects logged-out state either way
+            }
         }
 
         const TIERS = [
