@@ -1716,18 +1716,38 @@ if (category === 'dtf') {
                 applyFilter('dtf', document.getElementById('defaultFilter')); 
                 
                 // --- NEW: LAZY LOAD ENGINE FOR BACKGROUND IMAGES ---
-                // This tracks when the card is close to entering the screen and triggers the image download
+                // This tracks when the card is close to entering the screen and triggers the image download.
+                // Assignment is staggered a few at a time per animation frame (same spirit as the DTF
+                // preload batching above) rather than setting every newly-visible card's background image
+                // synchronously in one go -- a fast, long-distance scrollIntoView() jump (e.g. Home to
+                // Live Schedule) sweeps past the entire shop grid during its animation, so without staggering,
+                // dozens of cards could cross the 400px rootMargin threshold in the same frame and all fire
+                // a real image fetch/decode/paint simultaneously.
+                const lazyBgQueue = [];
+                let lazyBgDraining = false;
+                function drainLazyBgQueue() {
+                    if (lazyBgQueue.length === 0) { lazyBgDraining = false; return; }
+                    lazyBgDraining = true;
+                    const BATCH = 3;
+                    for (let i = 0; i < BATCH && lazyBgQueue.length; i++) {
+                        const element = lazyBgQueue.shift();
+                        const bgUrl = element.getAttribute('data-bg');
+                        if (bgUrl && bgUrl !== '') {
+                            element.style.backgroundImage = `url('${bgUrl}')`;
+                        }
+                    }
+                    requestAnimationFrame(drainLazyBgQueue);
+                }
+
                 const lazyBgObserver = new IntersectionObserver((entries, observer) => {
                     entries.forEach(entry => {
                         if (entry.isIntersecting) {
                             const element = entry.target;
-                            const bgUrl = element.getAttribute('data-bg');
-                            if (bgUrl && bgUrl !== '') {
-                                element.style.backgroundImage = `url('${bgUrl}')`;
-                            }
-                            observer.unobserve(element); // Stop tracking it once the image is loaded
+                            lazyBgQueue.push(element);
+                            observer.unobserve(element); // Stop tracking it once queued
                         }
                     });
+                    if (!lazyBgDraining) drainLazyBgQueue();
                 }, { rootMargin: "400px 0px" }); // Pre-loads it exactly 400px before you scroll to it
 
                 // Bind the observer to every image box we just created
