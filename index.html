@@ -1221,6 +1221,37 @@ Thank you for supporting my small business and understanding the handmade nature
 <script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>
 
     <script>
+        // --- TEMPORARY DEBUG LOGGER (safe to remove once the Safari auth bug is found) ---
+        // Captures console.warn/error into localStorage, which survives a page reload --
+        // unlike an injected debug console (Eruda etc.), which gets wiped by a refresh.
+        // View captured logs later via Eruda's console: localStorage.getItem('__debugLogs')
+        (function setupDebugLogger() {
+            const MAX_ENTRIES = 50;
+            let logs = [];
+            try { logs = JSON.parse(localStorage.getItem('__debugLogs') || '[]'); } catch (e) { logs = []; }
+
+            function capture(level, args) {
+                try {
+                    logs.push({
+                        t: new Date().toISOString(),
+                        level,
+                        msg: Array.from(args).map(a => (a instanceof Error ? a.message : String(a))).join(' ')
+                    });
+                    if (logs.length > MAX_ENTRIES) logs = logs.slice(-MAX_ENTRIES);
+                    localStorage.setItem('__debugLogs', JSON.stringify(logs));
+                } catch (e) { /* storage full or unavailable -- fail silently, don't break the page */ }
+            }
+
+            const origWarn = console.warn.bind(console);
+            const origError = console.error.bind(console);
+            console.warn = function (...args) { capture('WARN', args); origWarn(...args); };
+            console.error = function (...args) { capture('ERROR', args); origError(...args); };
+
+            window.addEventListener('unhandledrejection', (e) => {
+                capture('UNHANDLED_REJECTION', [e.reason]);
+            });
+        })();
+
         // --- FIX: iOS "double tap" bug ---
         // Any element with a CSS :hover rule (every nav button here has one) makes iOS Safari
         // treat the first tap as simulating :hover and only fires the actual click on a second
