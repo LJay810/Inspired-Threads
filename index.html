@@ -559,7 +559,16 @@
         .product-card { 
             background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden;
             display: flex; flex-direction: column; opacity: 1; position: relative; transform-style: preserve-3d; z-index: 1;
-            transition: transform 0.15s ease-out, box-shadow 0.15s ease-out, border-color 0.15s ease-out, opacity 0.4s ease; 
+            transition: transform 0.15s ease-out, box-shadow 0.15s ease-out, border-color 0.15s ease-out, opacity 0.4s ease;
+            /* Skips layout/paint work entirely for cards far off-screen, until they're about to
+               become visible. The DTF category is almost certainly the largest by card count of
+               any category, so it's the biggest DOM footprint the browser has to keep rendering
+               while a long scrollIntoView() jump sweeps past it -- this is the standard fix for
+               exactly that. contain-intrinsic-size reserves an estimated height so the page doesn't
+               jump around as cards skip in/out of being rendered. Ignored harmlessly on older
+               browsers that don't support it -- no regression risk. */
+            content-visibility: auto;
+            contain-intrinsic-size: 0 580px;
         }
         .product-card.hidden-filter { display: none !important; opacity: 0; transform: scale(0.95); }
         .product-card:hover { border-color: var(--accent-pink); box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255, 0, 127, 0.15); z-index: 50; }
