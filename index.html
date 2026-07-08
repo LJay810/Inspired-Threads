@@ -126,7 +126,10 @@
        .brand-text { font-family: var(--font-mono); font-weight: 900; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent-pink); }
         .nav-container { position: relative; display: flex; gap: 15px; align-items: center;}
         .nav-tab { background: none; border: none; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; padding: 10px 20px; transition: var(--transition-fluid); }
-        .nav-tab:hover, .nav-tab.active { color: var(--text-pure); }
+        .nav-tab.active { color: var(--text-pure); }
+        @media (hover: hover) and (pointer: fine) {
+            .nav-tab:hover { color: var(--text-pure); }
+        }
 
         .cart-btn { border: 1px solid var(--accent-pink); color: var(--accent-pink); border-radius: 20px; padding: 8px 18px; }
         .cart-btn:hover { background: rgba(255,0,127,0.1); }
@@ -3353,7 +3356,7 @@ if (category === 'dtf') {
             spawnAcc = 0;
             startTime = performance.now();
             lastNow = startTime;
-            rafId = requestAnimationFrame(frame);
+            rafId = requestAnimationFrame(frame); 
         };
 
         // Triggers unconditionally on load per user instructions
