@@ -752,11 +752,15 @@
         /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 900px) {
 
+         .noise-overlay { display: none; } /* barely visible at 4% opacity, but costs continuous
+             GPU compositing on every scroll frame -- likely contributor to iOS Safari's
+             low-memory tab reload on long scroll sessions */
+
          .fixed-parallax-bg {
                 background: linear-gradient(to bottom, rgba(3,3,3,0.7) 0%, rgba(3,3,3,0.2) 100%), url('images/BackgroundMobile.JPEG') center/cover no-repeat;
             }
           
-            header { padding: 10px 5px; justify-content: center; background: rgba(3, 3, 3, 0.98); border-bottom: 1px solid var(--border-subtle); backdrop-filter: blur(10px); flex-wrap: wrap;}
+            header { padding: 10px 5px; justify-content: center; background: rgba(3, 3, 3, 0.98); border-bottom: 1px solid var(--border-subtle); backdrop-filter: none; -webkit-backdrop-filter: none; flex-wrap: wrap;}
             .brand-text { display: none; }
             
             header nav { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 5px 0 0 0; }
