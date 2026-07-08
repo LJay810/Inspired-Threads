@@ -2417,7 +2417,23 @@ if (category === 'dtf') {
         }
 
         if (supabaseClient) {
-            supabaseClient.auth.getSession().then(({ data }) => refreshAuthUI(data.session));
+            // On a fresh page load (not an in-page navigation), Safari's storage subsystem has
+            // occasionally not finished syncing from disk at the exact instant this first check
+            // runs -- a known category of WebKit timing quirk that shows up specifically on
+            // reload, not on normal navigation. If the very first check finds no session, we
+            // give it one short second look before concluding the user is actually logged out.
+            // No-op / zero extra delay if the session was already found correctly the first time.
+            supabaseClient.auth.getSession().then(({ data }) => {
+                if (data.session) {
+                    refreshAuthUI(data.session);
+                } else {
+                    setTimeout(() => {
+                        supabaseClient.auth.getSession().then(({ data: retryData }) => {
+                            refreshAuthUI(retryData.session);
+                        });
+                    }, 400);
+                }
+            });
             supabaseClient.auth.onAuthStateChange((_event, session) => refreshAuthUI(session));
         }
 
@@ -3356,7 +3372,7 @@ if (category === 'dtf') {
             spawnAcc = 0;
             startTime = performance.now();
             lastNow = startTime;
-            rafId = requestAnimationFrame(frame); 
+            rafId = requestAnimationFrame(frame);
         };
 
         // Triggers unconditionally on load per user instructions
