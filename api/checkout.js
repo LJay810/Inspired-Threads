@@ -4,6 +4,7 @@ const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
 const { perksForTier, tierForXp } = require('./lib/loyalty');
+const { packCartItemMetadata } = require('./lib/cart-metadata');
 
 // Service-role client: only used server-side, only ever to READ a shopper's own xp so we know
 // which tier's perks to apply. Never exposed to the browser.
@@ -48,6 +49,7 @@ export default async function handler(req, res) {
         const lineItems = [];
         sessionMetadata = { item_count: cartItems.length.toString() };
         let subtotalCents = 0;
+        const packSummary = []; // human-readable, for the Stripe Dashboard -- see Order_Summary below
 
         for (let i = 0; i < cartItems.length; i++) {
             const item = cartItems[i];
@@ -106,14 +108,23 @@ export default async function handler(req, res) {
                 adjustable_quantity: { enabled: true, minimum: 1 },
             });
 
-            // Store exact keys in session metadata so the webhook never has to guess/reconstruct them
-            sessionMetadata[`Item_${i + 1}`] = item.name;
-            sessionMetadata[`id_${i}`] = item.priceId;
-            sessionMetadata[`prod_id_${i}`] = product.id;
-            sessionMetadata[`stripe_key_${i}`] = stripeMetaKey;
-            sessionMetadata[`redis_key_${i}`] = hasStockLimit ? redisKey : ''; // empty = untracked, webhook skips it
-            sessionMetadata[`qty_${i}`] = item.quantity.toString();
+            // One packed key per item (not six) -- see lib/cart-metadata.js for why.
+            sessionMetadata[`item_${i}`] = packCartItemMetadata(item, product, stripeMetaKey, redisKey, hasStockLimit);
+
+            // Human-readable, for whoever's packing the order -- size/color only ever lived in
+            // metadata (never as a real Stripe line item field), so without this, that detail
+            // is technically still recoverable from item_N above but not readable at a glance.
+            const variantLabel = hasVariants ? ` (${item.size}/${item.color})` : '';
+            packSummary.push(`${item.quantity}x ${item.name}${variantLabel}`);
         }
+
+        // One extra key total (not one per item), so this barely touches the 50-key budget the
+        // packed format just fixed. Truncated defensively -- Stripe caps any single metadata
+        // value at 500 characters, and an unusually large order could theoretically approach it.
+        const summaryText = packSummary.join(', ');
+        sessionMetadata['Order_Summary'] = summaryText.length > 490
+            ? summaryText.slice(0, 487) + '...'
+            : summaryText;
 
         sessionMetadata['Fulfillment_Method'] = fulfillmentMethod === 'shipping' ? 'Standard Shipping' : 'Local Pickup';
         if (supabaseUserId) sessionMetadata['supabase_user_id'] = supabaseUserId;

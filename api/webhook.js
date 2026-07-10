@@ -5,6 +5,7 @@ const kv = Redis.fromEnv();
 const { createClient } = require('@supabase/supabase-js');
 const { xpForOrder, tierForXp, evaluateOrderBadges, isAnniversaryMonth, hasCompletedFullYear, ANNIVERSARY_XP_MULTIPLIER } = require('./lib/loyalty');
 const { notifyRestock } = require('./lib/notify');
+const { unpackCartItemMetadata } = require('./lib/cart-metadata');
 
 // Service-role client: bypasses RLS, used only here and in cron-birthday-coupons.js to write
 // loyalty fields the shopper's own browser session is never allowed to touch directly.
@@ -57,17 +58,14 @@ export default async function handler(req, res) {
     // lock is needed here even on a retry.
     if (event.type === 'checkout.session.completed') {
       for (let i = 0; i < itemCount; i++) {
-        const redisKey = metadata[`redis_key_${i}`];
-        if (!redisKey) continue; // untracked / made-to-order item, nothing to sync
+        const itemData = unpackCartItemMetadata(metadata, i);
+        if (!itemData || !itemData.redisKey) continue; // untracked / made-to-order item, nothing to sync
 
-        const stripeKey = metadata[`stripe_key_${i}`];
-        const prodId = metadata[`prod_id_${i}`];
-
-        const finalStock = await kv.get(redisKey);
+        const finalStock = await kv.get(itemData.redisKey);
         if (finalStock !== null) {
-          const product = await stripe.products.retrieve(prodId);
-          await stripe.products.update(prodId, {
-            metadata: { ...product.metadata, [stripeKey]: finalStock.toString() },
+          const product = await stripe.products.retrieve(itemData.prodId);
+          await stripe.products.update(itemData.prodId, {
+            metadata: { ...product.metadata, [itemData.stripeMetaKey]: finalStock.toString() },
           });
         }
       }
@@ -80,11 +78,11 @@ export default async function handler(req, res) {
       if (metadata.supabase_user_id && supabaseAdmin) {
         const purchaseRows = [];
         for (let i = 0; i < itemCount; i++) {
-          const prodId = metadata[`prod_id_${i}`];
-          if (!prodId) continue;
+          const itemData = unpackCartItemMetadata(metadata, i);
+          if (!itemData || !itemData.prodId) continue;
           purchaseRows.push({
             user_id: metadata.supabase_user_id,
-            product_id: prodId,
+            product_id: itemData.prodId,
             session_id: session.id,
           });
         }
@@ -112,7 +110,8 @@ export default async function handler(req, res) {
         if (claimed) {
           let orderUnits = 0;
           for (let i = 0; i < itemCount; i++) {
-            orderUnits += parseInt(metadata[`qty_${i}`] || '0', 10);
+            const itemData = unpackCartItemMetadata(metadata, i);
+            orderUnits += itemData ? (parseInt(itemData.qty, 10) || 0) : 0;
           }
 
           // Anniversary perk: double XP during the shopper's signup month, every year.
@@ -196,15 +195,15 @@ export default async function handler(req, res) {
     // can't cause a double-release on retry.
     if (event.type === 'checkout.session.expired') {
       for (let i = 0; i < itemCount; i++) {
-        const redisKey = metadata[`redis_key_${i}`];
-        if (!redisKey) continue; // untracked / made-to-order item, nothing to release
+        const itemData = unpackCartItemMetadata(metadata, i);
+        if (!itemData || !itemData.redisKey) continue; // untracked / made-to-order item, nothing to release
 
         const releaseMarker = `released_${session.id}_${i}`;
         const claimed = await kv.set(releaseMarker, '1', { nx: true, ex: 86400 });
         if (!claimed) continue; // this specific item was already released on a prior attempt
 
-        const qtyToReturn = parseInt(metadata[`qty_${i}`]);
-        const newStockLevel = await kv.incrby(redisKey, qtyToReturn);
+        const qtyToReturn = parseInt(itemData.qty, 10);
+        const newStockLevel = await kv.incrby(itemData.redisKey, qtyToReturn);
 
         // A genuine restock is specifically the 0 (or below) -> positive crossing -- releasing
         // an abandoned cart that DIDN'T sell out the last unit just returns stock to whatever
@@ -212,10 +211,9 @@ export default async function handler(req, res) {
         const previousStockLevel = newStockLevel - qtyToReturn;
         if (previousStockLevel <= 0 && newStockLevel > 0) {
           try {
-            const prodId = metadata[`prod_id_${i}`];
-            const product = await stripe.products.retrieve(prodId);
+            const product = await stripe.products.retrieve(itemData.prodId);
             const imageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
-            await notifyRestock(supabaseAdmin, prodId, product.name, imageUrl);
+            await notifyRestock(supabaseAdmin, itemData.prodId, product.name, imageUrl);
           } catch (err) {
             // Never let a notification failure block the actual stock release.
             console.error('Restock notification failed:', err.message);
