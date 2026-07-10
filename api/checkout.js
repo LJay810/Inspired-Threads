@@ -2,6 +2,32 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 import { Redis } from '@upstash/redis';
 const kv = Redis.fromEnv();
 
+const { createClient } = require('@supabase/supabase-js');
+const { perksForTier, tierForXp } = require('./lib/loyalty');
+
+// Service-role client: only used server-side, only ever to READ a shopper's own xp so we know
+// which tier's perks to apply. Never exposed to the browser.
+const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    : null;
+
+// One reusable Stripe Coupon per standing-discount percentage (5% for Gold, 10% for VIP),
+// looked up-or-created on first use so nothing needs to be pre-configured in the Stripe Dashboard.
+async function ensureStandingDiscountCoupon(percentOff) {
+    const id = `LOYALTY_STANDING_${percentOff}`;
+    try {
+        return await stripe.coupons.retrieve(id);
+    } catch (err) {
+        if (err.code !== 'resource_missing') throw err;
+        return stripe.coupons.create({
+            id,
+            percent_off: percentOff,
+            duration: 'once',
+            name: `Loyalty ${percentOff}% Off`,
+        });
+    }
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
@@ -13,13 +39,16 @@ export default async function handler(req, res) {
     try {
         const cartItems = req.body.items;
         const fulfillmentMethod = req.body.fulfillment;
+        const supabaseUserId = req.body.supabaseUserId || null; // only present for logged-in shoppers
         const lineItems = [];
         const sessionMetadata = { item_count: cartItems.length.toString() };
+        let subtotalCents = 0;
 
         for (let i = 0; i < cartItems.length; i++) {
             const item = cartItems[i];
             const price = await stripe.prices.retrieve(item.priceId, { expand: ['product'] });
             const product = price.product;
+            subtotalCents += (price.unit_amount || 0) * item.quantity;
             const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
 
             // Exact Stripe metadata key: 'stock' for standard items, 'stock_Small_Black' style for variants
@@ -82,12 +111,33 @@ export default async function handler(req, res) {
         }
 
         sessionMetadata['Fulfillment_Method'] = fulfillmentMethod === 'shipping' ? 'Standard Shipping' : 'Local Pickup';
+        if (supabaseUserId) sessionMetadata['supabase_user_id'] = supabaseUserId;
+
+        // LOYALTY PERKS: look up the shopper's tier from their live XP (defaults to Bronze/no
+        // perks for guests, logged-out shoppers, or if this lookup fails for any reason --
+        // a perks outage should never be able to block checkout).
+        let perks = perksForTier('Bronze');
+        if (supabaseUserId && supabaseAdmin) {
+            try {
+                const { data: profile } = await supabaseAdmin
+                    .from('profiles')
+                    .select('xp')
+                    .eq('id', supabaseUserId)
+                    .single();
+                if (profile) perks = perksForTier(tierForXp(profile.xp || 0));
+            } catch (err) {
+                console.warn('Perk lookup failed, proceeding without tier perks:', err.message);
+            }
+        }
+
+        // Physical perk (Silver+): flagged in metadata so whoever packs the order sees it in
+        // the Stripe Dashboard -- there's no fulfillment system in this codebase to automate it.
+        if (perks.stickerPack) sessionMetadata['Include_Sticker_Pack'] = 'Yes';
 
         const sessionConfig = {
             payment_method_types: ['card'],
             line_items: lineItems,
             mode: 'payment',
-            allow_promotion_codes: true,
             metadata: sessionMetadata,
             payment_intent_data: { metadata: sessionMetadata },
             success_url: `${req.headers.origin}/?success=true`,
@@ -98,13 +148,55 @@ export default async function handler(req, res) {
             expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
         };
 
+        // Stripe Checkout can't combine a pre-applied `discounts` coupon with customer-entered
+        // `allow_promotion_codes` on the same session -- so a standing tier discount (Gold/VIP)
+        // takes priority and manual promo-code entry is disabled for that one checkout. Everyone
+        // else (Bronze/Silver/guests) keeps the ability to enter a promo code as before.
+        if (perks.standingDiscountPct > 0) {
+            const coupon = await ensureStandingDiscountCoupon(perks.standingDiscountPct);
+            sessionConfig.discounts = [{ coupon: coupon.id }];
+        } else {
+            sessionConfig.allow_promotion_codes = true;
+        }
+
         if (fulfillmentMethod === 'shipping' && cartItems.length > 0) {
+            const subtotalDollars = subtotalCents / 100;
+            const qualifiesForFreeShipping = perks.freeShippingMin !== null && subtotalDollars >= perks.freeShippingMin;
+
+            let shippingFeeCents = 900;
+            let shippingLabel = 'Standard Shipping';
+
+            if (qualifiesForFreeShipping) {
+                shippingFeeCents = 0;
+                shippingLabel = 'Standard Shipping (Free — Loyalty Perk)';
+            } else if (perks.vipShippingCredit && supabaseUserId && supabaseAdmin) {
+                // VIP's $3.50-off perk, capped at N uses/calendar month. Reserved optimistically
+                // here (same pattern as stock reservation above) so two near-simultaneous
+                // checkouts can't both claim the same monthly use; if this session later expires
+                // unpaid, webhook.js's checkout.session.expired handler releases it back.
+                try {
+                    const yearMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+                    const { data: creditApplied } = await supabaseAdmin.rpc('use_vip_shipping_credit', {
+                        p_user_id: supabaseUserId,
+                        p_year_month: yearMonth,
+                    });
+                    if (creditApplied) {
+                        shippingFeeCents = Math.max(0, 900 - Math.round(perks.vipShippingCredit.amount * 100));
+                        shippingLabel = `Standard Shipping (−$${perks.vipShippingCredit.amount.toFixed(2)} VIP Credit)`;
+                        sessionMetadata['vip_credit_used'] = 'true';
+                        sessionMetadata['vip_credit_month'] = yearMonth;
+                    }
+                } catch (err) {
+                    console.warn('VIP shipping credit lookup failed, charging standard shipping:', err.message);
+                }
+            }
+
             sessionConfig.shipping_options = [
                 {
                     shipping_rate_data: {
                         type: 'fixed_amount',
-                        fixed_amount: { amount: 900, currency: 'usd' },
-                        display_name: 'Standard Shipping',
+                        fixed_amount: { amount: shippingFeeCents, currency: 'usd' },
+                        display_name: shippingLabel,
                         delivery_estimate: {
                             minimum: { unit: 'business_day', value: 5 },
                             maximum: { unit: 'business_day', value: 7 },
@@ -129,6 +221,14 @@ export default async function handler(req, res) {
             for (const rollbackItem of reservedKeys) {
                 await kv.incrby(rollbackItem.key, rollbackItem.qty);
             }
+        }
+
+        // Same idea for a reserved-but-unused VIP shipping credit.
+        if (!sessionCreated && sessionMetadata['vip_credit_used'] === 'true' && supabaseAdmin) {
+            await supabaseAdmin.rpc('release_vip_shipping_credit', {
+                p_user_id: supabaseUserId,
+                p_year_month: sessionMetadata['vip_credit_month'],
+            });
         }
 
         res.status(500).json({ error: error.message });

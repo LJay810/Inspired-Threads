@@ -458,6 +458,17 @@
             .badge-item { padding: 10px 4px; }
             .badge-icon-wrap { width: 52px; height: 52px; }
         }
+
+        /* --- PERKS PANEL --- */
+        .perks-panel { margin-bottom: 25px; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--border-subtle); background: rgba(255,255,255,0.02); }
+        .perks-panel-title { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+        .perks-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+        .perks-list li { font-size: 0.8rem; color: var(--text-pure); }
+        .birthday-coupon-banner {
+            margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 0.75rem; line-height: 1.5;
+            background: rgba(255,0,127,0.1); border: 1px solid var(--accent-pink); color: var(--text-pure);
+        }
+        .birthday-coupon-banner strong { font-family: var(--font-mono); letter-spacing: 0.05em; color: var(--accent-pink); }
         @media (min-width: 901px) {
             .badge-icon-wrap { width: 64px; height: 64px; }
         }
@@ -487,6 +498,13 @@
         .settings-field { margin-bottom: 25px; }
         .settings-field-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
         .settings-field-value { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-pure); word-break: break-all; }
+        .settings-field-hint { font-size: 0.7rem; color: var(--text-muted); margin-top: 6px; }
+        .birthday-field-row { display: flex; align-items: center; gap: 10px; }
+        .birthday-field-row input[type="date"] {
+            background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px;
+            color: var(--text-pure); padding: 8px 10px; font-family: var(--font-sans); font-size: 0.85rem;
+        }
+        .birthday-save-status { font-family: var(--font-mono); font-size: 0.65rem; color: var(--accent-pink); }
 
         .settings-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--border-subtle); }
         .settings-toggle-row-label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-pure); }
@@ -1028,6 +1046,15 @@
                         <div class="badge-grid" id="badgeGrid"></div>
                     </div>
 
+                    <div class="perks-panel">
+                        <div class="perks-panel-title">Your Perks</div>
+                        <ul class="perks-list" id="perksList"></ul>
+                        <div class="birthday-coupon-banner" id="birthdayCouponBanner" style="display:none;">
+                            🎂 Birthday treat! Code <strong id="birthdayCouponCode"></strong> —
+                            <span id="birthdayCouponPct"></span>% off, expires <span id="birthdayCouponExpires"></span>
+                        </div>
+                    </div>
+
                     <div class="account-summary">
                         <div class="account-sub">Signed In</div>
                         <div class="account-actions-row">
@@ -1051,6 +1078,15 @@
                         <div class="settings-field-value" id="settingsEmailDisplay"></div>
                     </div>
 
+                    <div class="settings-field">
+                        <div class="settings-field-label">Birthday</div>
+                        <div class="birthday-field-row">
+                            <input type="date" id="birthdayInput" class="hover-target" onchange="saveBirthday(this.value)">
+                            <span class="birthday-save-status" id="birthdaySaveStatus"></span>
+                        </div>
+                        <div class="settings-field-hint">Add your birthday to unlock a yearly birthday coupon.</div>
+                    </div>
+
                     <div class="settings-toggle-row">
                         <span class="settings-toggle-row-label">Stock Alerts</span>
                         <label class="toggle-switch">
@@ -1070,7 +1106,7 @@
                             <span>Phone Number</span>
                         </label>
                         <div class="form-group" id="stockAlertPhoneGroup" style="display:none; margin-top:15px; margin-bottom:0;">
-                            <input type="tel" id="stockAlertPhoneInput" class="hover-target" placeholder="(555) 123-4567">
+                            <input type="tel" id="stockAlertPhoneInput" class="hover-target" placeholder="(555) 123-4567" onblur="saveStockAlertPhone(this.value)">
                             <label>Phone Number</label>
                         </div>
                     </div>
@@ -2448,6 +2484,28 @@ if (category === 'dtf') {
             { name: 'Bronze', minXp: 0 },
         ];
 
+        // Display-only mirror of lib/loyalty.js on the backend (this page has no build step,
+        // so it can't import that file directly -- if you change perk numbers, change both).
+        // Perks are cumulative: Gold shoppers also have every Silver/Bronze perk, etc.
+        const PERKS = {
+            Bronze: { birthdayDiscountPct: 10, standingDiscountPct: 0, freeShippingMin: null },
+            Silver: { birthdayDiscountPct: 15, standingDiscountPct: 0, freeShippingMin: 75 },
+            Gold:   { birthdayDiscountPct: 20, standingDiscountPct: 5, freeShippingMin: 60 },
+            VIP:    { birthdayDiscountPct: 25, standingDiscountPct: 10, freeShippingMin: null },
+        };
+
+        // Perk lines shown for a tier -- plain hardcoded cumulative lists, kept in sync with
+        // the PERKS object above by hand (four tiers, simplest to just write them out).
+        const PERK_LINES = {
+            Bronze: ['🎂 Birthday coupon: 10% off', '🎉 Double XP during your anniversary month'],
+            Silver: ['🎂 Birthday coupon: 15% off', '🚚 Free shipping on orders $75+', '🎁 Free sticker pack in every order', '🎉 Double XP during your anniversary month'],
+            Gold:   ['🎂 Birthday coupon: 20% off', '🚚 Free shipping on orders $60+', '💸 5% off every order, automatically', '🎁 Free sticker pack in every order', '🎉 Double XP during your anniversary month'],
+            VIP:    ['🎂 Birthday coupon: 25% off', '🚚 $3.50 off shipping, up to 2x/month', '💸 10% off every order, automatically', '🎁 Free sticker pack in every order', '⚡ Early access to new drops', '🎉 Double XP during your anniversary month'],
+        };
+        function perkLinesForTier(tierName) {
+            return PERK_LINES[tierName] || PERK_LINES.Bronze;
+        }
+
         const BADGES = [
             { slug: 'first_order',      img: 'first_order.png',      icon: '🎯', label: 'First Order',
               description: 'Awarded the moment your first order is placed.' },
@@ -2501,25 +2559,42 @@ if (category === 'dtf') {
             document.getElementById('badgeDetailOverlay').classList.remove('active');
         }
 
+        // Generic small helper: save one or more profile fields for the current user.
+        // Every stock-alert control below uses this instead of duplicating the boilerplate.
+        async function saveProfileFields(fields) {
+            if (!supabaseClient) return;
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) return;
+            try {
+                const { error } = await supabaseClient.from('profiles').update(fields).eq('id', session.user.id);
+                if (error) throw error;
+            } catch (err) {
+                console.warn('Could not save stock alert preference:', err.message);
+            }
+        }
+
         function handleStockAlertsToggle(isOn) {
             document.getElementById('stockAlertMethod').style.display = isOn ? 'block' : 'none';
-            // TODO: wire this up to actually save the preference (Supabase profiles column
-            // or a separate table) and hook into restock notifications once that system exists.
-            console.log('Stock Alerts toggle set to:', isOn);
+            saveProfileFields({ stock_alerts_enabled: isOn });
         }
 
         function handleStockAlertMethodChange(method) {
             document.getElementById('stockAlertPhoneGroup').style.display = method === 'phone' ? 'block' : 'none';
-            // TODO: persist the selected alert method once the backend preference exists.
-            console.log('Stock alert method set to:', method);
+            saveProfileFields({ stock_alert_method: method });
         }
 
-        function renderTierAndBadges(xp, earnedBadges) {
+        function saveStockAlertPhone(phone) {
+            saveProfileFields({ stock_alert_phone: phone.trim() || null });
+        }
+
+        function renderTierAndBadges(xp, earnedBadges, birthdayCode, birthdayCodeExpires) {
             currentEarnedBadges = earnedBadges;
 
             const currentTier = TIERS.find(t => xp >= t.minXp);
             const currentIndex = TIERS.indexOf(currentTier);
             const nextTier = currentIndex > 0 ? TIERS[currentIndex - 1] : null;
+
+            renderPerks(currentTier.name, birthdayCode, birthdayCodeExpires);
 
             document.getElementById('profileTierName').textContent = currentTier.name;
             document.getElementById('profileXpLabel').textContent = `${xp} XP`;
@@ -2548,6 +2623,44 @@ if (category === 'dtf') {
                         <span class="badge-label">${b.label}</span>
                     </div>`;
             }).join('');
+        }
+
+        function renderPerks(tierName, birthdayCode, birthdayCodeExpires) {
+            document.getElementById('perksList').innerHTML =
+                perkLinesForTier(tierName).map(line => `<li>${line}</li>`).join('');
+
+            const banner = document.getElementById('birthdayCouponBanner');
+            const isExpired = birthdayCodeExpires && new Date(birthdayCodeExpires) < new Date();
+            if (birthdayCode && !isExpired) {
+                document.getElementById('birthdayCouponCode').textContent = birthdayCode;
+                document.getElementById('birthdayCouponPct').textContent = PERKS[tierName].birthdayDiscountPct;
+                document.getElementById('birthdayCouponExpires').textContent = new Date(birthdayCodeExpires).toLocaleDateString();
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        async function saveBirthday(value) {
+            const statusEl = document.getElementById('birthdaySaveStatus');
+            if (!supabaseClient) return;
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) return;
+
+            statusEl.textContent = 'Saving...';
+            try {
+                const { error } = await supabaseClient
+                    .from('profiles')
+                    .update({ birthday: value || null })
+                    .eq('id', session.user.id);
+                if (error) throw error;
+                statusEl.textContent = 'Saved ✓';
+                setTimeout(() => { statusEl.textContent = ''; }, 2500);
+            } catch (err) {
+                statusEl.textContent = 'Could not save';
+                console.error('Failed to save birthday:', err.message);
+            }
         }
 
         // Paint the badge grid once immediately with defaults (all locked, 0 XP) so it's
@@ -2580,14 +2693,23 @@ if (category === 'dtf') {
                     );
                     const fetchProfile = supabaseClient
                         .from('profiles')
-                        .select('username, xp, badges')
+                        .select('username, xp, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone')
                         .eq('id', session.user.id)
                         .single();
 
                     const { data: profile } = await Promise.race([fetchProfile, timeout]);
                     if (profile) {
                         if (profile.username) displayName = profile.username;
-                        renderTierAndBadges(profile.xp || 0, profile.badges || []);
+                        renderTierAndBadges(profile.xp || 0, profile.badges || [], profile.birthday_code, profile.birthday_code_expires);
+                        document.getElementById('birthdayInput').value = profile.birthday || '';
+
+                        document.getElementById('stockAlertsToggle').checked = !!profile.stock_alerts_enabled;
+                        document.getElementById('stockAlertMethod').style.display = profile.stock_alerts_enabled ? 'block' : 'none';
+                        const method = profile.stock_alert_method || 'email';
+                        const methodRadio = document.querySelector(`input[name="stockAlertMethod"][value="${method}"]`);
+                        if (methodRadio) methodRadio.checked = true;
+                        document.getElementById('stockAlertPhoneGroup').style.display = method === 'phone' ? 'block' : 'none';
+                        document.getElementById('stockAlertPhoneInput').value = profile.stock_alert_phone || '';
                     }
                 } catch (err) {
                     // Non-fatal -- just keep the email-prefix fallback
@@ -3001,11 +3123,19 @@ if (category === 'dtf') {
 
             const fulfillmentMethod = document.querySelector('input[name="fulfillment"]:checked').value;
 
+            // Logged-in shoppers earn XP for this order -- the webhook credits it to this id
+            // once payment completes. Guests/logged-out checkouts simply earn nothing.
+            let supabaseUserId = null;
+            if (supabaseClient) {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                supabaseUserId = session ? session.user.id : null;
+            }
+
             try {
                 const response = await fetch('/api/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: cart, fulfillment: fulfillmentMethod })
+                    body: JSON.stringify({ items: cart, fulfillment: fulfillmentMethod, supabaseUserId })
                 });
 
                 const session = await response.json();
