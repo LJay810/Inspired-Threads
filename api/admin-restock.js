@@ -58,7 +58,8 @@ export default async function handler(req, res) {
         // wishlisters about -- same rule the automatic cart-release path uses, so correcting a
         // typo (5 -> 6) or topping up an already-available item stays silent.
         if (previousStockLevel <= 0 && qty > 0) {
-            await notifyRestock(supabaseAdmin, productId, product.name);
+            const imageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
+            await notifyRestock(supabaseAdmin, productId, product.name, imageUrl);
         }
 
         res.status(200).json({ ok: true, previousStockLevel, newStockLevel: qty });

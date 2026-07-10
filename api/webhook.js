@@ -214,7 +214,8 @@ export default async function handler(req, res) {
           try {
             const prodId = metadata[`prod_id_${i}`];
             const product = await stripe.products.retrieve(prodId);
-            await notifyRestock(supabaseAdmin, prodId, product.name);
+            const imageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
+            await notifyRestock(supabaseAdmin, prodId, product.name, imageUrl);
           } catch (err) {
             // Never let a notification failure block the actual stock release.
             console.error('Restock notification failed:', err.message);
