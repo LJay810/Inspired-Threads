@@ -1,22 +1,29 @@
-// Restock notification dispatch.
-//
-// SCOPE NOTE: wishlists live in the browser's localStorage, so the backend has no way to know
-// which specific products a given shopper cares about. This notifies every subscriber
-// (stock_alerts_enabled = true) about every restock event, not just their wishlisted items.
-// Per-product targeting would require syncing the wishlist to Supabase too -- a bigger change,
-// not built here.
+// Restock notification dispatch. Targets only shoppers who (a) have alerts enabled AND
+// (b) actually have this specific product on their wishlist -- see the wishlists table in
+// referral_reviews_schema.sql, which mirrors just the product ids from each logged-in
+// shopper's localStorage wishlist for exactly this purpose.
 //
 // TODO: sendSms is still a stub (just console.logs) -- only email (Resend) was requested.
 // Revisit if phone alerts are needed later (e.g. via Twilio).
 
-async function notifyRestock(supabaseAdmin, productName) {
+async function notifyRestock(supabaseAdmin, productId, productName) {
     if (!supabaseAdmin) return;
     try {
-        const { data: subscribers, error } = await supabaseAdmin
+        const { data: wishlistRows, error: wishlistErr } = await supabaseAdmin
+            .from('wishlists')
+            .select('user_id')
+            .eq('product_id', productId);
+        if (wishlistErr) throw wishlistErr;
+
+        const userIds = [...new Set((wishlistRows || []).map(w => w.user_id))];
+        if (userIds.length === 0) return; // nobody wishlisted this -- nothing to do
+
+        const { data: subscribers, error: subErr } = await supabaseAdmin
             .from('profiles')
             .select('id, stock_alert_method, stock_alert_phone')
+            .in('id', userIds)
             .eq('stock_alerts_enabled', true);
-        if (error) throw error;
+        if (subErr) throw subErr;
 
         for (const sub of subscribers || []) {
             const message = `"${productName}" is back in stock at Inspired Threads!`;
@@ -72,4 +79,4 @@ async function sendSms(to, message) {
     console.log(`[stub sms -- no provider wired up yet] to=${to}: ${message}`);
 }
 
-module.exports = { notifyRestock };
+module.exports = { notifyRestock }; 

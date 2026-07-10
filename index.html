@@ -3082,6 +3082,7 @@ if (category === 'dtf') {
 
                 navBtn.textContent = displayName;
                 navBtn.classList.add('account-btn-active');
+                syncWishlistToSupabase(); // backfill anything wishlisted while logged out
             } else {
                 navBtn.textContent = 'Account';
                 navBtn.classList.remove('account-btn-active');
@@ -3348,6 +3349,31 @@ if (category === 'dtf') {
         }
 
         // --- NEW: WISHLIST LOGIC ENGINE ---
+        // Pushes just the product ids (not variants/prices/DTFs -- localStorage stays the real
+        // source of truth for the shopping experience) to Supabase, so the backend has enough
+        // visibility to target restock alerts. Logged-out shoppers simply don't sync -- alerts
+        // require an account anyway (stock_alerts_enabled lives on profiles).
+        // Full reconcile (delete then re-insert current state) rather than diffing adds/removes
+        // individually -- simpler and correct; wishlists are small enough that this is cheap.
+        async function syncWishlistToSupabase() {
+            if (!supabaseClient) return;
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) return;
+
+                await supabaseClient.from('wishlists').delete().eq('user_id', session.user.id);
+
+                const distinctProductIds = [...new Set(window.wishlist.map(item => item.productId))];
+                if (distinctProductIds.length > 0) {
+                    const rows = distinctProductIds.map(product_id => ({ user_id: session.user.id, product_id }));
+                    const { error } = await supabaseClient.from('wishlists').insert(rows);
+                    if (error) throw error;
+                }
+            } catch (err) {
+                console.warn('Could not sync wishlist for restock alerts:', err.message);
+            }
+        }
+
         function addCurrentConfigToWishlist(productId, btnElement, hasVariants) {
             const card = btnElement.closest('.product-card');
             const name = card.querySelector('.product-title').innerText;
@@ -3378,6 +3404,7 @@ if (category === 'dtf') {
             
             localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
             updateWishlistUI();
+            syncWishlistToSupabase();
             
             // Run the master visual sync to update the heart icon perfectly
             syncWishlistHearts(); 
@@ -3417,6 +3444,7 @@ if (category === 'dtf') {
             window.wishlist.splice(index, 1);
             localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
             updateWishlistUI();
+            syncWishlistToSupabase();
             
             // Run the master visual sync so the main grid knows the item was removed!
             syncWishlistHearts(); 
@@ -3467,6 +3495,7 @@ if (category === 'dtf') {
             window.wishlist.splice(index, 1);
             localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
             localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+            syncWishlistToSupabase();
             
             updateWishlistUI();
             updateCartUI();
