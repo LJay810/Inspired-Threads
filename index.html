@@ -352,6 +352,26 @@
         .status-soon { background: rgba(255,0,127,0.15); border: 1px solid var(--accent-pink); color: var(--accent-pink); }
         .status-idea { background: rgba(255,255,255,0.08); border: 1px solid var(--border-subtle); color: var(--text-muted); }
 
+        /* --- ADMIN TOOLS --- */
+        .admin-tools-scroll { max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .admin-restock-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-subtle); font-size: 0.78rem; }
+        .admin-restock-row:last-child { border-bottom: none; }
+        .admin-restock-label { flex: 1; min-width: 0; }
+        .admin-restock-product { color: var(--text-pure); font-weight: 600; }
+        .admin-restock-variant { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.7rem; }
+        .admin-restock-current { font-family: var(--font-mono); color: var(--text-muted); font-size: 0.7rem; white-space: nowrap; }
+        .admin-restock-row input[type="number"] {
+            width: 60px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px;
+            color: var(--text-pure); padding: 6px 8px; font-family: var(--font-sans); font-size: 0.8rem;
+        }
+        .admin-restock-row button {
+            background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px;
+            color: var(--text-pure); padding: 6px 10px; font-family: var(--font-sans); font-size: 0.75rem;
+            cursor: none !important; white-space: nowrap;
+        }
+        .admin-restock-row button:hover { border-color: var(--accent-pink); }
+        .admin-restock-status { font-size: 0.65rem; color: var(--accent-pink); min-width: 60px; }
+
         /* --- AUTH (ACCOUNT) MODAL --- */
         .account-btn { border: 1px solid var(--border-subtle); color: var(--text-pure); border-radius: 20px; padding: 8px 18px; transition: var(--transition-snappy); background: none; }
         .account-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); background: rgba(255,0,127,0.1); }
@@ -1120,6 +1140,14 @@
                             <button class="hover-target" onclick="copyReferralLink()" type="button">Copy Link</button>
                         </div>
                         <div class="settings-field-hint" id="referralStats" style="margin-top:10px;"></div>
+                    </div>
+
+                    <div class="perks-panel" id="adminToolsPanel" style="display:none;">
+                        <div class="perks-panel-title">Admin Tools — Restock</div>
+                        <div class="settings-field-hint" style="margin-bottom:10px;">
+                            Setting a variant from 0 to a positive number notifies everyone who wishlisted it. Adjusting an already-in-stock number stays silent.
+                        </div>
+                        <div class="admin-tools-scroll" id="adminToolsList"></div>
                     </div>
 
                     <div class="account-summary">
@@ -2125,6 +2153,7 @@ if (category === 'dtf') {
                 });
 
                 loadReviewSummaries(products.map(p => p.id));
+                if (window.currentUserIsAdmin) renderAdminTools();
 
                 // Silently pre-warm the browser's cache for every DTF thumbnail, in small batches,
                 // so we don't flood the browser's per-host connection limit and create a backlog.
@@ -2905,6 +2934,78 @@ if (category === 'dtf') {
             });
         }
 
+        // Reads from window.productInventory/window.productMeta -- the same globals
+        // initShopEngine() already populates for the whole storefront -- rather than a
+        // separate fetch, since that data is already sitting in memory by the time this runs.
+        function renderAdminTools() {
+            const container = document.getElementById('adminToolsList');
+            if (!container || !window.productInventory) return;
+
+            const rows = [];
+            Object.keys(window.productInventory).forEach(productId => {
+                const meta = window.productInventory[productId];
+                const info = (window.productMeta && window.productMeta[productId]) || { name: productId };
+                Object.keys(meta).forEach(key => {
+                    if (key !== 'stock' && !key.startsWith('stock_')) return;
+                    const variantLabel = key === 'stock' ? 'Standard' : key.replace('stock_', '').replace(/_/g, ' / ');
+                    const rowId = `admin-${productId}-${key}`;
+                    rows.push(`
+                        <div class="admin-restock-row">
+                            <div class="admin-restock-label">
+                                <div class="admin-restock-product">${escapeHtml(info.name)}</div>
+                                <div class="admin-restock-variant">${escapeHtml(variantLabel)}</div>
+                            </div>
+                            <div class="admin-restock-current" id="${rowId}-current">now: ${meta[key]}</div>
+                            <input type="number" min="0" id="${rowId}-input" placeholder="new #">
+                            <button type="button" onclick="adminRestock('${productId}', '${key}', '${rowId}')">Set</button>
+                            <span class="admin-restock-status" id="${rowId}-status"></span>
+                        </div>
+                    `);
+                });
+            });
+
+            container.innerHTML = rows.length > 0
+                ? rows.join('')
+                : '<p style="color:var(--text-muted); font-size:0.8rem;">No stock-tracked products found.</p>';
+        }
+
+        async function adminRestock(productId, stripeMetaKey, rowId) {
+            const input = document.getElementById(`${rowId}-input`);
+            const statusEl = document.getElementById(`${rowId}-status`);
+            const currentEl = document.getElementById(`${rowId}-current`);
+            const newQuantity = parseInt(input.value, 10);
+
+            if (!Number.isInteger(newQuantity) || newQuantity < 0) {
+                statusEl.textContent = 'Invalid #';
+                return;
+            }
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { statusEl.textContent = 'Not logged in'; return; }
+
+            statusEl.textContent = 'Saving…';
+            try {
+                const response = await fetch('/api/admin-restock', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ productId, stripeMetaKey, newQuantity }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Something went wrong.');
+
+                statusEl.textContent = 'Saved ✓';
+                input.value = '';
+                currentEl.textContent = `now: ${newQuantity}`;
+                if (window.productInventory[productId]) window.productInventory[productId][stripeMetaKey] = newQuantity.toString();
+                setTimeout(() => { statusEl.textContent = ''; }, 2000);
+            } catch (err) {
+                statusEl.textContent = err.message;
+            }
+        }
+
         function saveStockAlertPhone(phone) {
             saveProfileFields({ stock_alert_phone: phone.trim() || null });
         }
@@ -3015,7 +3116,7 @@ if (category === 'dtf') {
                     );
                     const fetchProfile = supabaseClient
                         .from('profiles')
-                        .select('username, xp, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count')
+                        .select('username, xp, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin')
                         .eq('id', session.user.id)
                         .single();
 
@@ -3074,6 +3175,10 @@ if (category === 'dtf') {
                         localStorage.removeItem('pendingReferralCode');
 
                         renderReferralPanel(referralCode, profile.referral_reward_pending || 0, profile.referral_count || 0);
+
+                        window.currentUserIsAdmin = !!profile.is_admin;
+                        document.getElementById('adminToolsPanel').style.display = window.currentUserIsAdmin ? 'block' : 'none';
+                        if (window.currentUserIsAdmin) renderAdminTools();
                     }
                 } catch (err) {
                     // Non-fatal -- just keep the email-prefix fallback
@@ -3088,6 +3193,10 @@ if (category === 'dtf') {
                 navBtn.classList.remove('account-btn-active');
                 loggedOutView.style.display = 'block';
                 loggedInView.style.display = 'none';
+
+                window.currentUserIsAdmin = false;
+                const adminPanel = document.getElementById('adminToolsPanel');
+                if (adminPanel) adminPanel.style.display = 'none';
             }
         }
 
