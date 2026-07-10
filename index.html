@@ -2730,10 +2730,19 @@ if (category === 'dtf') {
                     const username = document.getElementById('registerUsername').value.trim();
                     const email = document.getElementById('registerEmail').value.trim();
                     const password = document.getElementById('registerPassword').value;
+
+                    // Stamped into user_metadata (not just left in localStorage) because email
+                    // confirmation often means the NEXT time this account gets a session is in
+                    // a completely different browser (whatever opened the confirmation link) --
+                    // localStorage doesn't survive that, but metadata on the account itself does.
+                    const signupData = { username };
+                    const pendingRefCode = localStorage.getItem('pendingReferralCode');
+                    if (pendingRefCode) signupData.ref_code = pendingRefCode;
+
                     const { error } = await supabaseClient.auth.signUp({
                         email,
                         password,
-                        options: { data: { username } }
+                        options: { data: signupData }
                     });
                     if (error) throw error;
                     statusEl.textContent = 'Check your email to confirm your account.';
@@ -3033,17 +3042,28 @@ if (category === 'dtf') {
                                 .then(({ error }) => { if (error) console.warn('Could not save referral code:', error.message); });
                         }
 
-                        // Apply a pending referral link, if they arrived via someone's ?ref=
-                        // link before signing up/logging in, and haven't already been linked
-                        // or placed an order (still eligible for the referee first-order perk).
-                        const pendingRef = localStorage.getItem('pendingReferralCode');
+                        // Apply a pending referral link. Two possible sources, checked in
+                        // order: the account's own signup metadata (durable -- set once at
+                        // signup, travels with the account regardless of which browser is
+                        // logged in later, which matters because email confirmation often
+                        // means THIS session is happening in a different browser than the one
+                        // that originally clicked the referral link) and localStorage (only
+                        // works if this happens to be the same browser -- kept as a fallback
+                        // for accounts that don't require email confirmation, where login
+                        // happens instantly in the same tab).
+                        const pendingRef = (session.user.user_metadata && session.user.user_metadata.ref_code)
+                            || localStorage.getItem('pendingReferralCode');
                         if (pendingRef && !profile.referred_by && profile.order_count === 0 && pendingRef !== referralCode) {
                             try {
-                                const { data: referrer } = await supabaseClient
-                                    .from('profiles').select('id').eq('referral_code', pendingRef).maybeSingle();
-                                if (referrer) {
-                                    await supabaseClient.from('profiles').update({ referred_by: referrer.id }).eq('id', session.user.id);
-                                    profile.referred_by = referrer.id;
+                                // profiles' RLS only allows reading your OWN row, so looking up
+                                // a different user's id by their referral code has to go through
+                                // this RPC (SECURITY DEFINER, returns only the id) rather than a
+                                // direct .select() -- a direct query here would silently return
+                                // nothing every time, which is exactly what was happening before.
+                                const { data: referrerId } = await supabaseClient.rpc('lookup_referrer_id', { p_code: pendingRef });
+                                if (referrerId) {
+                                    await supabaseClient.from('profiles').update({ referred_by: referrerId }).eq('id', session.user.id);
+                                    profile.referred_by = referrerId;
                                 }
                             } catch (err) {
                                 console.warn('Could not link referral code:', err.message);
