@@ -1744,6 +1744,10 @@ Thank you for supporting my small business and understanding the handmade nature
                 });
             } catch (err) {
                 console.warn('Could not load review summaries:', err.message);
+                productIds.forEach(id => {
+                    const el = document.getElementById(`reviewSummary-${id}`);
+                    if (el) el.textContent = 'Reviews unavailable';
+                });
             }
         }
 
