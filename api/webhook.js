@@ -103,8 +103,8 @@ export default async function handler(req, res) {
             console.warn('Could not check anniversary bonus, awarding standard XP:', err.message);
           }
 
-          const orderXp = xpForOrder(orderUnits, xpMultiplier);
           const amountSpent = (session.amount_total || 0) / 100;
+          const orderXp = xpForOrder(amountSpent, xpMultiplier);
 
           const { data: awarded, error: rpcErr } = await supabaseAdmin.rpc('award_loyalty', {
             p_user_id: supabaseUserId,

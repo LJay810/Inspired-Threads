@@ -48,13 +48,27 @@ function hasCompletedFullYear(createdAtISO, now = new Date()) {
   return (now.getTime() - new Date(createdAtISO).getTime()) >= oneYearMs;
 }
 
-// XP = a flat base per completed order, plus a per-unit amount so bigger carts earn more.
-// "Units" means total item quantity across the order, not distinct line items.
-const ORDER_XP_BASE = 25;
-const ITEM_XP_PER_UNIT = 10;
+// XP now tracks actual revenue, not item count -- the old "25 + 10/unit" formula let a
+// handful of $2 DTFs earn more than half of Silver in a single $6 order, which doesn't
+// reflect what the shopper actually spent. Reworked around dollars spent instead:
+//
+//   XP = (flat completion bonus) + (XP_PER_DOLLAR x dollars spent), doubled in an
+//   anniversary month, then capped so one giant order can't vault someone straight to VIP.
+//
+// At these numbers, reaching each tier through NORMAL repeat orders looks roughly like:
+//   Silver (100 XP)  ~ $45-50 lifetime spent
+//   Gold   (500 XP)  ~ $245-250 lifetime spent
+//   VIP    (2000 XP) ~ $995-1000 lifetime spent
+// (assuming typical ~$6-10 orders; heavier one-time orders take longer per dollar because
+// of the per-order cap below, which is the point -- tiers should reward being a repeat
+// customer, not one big purchase.)
+const XP_PER_DOLLAR = 2;
+const ORDER_COMPLETION_BONUS = 5;
+const ORDER_XP_CAP = 150; // no single order can earn more than this, anniversary bonus included
 
-function xpForOrder(totalUnits, multiplier = 1) {
-  return Math.round((ORDER_XP_BASE + ITEM_XP_PER_UNIT * Math.max(0, totalUnits)) * multiplier);
+function xpForOrder(amountSpentDollars, multiplier = 1) {
+  const raw = ORDER_COMPLETION_BONUS + XP_PER_DOLLAR * Math.max(0, amountSpentDollars);
+  return Math.min(Math.round(raw * multiplier), ORDER_XP_CAP);
 }
 
 function tierForXp(xp) {
