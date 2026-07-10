@@ -1813,16 +1813,18 @@ Thank you for supporting my small business and understanding the handmade nature
 
             // Verified-purchase check is enforced server-side too (submit-review.js) -- this
             // client-side check is purely so we don't show a form that would just get a 403,
-            // not a security boundary.
+            // not a security boundary. Goes through has_purchased() rather than a direct
+            // .from('purchases') query, since that table has no RLS read policy for anyone
+            // but the service role -- a direct query here would silently return nothing for
+            // every user on every product, purchased or not.
             try {
-                const { data: purchase } = await supabaseClient
-                    .from('purchases').select('id').eq('user_id', session.user.id).eq('product_id', productId).limit(1).maybeSingle();
+                const { data: hasPurchased } = await supabaseClient.rpc('has_purchased', { p_product_id: productId });
                 const { data: existingReview } = await supabaseClient
                     .from('reviews').select('id').eq('user_id', session.user.id).eq('product_id', productId).maybeSingle();
 
                 if (existingReview) {
                     formArea.innerHTML = '<p class="settings-field-hint">You\'ve already reviewed this product — thank you!</p>';
-                } else if (!purchase) {
+                } else if (!hasPurchased) {
                     formArea.innerHTML = '<p class="settings-field-hint">Only verified buyers can leave a review.</p>';
                 } else {
                     formArea.innerHTML = `
