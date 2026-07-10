@@ -72,6 +72,33 @@ export default async function handler(req, res) {
         }
       }
 
+      // PURCHASE LEDGER: record every item this order contained (unlike the stock-sync loop
+      // above, this runs for ALL items -- including untracked/made-to-order ones with no
+      // redisKey -- since it's what verified-purchase reviews check against). Logged-out/guest
+      // checkouts have no supabase_user_id, so nothing gets recorded for them -- see the
+      // KNOWN LIMITATION note in referral_reviews_schema.sql.
+      if (metadata.supabase_user_id && supabaseAdmin) {
+        const purchaseRows = [];
+        for (let i = 0; i < itemCount; i++) {
+          const prodId = metadata[`prod_id_${i}`];
+          if (!prodId) continue;
+          purchaseRows.push({
+            user_id: metadata.supabase_user_id,
+            product_id: prodId,
+            session_id: session.id,
+          });
+        }
+        if (purchaseRows.length > 0) {
+          // ignoreDuplicates handles a Stripe retry re-running this whole handler: the
+          // (user_id, product_id, session_id) unique constraint makes re-inserting a no-op
+          // rather than an error or a duplicate row.
+          const { error: purchaseErr } = await supabaseAdmin
+            .from('purchases')
+            .upsert(purchaseRows, { onConflict: 'user_id,product_id,session_id', ignoreDuplicates: true });
+          if (purchaseErr) throw purchaseErr;
+        }
+      }
+
       // LOYALTY: award XP/tier/badges to logged-in shoppers. This is an INCREMENT against
       // Supabase (not a re-copy), so — same reasoning as the expired-session release below —
       // it is NOT naturally idempotent and needs its own one-time claim independent of the
@@ -131,6 +158,33 @@ export default async function handler(req, res) {
             });
             if (badgeErr) throw badgeErr;
           }
+
+          // REFERRAL PAYOUT: if this was the referee's first-ever order, reward whoever
+          // referred them. Gated on order_count === 1 (exact match, same idiom as the
+          // first_order badge) -- since order_count only increments and can equal 1 exactly
+          // once per account, this can't double-grant even across a Stripe retry of a
+          // DIFFERENT order for the same person (only fires the one time it's genuinely true).
+          if (totals.order_count === 1) {
+            const { data: refereeProfile } = await supabaseAdmin
+              .from('profiles')
+              .select('referred_by')
+              .eq('id', supabaseUserId)
+              .single();
+
+            if (refereeProfile && refereeProfile.referred_by) {
+              const { data: newReferralCount, error: referralErr } = await supabaseAdmin.rpc('grant_referral_reward', {
+                p_referrer_id: refereeProfile.referred_by,
+              });
+              if (referralErr) throw referralErr;
+
+              if (newReferralCount === 1) {
+                await supabaseAdmin.rpc('add_badges', {
+                  p_user_id: refereeProfile.referred_by,
+                  p_new_badges: ['referral'],
+                });
+              }
+            }
+          }
         }
       }
     }
@@ -178,6 +232,21 @@ export default async function handler(req, res) {
             p_user_id: metadata.supabase_user_id,
             p_year_month: metadata.vip_credit_month,
           });
+          if (releaseErr) throw releaseErr;
+        }
+      }
+
+      // Same idea for a reserved-but-unused referral discount (either the referrer's queued
+      // reward, or the referee's one-time first-order discount -- checkout.js only ever
+      // reserves one or the other per session, tagged by referral_discount_type).
+      if (metadata.referral_discount_type && metadata.supabase_user_id && supabaseAdmin) {
+        const referralReleaseMarker = `referral_released_${session.id}`;
+        const claimed = await kv.set(referralReleaseMarker, '1', { nx: true, ex: 86400 });
+        if (claimed) {
+          const rpcName = metadata.referral_discount_type === 'reward'
+            ? 'release_referral_reward'
+            : 'release_referee_discount';
+          const { error: releaseErr } = await supabaseAdmin.rpc(rpcName, { p_user_id: metadata.supabase_user_id });
           if (releaseErr) throw releaseErr;
         }
       }

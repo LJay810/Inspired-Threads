@@ -35,13 +35,18 @@ export default async function handler(req, res) {
 
     const reservedKeys = []; // tracks successful Redis reservations for this request, so we can roll back
     let sessionCreated = false;
+    // Hoisted out of the try block (rather than declared with const inside it) so the catch
+    // block below can always safely read them for rollback purposes, even if the error is
+    // thrown before they'd normally get assigned a real value.
+    let sessionMetadata = {};
+    let supabaseUserId = null;
 
     try {
         const cartItems = req.body.items;
         const fulfillmentMethod = req.body.fulfillment;
-        const supabaseUserId = req.body.supabaseUserId || null; // only present for logged-in shoppers
+        supabaseUserId = req.body.supabaseUserId || null; // only present for logged-in shoppers
         const lineItems = [];
-        const sessionMetadata = { item_count: cartItems.length.toString() };
+        sessionMetadata = { item_count: cartItems.length.toString() };
         let subtotalCents = 0;
 
         for (let i = 0; i < cartItems.length; i++) {
@@ -113,20 +118,25 @@ export default async function handler(req, res) {
         sessionMetadata['Fulfillment_Method'] = fulfillmentMethod === 'shipping' ? 'Standard Shipping' : 'Local Pickup';
         if (supabaseUserId) sessionMetadata['supabase_user_id'] = supabaseUserId;
 
-        // LOYALTY PERKS: look up the shopper's tier from their live XP (defaults to Bronze/no
-        // perks for guests, logged-out shoppers, or if this lookup fails for any reason --
-        // a perks outage should never be able to block checkout).
+        // LOYALTY PERKS + REFERRALS: look up the shopper's tier and referral status from one
+        // query (defaults to Bronze/no perks/no referral state for guests, logged-out
+        // shoppers, or if this lookup fails for any reason -- an outage here should never be
+        // able to block checkout).
         let perks = perksForTier('Bronze');
+        let referralProfile = null;
         if (supabaseUserId && supabaseAdmin) {
             try {
                 const { data: profile } = await supabaseAdmin
                     .from('profiles')
-                    .select('xp')
+                    .select('xp, referred_by, referral_signup_discount_used, referral_reward_pending, order_count')
                     .eq('id', supabaseUserId)
                     .single();
-                if (profile) perks = perksForTier(tierForXp(profile.xp || 0));
+                if (profile) {
+                    perks = perksForTier(tierForXp(profile.xp || 0));
+                    referralProfile = profile;
+                }
             } catch (err) {
-                console.warn('Perk lookup failed, proceeding without tier perks:', err.message);
+                console.warn('Perk/referral lookup failed, proceeding without them:', err.message);
             }
         }
 
@@ -148,12 +158,51 @@ export default async function handler(req, res) {
             expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
         };
 
+        // DISCOUNT PRIORITY: referral rewards (both flavors are a flat 15%) outrank the tier
+        // standing discount (max 10%, VIP), which outranks manual promo codes -- Stripe
+        // Checkout Sessions only allow ONE `discounts` coupon per session, so at most one of
+        // these actually applies. Whichever one gets used is reserved optimistically here
+        // (same pattern as stock/VIP-credit above) and released back by webhook.js if this
+        // session expires unpaid.
+        let discountPct = perks.standingDiscountPct;
+        let referralDiscountType = null; // 'reward' | 'signup' | null, stamped into metadata below
+
+        if (referralProfile && supabaseAdmin) {
+            try {
+                if (referralProfile.referral_reward_pending > 0) {
+                    const { data: reserved } = await supabaseAdmin.rpc('reserve_referral_reward', {
+                        p_user_id: supabaseUserId,
+                    });
+                    if (reserved) {
+                        discountPct = 15;
+                        referralDiscountType = 'reward';
+                    }
+                }
+                if (!referralDiscountType
+                    && referralProfile.referred_by
+                    && !referralProfile.referral_signup_discount_used
+                    && referralProfile.order_count === 0) {
+                    const { data: reserved } = await supabaseAdmin.rpc('reserve_referee_discount', {
+                        p_user_id: supabaseUserId,
+                    });
+                    if (reserved) {
+                        discountPct = 15;
+                        referralDiscountType = 'signup';
+                    }
+                }
+            } catch (err) {
+                console.warn('Referral discount lookup failed, falling back to tier discount:', err.message);
+            }
+        }
+        if (referralDiscountType) sessionMetadata['referral_discount_type'] = referralDiscountType;
+
         // Stripe Checkout can't combine a pre-applied `discounts` coupon with customer-entered
-        // `allow_promotion_codes` on the same session -- so a standing tier discount (Gold/VIP)
-        // takes priority and manual promo-code entry is disabled for that one checkout. Everyone
-        // else (Bronze/Silver/guests) keeps the ability to enter a promo code as before.
-        if (perks.standingDiscountPct > 0) {
-            const coupon = await ensureStandingDiscountCoupon(perks.standingDiscountPct);
+        // `allow_promotion_codes` on the same session -- so whenever an automatic discount
+        // (referral or standing) applies, manual promo-code entry is disabled for that one
+        // checkout. Everyone else (Bronze/Silver with no referral reward/guests) keeps the
+        // ability to enter a promo code as before.
+        if (discountPct > 0) {
+            const coupon = await ensureStandingDiscountCoupon(discountPct);
             sessionConfig.discounts = [{ coupon: coupon.id }];
         } else {
             sessionConfig.allow_promotion_codes = true;
@@ -229,6 +278,14 @@ export default async function handler(req, res) {
                 p_user_id: supabaseUserId,
                 p_year_month: sessionMetadata['vip_credit_month'],
             });
+        }
+
+        // And for a reserved-but-unused referral discount.
+        if (!sessionCreated && sessionMetadata['referral_discount_type'] && supabaseAdmin) {
+            const rpcName = sessionMetadata['referral_discount_type'] === 'reward'
+                ? 'release_referral_reward'
+                : 'release_referee_discount';
+            await supabaseAdmin.rpc(rpcName, { p_user_id: supabaseUserId });
         }
 
         res.status(500).json({ error: error.message });
