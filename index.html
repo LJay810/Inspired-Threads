@@ -342,6 +342,12 @@
         .review-card-avatar, .review-card-avatar-placeholder { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border-subtle); flex-shrink: 0; }
         .review-card-avatar { object-fit: cover; }
         .review-card-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+        .review-card-avatar-wrap { position: relative; flex-shrink: 0; }
+        .review-card-avatar-badge {
+            display: none; /* shown only on desktop -- see the min-width:901px block below */
+            position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px; border-radius: 5px;
+            border: 2px solid var(--bg-main); background: var(--bg-main); box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+        }
         .review-card-author { font-weight: 700; color: var(--text-pure); font-size: 0.88rem; }
         .review-card-date { font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono); }
         .review-card-stars { margin-left: auto; font-size: 0.9rem; flex-shrink: 0; }
@@ -350,6 +356,30 @@
         .review-submission-area {
             max-width: 480px; margin: 0 auto; padding: 26px; border: 1px solid var(--border-subtle); border-radius: 16px;
             background: rgba(255,255,255,0.02); box-shadow: 0 0 30px rgba(255,0,127,0.06);
+        }
+
+        /* Desktop-only polish for the Reviews page -- deliberately scoped behind the site's own
+           existing 900px breakpoint (mobile uses max-width:900px elsewhere) so none of this
+           touches mobile's rendering at all, not even incidentally. */
+        @media (min-width: 901px) {
+            /* Same fixed-height, dark-background, cropped-to-fill treatment as the DTF product
+               cards (.product-image-zone) -- makes review photos uniform instead of each one
+               being whatever size the uploaded image happened to be. */
+            .review-card-photo { height: 220px; object-fit: cover; background: #151515; margin-top: 16px; }
+
+            /* Caps how much a very long review can stretch a card, so the grid stays visually
+               even -- full text is still there, just previewed; nothing is lost, only clipped
+               with an ellipsis past 5 lines. */
+            .review-card-comment {
+                display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+            }
+
+            /* The reviewer's chosen badge, shown as a small icon attached to the corner of
+               their avatar -- same "status badge on a profile picture" pattern used all over
+               modern apps. Hidden on mobile (see the base rule above) purely for space; there's
+               nothing about it that NEEDS a wide screen, it's just where it looks intentional
+               rather than cramped. */
+            .review-card-avatar-badge { display: block; }
         }
 
         /* --- LEADERBOARD --- */
@@ -1881,7 +1911,7 @@ Thank you for supporting my small business and understanding the handmade nature
             try {
                 const { data: reviews, error } = await supabaseClient
                     .from('site_reviews')
-                    .select('username, author_avatar_url, rating, comment, photo_url, created_at')
+                    .select('username, author_avatar_url, author_badge, rating, comment, photo_url, created_at')
                     .eq('status', 'approved')
                     .order('created_at', { ascending: false })
                     .limit(30);
@@ -1896,11 +1926,15 @@ Thank you for supporting my small business and understanding the handmade nature
                     const avatarHtml = r.author_avatar_url
                         ? `<img src="${r.author_avatar_url}" alt="${escapeHtml(r.username || 'Customer')}'s profile picture" class="review-card-avatar">`
                         : `<div class="review-card-avatar-placeholder">👤</div>`;
+                    const badgeDef = r.author_badge ? BADGES.find(b => b.slug === r.author_badge) : null;
+                    const badgeHtml = badgeDef
+                        ? `<img src="images/badges/${badgeDef.img}" alt="${escapeHtml(badgeDef.label)}" title="${escapeHtml(badgeDef.label)}" class="review-card-avatar-badge">`
+                        : '';
                     return `
                         <div class="review-card">
                             <div class="review-card-quote">❝</div>
                             <div class="review-card-header">
-                                ${avatarHtml}
+                                <div class="review-card-avatar-wrap">${avatarHtml}${badgeHtml}</div>
                                 <div>
                                     <div class="review-card-author">${escapeHtml(r.username || 'Customer')}</div>
                                     <div class="review-card-date">${new Date(r.created_at).toLocaleDateString()}</div>
