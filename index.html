@@ -372,6 +372,12 @@
             .review-card-comment {
                 display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
             }
+
+            /* Bigger again on top of the base 56px/22px size -- desktop has the room to let the
+               badge detail actually read clearly, mobile keeps the smaller base size. */
+            .review-card-avatar, .review-card-avatar-placeholder { width: 76px; height: 76px; }
+            .review-card-avatar-placeholder { font-size: 1.8rem; }
+            .review-card-avatar-badge { width: 30px; height: 30px; border-radius: 8px; }
         }
 
         /* --- LEADERBOARD --- */
@@ -627,6 +633,33 @@
             50%      { box-shadow: 0 0 10px rgba(255,0,127,0.95), 0 0 22px rgba(168,85,247,0.75), 0 0 34px rgba(255,0,127,0.4); }
         }
         .badge-plasma-glow { animation: badgePlasma 2.2s ease-in-out infinite; }
+
+        /* --- TOAST / CELEBRATION SYSTEM --- */
+        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 12px; max-width: 380px; pointer-events: none; }
+        .toast {
+            position: relative; background: rgba(15,15,15,0.97); border: 1px solid var(--accent-pink); border-radius: 14px; padding: 18px 34px 18px 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 24px rgba(255,0,127,0.2);
+            transform: translateX(420px); opacity: 0; transition: transform 0.5s cubic-bezier(0.25,1,0.5,1), opacity 0.4s ease;
+            pointer-events: all;
+        }
+        .toast.show { transform: translateX(0); opacity: 1; }
+        .toast-title { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-pink); margin-bottom: 6px; }
+        .toast-body { font-size: 0.85rem; color: var(--text-pure); line-height: 1.5; }
+        .toast-sub { margin-top: 4px; color: var(--text-muted); font-size: 0.75rem; }
+        .toast-badge-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+        .toast-badge-icon { width: 40px; height: 40px; border-radius: 9px; }
+        .toast-badge-caption { margin-top: 6px; font-size: 0.75rem; color: var(--accent-pink); font-weight: 600; }
+        .toast-close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--text-muted); font-size: 1rem; cursor: none !important; line-height: 1; }
+        .toast-close:hover { color: var(--text-pure); }
+        @media (max-width: 900px) {
+            .toast-container { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+        }
+
+        /* --- SKELETON LOADING --- */
+        @keyframes skeletonPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.75; } }
+        .skel-bar { background: rgba(255,255,255,0.07); border-radius: 8px; animation: skeletonPulse 1.5s ease-in-out infinite; }
+        .skeleton-card { background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 14px; overflow: hidden; }
+        .skeleton-card-body { padding: 20px; }
 
         .badge-item.earned .badge-icon-wrap { animation: badgePlasma 2.2s ease-in-out infinite; }
         .badge-item.earned .badge-icon { opacity: 1; }
@@ -898,6 +931,8 @@
         
         .stock-badge { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-pure); background: rgba(255, 0, 127, 0.15); border: 1px solid var(--accent-pink); padding: 6px 12px; border-radius: 4px; display: inline-block; letter-spacing: 0.1em; margin-bottom: 20px; width: fit-content; }
         .stock-badge.sold-out { background: rgba(255, 255, 255, 0.05); border-color: var(--border-subtle); color: var(--text-muted); }
+        @keyframes lowStockPulse { 0%, 100% { box-shadow: 0 0 0 rgba(245,184,0,0); } 50% { box-shadow: 0 0 12px rgba(245,184,0,0.5); } }
+        .stock-badge.low-stock { background: rgba(245,184,0,0.12); border-color: #f5b800; color: #f5b800; animation: lowStockPulse 1.8s ease-in-out infinite; }
 
         .variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
         .variant-select { background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); color: var(--text-pure); padding: 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.8rem; outline: none; transition: var(--transition-snappy); appearance: none; }
@@ -1438,6 +1473,8 @@
         </div>
     </div>
 
+    <div class="toast-container" id="toastContainer"></div>
+
     <div class="tiktok-overlay" id="paymentStatusOverlay">
         <div class="tiktok-modal status-modal" id="paymentStatusModal">
             <div class="status-icon-wrap">
@@ -1519,7 +1556,39 @@
         </p>
 
         <div class="reviews-grid" id="approvedReviewsGrid">
-            <p style="color:var(--text-muted); text-align:center; grid-column:1/-1;">Loading reviews…</p>
+            <div class="skeleton-card" style="padding:24px 22px 20px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <div class="skel-bar" style="width:56px; height:56px; border-radius:50%; flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                        <div class="skel-bar" style="height:12px; width:60%; margin-bottom:6px;"></div>
+                        <div class="skel-bar" style="height:9px; width:35%;"></div>
+                    </div>
+                </div>
+                <div class="skel-bar" style="height:10px; width:95%; margin-bottom:6px;"></div>
+                <div class="skel-bar" style="height:10px; width:80%;"></div>
+            </div>
+            <div class="skeleton-card" style="padding:24px 22px 20px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <div class="skel-bar" style="width:56px; height:56px; border-radius:50%; flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                        <div class="skel-bar" style="height:12px; width:60%; margin-bottom:6px;"></div>
+                        <div class="skel-bar" style="height:9px; width:35%;"></div>
+                    </div>
+                </div>
+                <div class="skel-bar" style="height:10px; width:95%; margin-bottom:6px;"></div>
+                <div class="skel-bar" style="height:10px; width:80%;"></div>
+            </div>
+            <div class="skeleton-card" style="padding:24px 22px 20px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <div class="skel-bar" style="width:56px; height:56px; border-radius:50%; flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                        <div class="skel-bar" style="height:12px; width:60%; margin-bottom:6px;"></div>
+                        <div class="skel-bar" style="height:9px; width:35%;"></div>
+                    </div>
+                </div>
+                <div class="skel-bar" style="height:10px; width:95%; margin-bottom:6px;"></div>
+                <div class="skel-bar" style="height:10px; width:80%;"></div>
+            </div>
         </div>
 
         <div class="review-submission-area" id="reviewSubmissionArea"></div>
@@ -1531,7 +1600,42 @@
             Top customers by XP. Set a profile picture and pick a badge to show off in your Account Settings.
         </p>
         <div class="leaderboard-list" id="leaderboardList">
-            <p style="color:var(--text-muted); text-align:center;">Loading leaderboard…</p>
+            <div class="leaderboard-entry">
+                <div class="skel-bar" style="width:30px; height:20px; flex-shrink:0;"></div>
+                <div class="skel-bar" style="width:64px; height:64px; border-radius:50%; flex-shrink:0;"></div>
+                <div style="flex:1;">
+                    <div class="skel-bar" style="height:12px; width:40%; margin-bottom:6px;"></div>
+                    <div class="skel-bar" style="height:9px; width:25%;"></div>
+                </div>
+                <div class="skel-bar" style="width:50px; height:16px;"></div>
+            </div>
+            <div class="leaderboard-entry">
+                <div class="skel-bar" style="width:30px; height:20px; flex-shrink:0;"></div>
+                <div class="skel-bar" style="width:64px; height:64px; border-radius:50%; flex-shrink:0;"></div>
+                <div style="flex:1;">
+                    <div class="skel-bar" style="height:12px; width:40%; margin-bottom:6px;"></div>
+                    <div class="skel-bar" style="height:9px; width:25%;"></div>
+                </div>
+                <div class="skel-bar" style="width:50px; height:16px;"></div>
+            </div>
+            <div class="leaderboard-entry">
+                <div class="skel-bar" style="width:30px; height:20px; flex-shrink:0;"></div>
+                <div class="skel-bar" style="width:64px; height:64px; border-radius:50%; flex-shrink:0;"></div>
+                <div style="flex:1;">
+                    <div class="skel-bar" style="height:12px; width:40%; margin-bottom:6px;"></div>
+                    <div class="skel-bar" style="height:9px; width:25%;"></div>
+                </div>
+                <div class="skel-bar" style="width:50px; height:16px;"></div>
+            </div>
+            <div class="leaderboard-entry">
+                <div class="skel-bar" style="width:30px; height:20px; flex-shrink:0;"></div>
+                <div class="skel-bar" style="width:64px; height:64px; border-radius:50%; flex-shrink:0;"></div>
+                <div style="flex:1;">
+                    <div class="skel-bar" style="height:12px; width:40%; margin-bottom:6px;"></div>
+                    <div class="skel-bar" style="height:9px; width:25%;"></div>
+                </div>
+                <div class="skel-bar" style="width:50px; height:16px;"></div>
+            </div>
         </div>
     </section>
 
@@ -1897,6 +2001,108 @@ Thank you for supporting my small business and understanding the handmade nature
         };
 
         // Batched: one query for every product on the page, rather than one query per card.
+        // --- TOAST / CELEBRATION SYSTEM ---
+        function showToast(innerHtml, options = {}) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<button class="toast-close" onclick="this.closest('.toast').remove()">✕</button>${innerHtml}`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('show'));
+            if (!options.persistent) {
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 500);
+                }, options.duration || 6000);
+            }
+        }
+
+        // --- STOCK URGENCY (shared by initial card render + both live-refresh paths, so the
+        // threshold can't drift out of sync between the four places stock badges get set) ---
+        function stockBadgeInfo(stockCount) {
+            if (stockCount <= 0) return { className: 'stock-badge sold-out', text: 'STATUS: OUT OF STOCK' };
+            if (stockCount <= 3) return { className: 'stock-badge low-stock', text: `Only ${stockCount} left!` };
+            return { className: 'stock-badge', text: 'In Stock' };
+        }
+
+        // --- NUMBER COUNT-UP ---
+        function animateNumber(el, from, to, duration = 800, suffix = '') {
+            if (from === to) { el.textContent = `${to}${suffix}`; return; }
+            const start = performance.now();
+            function tick(now) {
+                const progress = Math.min(1, (now - start) / duration);
+                const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+                const current = Math.round(from + (to - from) * eased);
+                el.textContent = `${current}${suffix}`;
+                if (progress < 1) requestAnimationFrame(tick);
+            }
+            requestAnimationFrame(tick);
+        }
+
+        // --- POST-CHECKOUT REWARD RECAP ---
+        function buildRewardRecapHtml({ xpGained, newBadgeSlugs, currentXp, nextTier }) {
+            let html = `<div class="toast-title">🎉 Order Complete!</div>`;
+            if (xpGained > 0) html += `<div class="toast-body">+${xpGained} XP earned</div>`;
+            html += nextTier
+                ? `<div class="toast-sub">${Math.max(0, nextTier.minXp - currentXp)} XP to ${nextTier.name}</div>`
+                : `<div class="toast-sub">Max tier reached!</div>`;
+            if (newBadgeSlugs.length > 0) {
+                html += `<div class="toast-badge-row">`;
+                newBadgeSlugs.forEach(slug => {
+                    const b = BADGES.find(x => x.slug === slug);
+                    if (b) html += `<img src="images/badges/${b.img}" alt="${escapeHtml(b.label)}" title="${escapeHtml(b.label)}" class="toast-badge-icon badge-plasma-glow">`;
+                });
+                html += `</div><div class="toast-badge-caption">New badge${newBadgeSlugs.length > 1 ? 's' : ''} unlocked!</div>`;
+            }
+            return html;
+        }
+
+        // The webhook processes the order asynchronously, so it may not have finished the
+        // instant Stripe redirects back here -- retries a few times with increasing delay
+        // rather than giving up after a single check. One-shot: the snapshot is consumed
+        // (removed) regardless of outcome, so this never fires twice for the same order.
+        async function showRewardRecapIfAvailable() {
+            const snapshotRaw = localStorage.getItem('preCheckoutSnapshot');
+            localStorage.removeItem('preCheckoutSnapshot');
+            if (!snapshotRaw || !supabaseClient) return;
+
+            try {
+                const before = JSON.parse(snapshotRaw);
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) return;
+
+                let profile = null;
+                for (const delayMs of [1500, 2500, 3500]) {
+                    await new Promise(r => setTimeout(r, delayMs));
+                    const { data } = await supabaseClient.from('profiles').select('xp, badges').eq('id', session.user.id).single();
+                    profile = data;
+                    if (data && ((data.xp || 0) > (before.xp || 0) || (data.badges || []).length > (before.badges || []).length)) break;
+                }
+                if (!profile) return;
+
+                const xpGained = (profile.xp || 0) - (before.xp || 0);
+                const newBadges = (profile.badges || []).filter(b => !(before.badges || []).includes(b));
+                if (xpGained <= 0 && newBadges.length === 0) return; // webhook likely still processing -- nothing to show yet
+
+                const currentTier = TIERS.find(t => profile.xp >= t.minXp);
+                const currentIndex = TIERS.indexOf(currentTier);
+                const nextTier = currentIndex > 0 ? TIERS[currentIndex - 1] : null;
+
+                showToast(buildRewardRecapHtml({
+                    xpGained: Math.max(0, xpGained),
+                    newBadgeSlugs: newBadges,
+                    currentXp: profile.xp || 0,
+                    nextTier,
+                }), { duration: 9000 });
+
+                // Refresh the account panel too, in case they're already looking at it.
+                renderTierAndBadges(profile.xp || 0, profile.badges || []);
+            } catch (err) {
+                console.warn('Could not show reward recap:', err.message);
+            }
+        }
+
         function starString(avg) {
             const rounded = Math.round(avg);
             return '★'.repeat(rounded) + '☆'.repeat(5 - rounded);
@@ -2113,7 +2319,17 @@ Thank you for supporting my small business and understanding the handmade nature
 
         // Initialize Shop Engine
         async function initShopEngine() {
-            shopGrid.innerHTML = '<p style="color: var(--text-muted); font-family: var(--font-mono);">SYNCING SECURE INVENTORY LOGIC...</p>';
+            shopGrid.innerHTML = Array(6).fill(`
+                <div class="skeleton-card">
+                    <div class="skel-bar" style="height:280px; border-radius:0;"></div>
+                    <div class="skeleton-card-body">
+                        <div class="skel-bar" style="height:14px; width:70%; margin-bottom:14px;"></div>
+                        <div class="skel-bar" style="height:10px; width:90%; margin-bottom:8px;"></div>
+                        <div class="skel-bar" style="height:10px; width:60%; margin-bottom:18px;"></div>
+                        <div class="skel-bar" style="height:36px; width:100%;"></div>
+                    </div>
+                </div>
+            `).join('');
             
             try {
                 const response = await fetch('/api/products');
@@ -2211,7 +2427,7 @@ if (category === 'dtf') {
                                 stockHTML = `<div class="stock-badge sold-out" id="stock-badge-${product.id}">STATUS: OUT OF STOCK</div>`;
                                 checkoutButtonHTML = `<span id="btn-zone-${product.id}" style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
                             } else {
-                                stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}">In Stock</div>`;
+                                { const info = stockBadgeInfo(stockCount); stockHTML = `<div class="${info.className}" id="stock-badge-${product.id}">${info.text}</div>`; }
                                 checkoutButtonHTML = `
                                     <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
                                         data-name="${product.name}" 
@@ -2289,7 +2505,7 @@ if (category === 'dtf') {
                                 stockHTML = `<div class="stock-badge sold-out" id="stock-badge-${product.id}">STATUS: OUT OF STOCK</div>`;
                                 checkoutButtonHTML = `<span id="btn-zone-${product.id}" style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
                             } else {
-                                stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}">In Stock</div>`;
+                                { const info = stockBadgeInfo(stockCount); stockHTML = `<div class="${info.className}" id="stock-badge-${product.id}">${info.text}</div>`; }
                                 checkoutButtonHTML = `
                                     <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}" 
                                         data-name="${product.name}" 
@@ -2692,8 +2908,9 @@ if (category === 'dtf') {
                             btnZone.replaceWith(span);
                         }
                     } else {
-                        badge.className = 'stock-badge';
-                        badge.innerText = `In Stock`;
+                        const info = stockBadgeInfo(stockCount);
+                        badge.className = info.className;
+                        badge.innerText = info.text;
                         
                         if (btnZone && btnZone.tagName === 'SPAN') {
                             const btn = document.createElement('button');
@@ -3472,7 +3689,8 @@ if (category === 'dtf') {
             renderPerks(currentTier.name, birthdayCode, birthdayCodeExpires);
 
             document.getElementById('profileTierName').textContent = currentTier.name;
-            document.getElementById('profileXpLabel').textContent = `${xp} XP`;
+            animateNumber(document.getElementById('profileXpLabel'), window._lastRenderedXp || 0, xp, 900, ' XP');
+            window._lastRenderedXp = xp;
 
             if (nextTier) {
                 const rangeStart = currentTier.minXp;
@@ -3899,8 +4117,9 @@ if (category === 'dtf') {
                     btnZone.replaceWith(span);
                 }
             } else {
-                badge.className = 'stock-badge';
-                badge.innerText = 'In Stock';
+                const info = stockBadgeInfo(stockCount);
+                badge.className = info.className;
+                badge.innerText = info.text;
 
                 if (btnZone && btnZone.tagName === 'SPAN') {
                     const btn = document.createElement('button');
@@ -4184,6 +4403,21 @@ if (category === 'dtf') {
             if (supabaseClient) {
                 const { data: { session } } = await supabaseClient.auth.getSession();
                 supabaseUserId = session ? session.user.id : null;
+            }
+
+            // Snapshot so the post-payment success page can show what was actually earned
+            // (XP gained, new badges) by diffing against this later -- taken here, right
+            // before checkout, not on page load, so it reflects their state at the moment
+            // this specific order started.
+            if (supabaseUserId) {
+                try {
+                    const { data: preProfile } = await supabaseClient.from('profiles').select('xp, badges').eq('id', supabaseUserId).single();
+                    if (preProfile) {
+                        localStorage.setItem('preCheckoutSnapshot', JSON.stringify({ xp: preProfile.xp || 0, badges: preProfile.badges || [] }));
+                    }
+                } catch (err) {
+                    console.warn('Could not snapshot pre-checkout profile (reward recap will just be skipped):', err.message);
+                }
             }
 
             try {
@@ -4481,6 +4715,7 @@ if (category === 'dtf') {
                 cart = []; 
                 window.history.replaceState(null, '', window.location.pathname);
                 showPaymentStatusModal('success', 'Payment Successful', 'Your order has been placed. Your cart has been cleared.');
+                showRewardRecapIfAvailable();
             }
 
             if (urlParams.get('canceled') === 'true') {
