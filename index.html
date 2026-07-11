@@ -339,14 +339,13 @@
         .review-card:hover { border-color: var(--accent-pink); box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255,0,127,0.15); transform: translateY(-3px); }
         .review-card-quote { position: absolute; top: 6px; right: 16px; font-family: Georgia, serif; font-size: 3.5rem; line-height: 1; color: rgba(255,0,127,0.08); pointer-events: none; user-select: none; }
         .review-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; position: relative; z-index: 1; }
-        .review-card-avatar, .review-card-avatar-placeholder { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border-subtle); flex-shrink: 0; }
+        .review-card-avatar, .review-card-avatar-placeholder { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--border-subtle); flex-shrink: 0; }
         .review-card-avatar { object-fit: cover; }
-        .review-card-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+        .review-card-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
         .review-card-avatar-wrap { position: relative; flex-shrink: 0; }
         .review-card-avatar-badge {
-            display: none; /* shown only on desktop -- see the min-width:901px block below */
-            position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px; border-radius: 5px;
-            border: 2px solid var(--bg-main); background: var(--bg-main); box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+            position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; border-radius: 6px;
+            border: 2px solid var(--bg-main); background: var(--bg-main);
         }
         .review-card-author { font-weight: 700; color: var(--text-pure); font-size: 0.88rem; }
         .review-card-date { font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono); }
@@ -373,13 +372,6 @@
             .review-card-comment {
                 display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
             }
-
-            /* The reviewer's chosen badge, shown as a small icon attached to the corner of
-               their avatar -- same "status badge on a profile picture" pattern used all over
-               modern apps. Hidden on mobile (see the base rule above) purely for space; there's
-               nothing about it that NEEDS a wide screen, it's just where it looks intentional
-               rather than cramped. */
-            .review-card-avatar-badge { display: block; }
         }
 
         /* --- LEADERBOARD --- */
@@ -395,13 +387,13 @@
         .leaderboard-rank { font-size: 1.3rem; min-width: 34px; text-align: center; flex-shrink: 0; }
         .leaderboard-entry:not(.rank-1):not(.rank-2):not(.rank-3) .leaderboard-rank { font-family: var(--font-mono); font-size: 1rem; font-weight: 700; color: var(--text-muted); }
         .leaderboard-avatar-wrap { flex-shrink: 0; }
-        .leaderboard-avatar, .leaderboard-avatar-placeholder { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--border-subtle); }
+        .leaderboard-avatar, .leaderboard-avatar-placeholder { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--border-subtle); }
         .leaderboard-avatar { object-fit: cover; }
         .leaderboard-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; }
         .leaderboard-info { flex: 1; min-width: 0; }
         .leaderboard-name-row { display: flex; align-items: center; gap: 8px; }
         .leaderboard-name { font-weight: 700; color: var(--text-pure); font-size: 0.92rem; }
-        .leaderboard-badge-img { width: 20px; height: 20px; border-radius: 5px; flex-shrink: 0; }
+        .leaderboard-badge-img { width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0; }
         .leaderboard-tier { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-pink); margin-top: 2px; }
         .leaderboard-xp { font-family: var(--font-mono); font-size: 1rem; font-weight: 700; color: var(--accent-pink); white-space: nowrap; flex-shrink: 0; text-align: right; }
         .leaderboard-xp span { font-size: 0.6rem; font-weight: 400; color: var(--text-muted); display: block; margin-top: 1px; }
@@ -411,12 +403,16 @@
             background: rgba(255,0,127,0.03);
         }
         .leaderboard-profile-row { display: flex; align-items: center; gap: 16px; }
-        .leaderboard-profile-avatar-wrap { flex-shrink: 0; }
+        .leaderboard-profile-avatar-wrap { flex-shrink: 0; position: relative; }
         .leaderboard-profile-avatar, .leaderboard-profile-avatar-placeholder {
-            width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--accent-pink);
+            width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--accent-pink);
         }
         .leaderboard-profile-avatar { object-fit: cover; }
-        .leaderboard-profile-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+        .leaderboard-profile-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+        .leaderboard-profile-badge {
+            position: absolute; bottom: 0; right: 0; width: 32px; height: 32px; border-radius: 8px;
+            border: 2px solid var(--bg-main); background: var(--bg-main);
+        }
         .leaderboard-profile-upload-btn {
             display: inline-block; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px;
             color: var(--text-pure); padding: 8px 16px; font-family: var(--font-sans); font-size: 0.78rem; cursor: none !important; transition: border-color 0.2s ease;
@@ -626,7 +622,13 @@
         .badge-item .badge-label { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
 
         .badge-item.earned { border-color: var(--accent-pink); box-shadow: 0 0 12px rgba(255,0,127,0.15); }
-        .badge-item.earned .badge-icon-wrap { box-shadow: 0 0 14px rgba(255,0,127,0.45); }
+        @keyframes badgePlasma {
+            0%, 100% { box-shadow: 0 0 6px rgba(255,0,127,0.7), 0 0 14px rgba(168,85,247,0.5), 0 0 24px rgba(255,0,127,0.25); }
+            50%      { box-shadow: 0 0 10px rgba(255,0,127,0.95), 0 0 22px rgba(168,85,247,0.75), 0 0 34px rgba(255,0,127,0.4); }
+        }
+        .badge-plasma-glow { animation: badgePlasma 2.2s ease-in-out infinite; }
+
+        .badge-item.earned .badge-icon-wrap { animation: badgePlasma 2.2s ease-in-out infinite; }
         .badge-item.earned .badge-icon { opacity: 1; }
         .badge-item.earned .badge-label { color: var(--text-pure); }
 
@@ -1327,6 +1329,7 @@
                             <div class="leaderboard-profile-avatar-wrap">
                                 <img id="avatarPreview" src="" alt="Your profile picture" class="leaderboard-profile-avatar" style="display:none;">
                                 <div id="avatarPreviewPlaceholder" class="leaderboard-profile-avatar-placeholder">👤</div>
+                                <img id="badgePreviewImg" src="" alt="" class="leaderboard-profile-badge badge-plasma-glow" style="display:none;">
                             </div>
                             <div style="flex:1; min-width:0;">
                                 <label for="avatarInput" class="leaderboard-profile-upload-btn hover-target">Change Photo</label>
@@ -1928,7 +1931,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         : `<div class="review-card-avatar-placeholder">👤</div>`;
                     const badgeDef = r.author_badge ? BADGES.find(b => b.slug === r.author_badge) : null;
                     const badgeHtml = badgeDef
-                        ? `<img src="images/badges/${badgeDef.img}" alt="${escapeHtml(badgeDef.label)}" title="${escapeHtml(badgeDef.label)}" class="review-card-avatar-badge">`
+                        ? `<img src="images/badges/${badgeDef.img}" alt="${escapeHtml(badgeDef.label)}" title="${escapeHtml(badgeDef.label)}" class="review-card-avatar-badge badge-plasma-glow">`
                         : '';
                     return `
                         <div class="review-card">
@@ -2082,7 +2085,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         ? `<img src="${e.avatar_url}" alt="${escapeHtml(e.username || 'Customer')}'s profile picture" class="leaderboard-avatar">`
                         : `<div class="leaderboard-avatar-placeholder">👤</div>`;
                     const badgeHtml = badge
-                        ? `<img src="images/badges/${badge.img}" alt="${escapeHtml(badge.label)}" class="leaderboard-badge-img" title="${escapeHtml(badge.label)}">`
+                        ? `<img src="images/badges/${badge.img}" alt="${escapeHtml(badge.label)}" class="leaderboard-badge-img badge-plasma-glow" title="${escapeHtml(badge.label)}">`
                         : '';
                     return `
                         <div class="leaderboard-entry rank-${rank <= 3 ? rank : ''}">
@@ -3582,6 +3585,21 @@ if (category === 'dtf') {
                 if (b.slug === currentSelection) opt.selected = true;
                 select.appendChild(opt);
             });
+            updateBadgePreviewImg(currentSelection);
+        }
+
+        function updateBadgePreviewImg(slug) {
+            const img = document.getElementById('badgePreviewImg');
+            if (!img) return;
+            const badgeDef = slug ? BADGES.find(b => b.slug === slug) : null;
+            if (badgeDef) {
+                img.src = `images/badges/${badgeDef.img}`;
+                img.alt = badgeDef.label;
+                img.title = badgeDef.label;
+                img.style.display = 'block';
+            } else {
+                img.style.display = 'none';
+            }
         }
 
         async function saveBadgeSelection(slug) {
@@ -3598,6 +3616,7 @@ if (category === 'dtf') {
                     .update({ selected_badge: slug || null })
                     .eq('id', session.user.id);
                 if (error) throw error;
+                updateBadgePreviewImg(slug);
                 statusEl.textContent = 'Saved ✓';
                 setTimeout(() => { statusEl.textContent = ''; }, 2500);
             } catch (err) {
