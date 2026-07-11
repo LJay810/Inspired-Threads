@@ -27,10 +27,11 @@ export default async function handler(req, res) {
         // ADMIN GATE: this is the actual security boundary. The button only being visible to
         // admins on the frontend is UX -- anyone could still call this endpoint directly, so
         // this server-side check is what really stops them.
-        const { data: profile } = await supabaseAdmin.from('profiles').select('is_admin').eq('id', userId).single();
+        const { data: profile } = await supabaseAdmin.from('profiles').select('is_admin, username').eq('id', userId).single();
         if (!profile || !profile.is_admin) {
             return res.status(403).json({ error: 'Not authorized.' });
         }
+        const adminLabel = profile.username || userData.user.email || userId;
 
         const { productId, stripeMetaKey, newQuantity } = req.body;
         const qty = parseInt(newQuantity, 10);
@@ -57,9 +58,28 @@ export default async function handler(req, res) {
         // Only a genuine 0-or-below -> positive crossing counts as a restock worth alerting
         // wishlisters about -- same rule the automatic cart-release path uses, so correcting a
         // typo (5 -> 6) or topping up an already-available item stays silent.
+        let didNotify = false;
         if (previousStockLevel <= 0 && qty > 0) {
             const imageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
             await notifyRestock(supabaseAdmin, productId, product.name, imageUrl);
+            didNotify = true;
+        }
+
+        // Log the action regardless of outcome above -- a failure here should never undo or
+        // block the restock itself, just means this one action won't show in the activity feed.
+        try {
+            await supabaseAdmin.from('restock_log').insert({
+                admin_user_id: userId,
+                admin_label: adminLabel,
+                product_id: productId,
+                product_name: product.name,
+                stripe_meta_key: stripeMetaKey,
+                previous_qty: previousStockLevel,
+                new_qty: qty,
+                notified: didNotify,
+            });
+        } catch (logErr) {
+            console.error('Failed to write restock_log entry (restock itself still succeeded):', logErr.message);
         }
 
         res.status(200).json({ ok: true, previousStockLevel, newStockLevel: qty });

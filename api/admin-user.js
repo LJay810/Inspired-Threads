@@ -1,0 +1,121 @@
+const { createClient } = require('@supabase/supabase-js');
+const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+async function requireAdmin(req) {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) return { error: 'Not signed in.', status: 401 };
+
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
+    if (userErr || !userData || !userData.user) {
+        return { error: 'Your session has expired -- please sign in again.', status: 401 };
+    }
+
+    // ADMIN GATE: the real security boundary, same pattern as admin-restock.js. The panel only
+    // being visible to admins client-side is UX -- this server-side check is what actually stops
+    // anyone else from calling this endpoint directly.
+    const { data: profile } = await supabaseAdmin.from('profiles').select('is_admin').eq('id', userData.user.id).single();
+    if (!profile || !profile.is_admin) {
+        return { error: 'Not authorized.', status: 403 };
+    }
+    return { callerId: userData.user.id };
+}
+
+export default async function handler(req, res) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    try {
+        const auth = await requireAdmin(req);
+        if (auth.error) return res.status(auth.status).json({ error: auth.error });
+
+        const { action } = req.body;
+
+        if (action === 'search') {
+            const query = (req.body.query || '').trim();
+            if (!query) return res.status(400).json({ error: 'Missing search query.' });
+
+            let idsWithEmail = []; // [{ id, email }] -- only populated for the email-search path
+
+            if (query.includes('@')) {
+                // Email search: paginate through Auth's user list looking for a match. Fine at
+                // this shop's scale -- the Admin API has no direct "search by email" filter, so
+                // this is the correct approach without adding a duplicate email column anywhere.
+                const lowerQuery = query.toLowerCase();
+                for (let page = 1; page <= 5; page++) {
+                    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+                    if (error) throw error;
+                    const found = (data.users || []).filter(u => u.email && u.email.toLowerCase().includes(lowerQuery));
+                    idsWithEmail.push(...found.map(u => ({ id: u.id, email: u.email })));
+                    if (!data.users || data.users.length < 1000 || idsWithEmail.length >= 20) break;
+                }
+            } else {
+                // Username search
+                const { data: profiles, error } = await supabaseAdmin
+                    .from('profiles')
+                    .select('id')
+                    .ilike('username', `%${query}%`)
+                    .limit(20);
+                if (error) throw error;
+                idsWithEmail = (profiles || []).map(p => ({ id: p.id, email: null }));
+            }
+
+            if (idsWithEmail.length === 0) return res.status(200).json({ results: [] });
+
+            const ids = idsWithEmail.map(m => m.id);
+            const { data: fullProfiles, error: profErr } = await supabaseAdmin
+                .from('profiles')
+                .select('id, username, xp, badges, order_count, total_spent, referral_count, is_admin')
+                .in('id', ids);
+            if (profErr) throw profErr;
+
+            // Fill in email for username-search results (one lookup each -- fine at this scale).
+            const results = await Promise.all((fullProfiles || []).map(async (p) => {
+                const known = idsWithEmail.find(m => m.id === p.id);
+                let email = known && known.email;
+                if (!email) {
+                    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(p.id);
+                    email = (userData && userData.user && userData.user.email) || null;
+                }
+                return { ...p, email };
+            }));
+
+            return res.status(200).json({ results });
+        }
+
+        if (action === 'update') {
+            const { userId, xp, badges, is_admin } = req.body;
+            if (!userId) return res.status(400).json({ error: 'Missing userId.' });
+
+            const updateFields = {};
+            if (xp !== undefined) {
+                const xpNum = parseInt(xp, 10);
+                if (!Number.isInteger(xpNum) || xpNum < 0) {
+                    return res.status(400).json({ error: 'Invalid xp value.' });
+                }
+                updateFields.xp = xpNum;
+            }
+            if (badges !== undefined) {
+                if (!Array.isArray(badges)) return res.status(400).json({ error: 'badges must be an array.' });
+                updateFields.badges = badges;
+            }
+            if (is_admin !== undefined) {
+                updateFields.is_admin = !!is_admin;
+            }
+            if (Object.keys(updateFields).length === 0) {
+                return res.status(400).json({ error: 'Nothing to update.' });
+            }
+
+            const { error: updateErr } = await supabaseAdmin.from('profiles').update(updateFields).eq('id', userId);
+            if (updateErr) throw updateErr;
+
+            return res.status(200).json({ ok: true });
+        }
+
+        return res.status(400).json({ error: 'Unknown action.' });
+    } catch (error) {
+        console.error('Admin user endpoint error:', error);
+        res.status(500).json({ error: error.message });
+    }
+}

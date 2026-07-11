@@ -372,6 +372,44 @@
         .admin-restock-row button:hover { border-color: var(--accent-pink); }
         .admin-restock-status { font-size: 0.65rem; color: var(--accent-pink); min-width: 60px; }
 
+        .admin-filter-input {
+            width: 100%; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px;
+            color: var(--text-pure); padding: 8px 10px; font-family: var(--font-sans); font-size: 0.8rem; margin-bottom: 8px;
+        }
+        .admin-stats-line { font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 10px; }
+        .admin-restock-current.stock-out { color: #ff4d6d; font-weight: 700; }
+        .admin-restock-current.stock-low { color: #f5b800; font-weight: 700; }
+
+        .admin-user-result {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); font-size: 0.78rem; cursor: none !important;
+        }
+        .admin-user-result:hover { background: rgba(255,255,255,0.03); }
+        .admin-user-result-info { min-width: 0; }
+        .admin-user-result-name { color: var(--text-pure); font-weight: 600; }
+        .admin-user-result-email { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.68rem; }
+        .admin-user-result-xp { font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); white-space: nowrap; }
+
+        .admin-user-edit-panel {
+            margin-top: 12px; padding: 14px; border-radius: 8px; border: 1px solid var(--accent-pink); background: rgba(255,0,127,0.05);
+        }
+        .admin-user-edit-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .admin-user-edit-row input[type="number"] {
+            width: 90px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px;
+            color: var(--text-pure); padding: 6px 8px; font-family: var(--font-sans); font-size: 0.8rem;
+        }
+        .admin-badge-checks { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .admin-badge-checks label {
+            display: flex; align-items: center; gap: 4px; font-size: 0.68rem; color: var(--text-muted);
+            border: 1px solid var(--border-subtle); border-radius: 20px; padding: 4px 10px; cursor: none !important;
+        }
+        .admin-badge-checks input:checked + span { color: var(--accent-pink); }
+        .admin-is-admin-row { border-top: 1px solid var(--border-subtle); padding-top: 10px; margin-top: 4px; font-size: 0.72rem; color: var(--text-muted); }
+
+        .admin-activity-entry { font-size: 0.68rem; padding: 6px 4px; border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); }
+        .admin-activity-entry:last-child { border-bottom: none; }
+        .admin-activity-entry strong { color: var(--text-pure); }
+
         /* --- AUTH (ACCOUNT) MODAL --- */
         .account-btn { border: 1px solid var(--border-subtle); color: var(--text-pure); border-radius: 20px; padding: 8px 18px; transition: var(--transition-snappy); background: none; }
         .account-btn:hover { border-color: var(--accent-pink); color: var(--accent-pink); background: rgba(255,0,127,0.1); }
@@ -1149,9 +1187,25 @@
                     <div class="perks-panel" id="adminToolsPanel" style="display:none;">
                         <div class="perks-panel-title">Admin Tools — Restock</div>
                         <div class="settings-field-hint" style="margin-bottom:10px;">
-                            Setting a variant from 0 to a positive number notifies everyone who wishlisted it. Adjusting an already-in-stock number stays silent.
+                            Setting a variant from 0 to a positive number notifies everyone who wishlisted it. Adjusting an already-in-stock number stays silent. Lowest-stock items are listed first.
                         </div>
+                        <input type="text" id="adminRestockFilter" class="hover-target admin-filter-input" placeholder="Filter by product name…" oninput="filterAdminTools(this.value)">
+                        <div class="admin-stats-line" id="adminStatsLine"></div>
                         <div class="admin-tools-scroll" id="adminToolsList"></div>
+
+                        <div class="perks-panel-title" style="margin-top:22px;">Customer Lookup</div>
+                        <div class="settings-field-hint" style="margin-bottom:10px;">
+                            Search by username, or by email (must contain "@"). Edits here take effect immediately.
+                        </div>
+                        <div class="birthday-field-row">
+                            <input type="text" id="adminUserSearchInput" class="hover-target" placeholder="username or email@example.com" style="flex:1;">
+                            <button class="hover-target" type="button" onclick="searchAdminUsers()">Search</button>
+                        </div>
+                        <div id="adminUserSearchResults"></div>
+                        <div id="adminUserEditArea"></div>
+
+                        <div class="perks-panel-title" style="margin-top:22px;">Recent Activity</div>
+                        <div class="admin-tools-scroll" id="adminActivityLog" style="max-height:220px;"></div>
                     </div>
 
                     <div class="account-summary">
@@ -2157,7 +2211,7 @@ if (category === 'dtf') {
                 });
 
                 loadReviewSummaries(products.map(p => p.id));
-                if (window.currentUserIsAdmin) renderAdminTools();
+                if (window.currentUserIsAdmin) { renderAdminTools(); loadRecentRestockActivity(); }
 
                 // Silently pre-warm the browser's cache for every DTF thumbnail, in small batches,
                 // so we don't flood the browser's per-host connection limit and create a backlog.
@@ -2941,36 +2995,71 @@ if (category === 'dtf') {
         // Reads from window.productInventory/window.productMeta -- the same globals
         // initShopEngine() already populates for the whole storefront -- rather than a
         // separate fetch, since that data is already sitting in memory by the time this runs.
+        // Reads from window.productInventory/window.productMeta -- the same globals
+        // initShopEngine() already populates for the whole storefront -- rather than a
+        // separate fetch, since that data is already sitting in memory by the time this runs.
         function renderAdminTools() {
             const container = document.getElementById('adminToolsList');
             if (!container || !window.productInventory) return;
 
-            const rows = [];
+            // Flatten into one list first so it can be sorted lowest-stock-first across ALL
+            // products/variants together, not just within each product.
+            const entries = [];
             Object.keys(window.productInventory).forEach(productId => {
                 const meta = window.productInventory[productId];
                 const info = (window.productMeta && window.productMeta[productId]) || { name: productId };
                 Object.keys(meta).forEach(key => {
                     if (key !== 'stock' && !key.startsWith('stock_')) return;
-                    const variantLabel = key === 'stock' ? 'Standard' : key.replace('stock_', '').replace(/_/g, ' / ');
-                    const rowId = `admin-${productId}-${key}`;
-                    rows.push(`
-                        <div class="admin-restock-row">
-                            <div class="admin-restock-label">
-                                <div class="admin-restock-product">${escapeHtml(info.name)}</div>
-                                <div class="admin-restock-variant">${escapeHtml(variantLabel)}</div>
-                            </div>
-                            <div class="admin-restock-current" id="${rowId}-current">now: ${meta[key]}</div>
-                            <input type="number" min="0" id="${rowId}-input" placeholder="new #">
-                            <button type="button" onclick="adminRestock('${productId}', '${key}', '${rowId}')">Set</button>
-                            <span class="admin-restock-status" id="${rowId}-status"></span>
-                        </div>
-                    `);
+                    entries.push({
+                        productId, key, name: info.name,
+                        variantLabel: key === 'stock' ? 'Standard' : key.replace('stock_', '').replace(/_/g, ' / '),
+                        qty: parseInt(meta[key], 10) || 0,
+                    });
                 });
+            });
+
+            entries.sort((a, b) => a.qty - b.qty); // most urgent (lowest stock) first
+
+            const outCount = entries.filter(e => e.qty <= 0).length;
+            const lowCount = entries.filter(e => e.qty > 0 && e.qty <= 3).length;
+            const statsEl = document.getElementById('adminStatsLine');
+            if (statsEl) {
+                statsEl.textContent = `${entries.length} tracked · ${outCount} out of stock · ${lowCount} low (≤3)`;
+            }
+
+            const rows = entries.map(e => {
+                const rowId = `admin-${e.productId}-${e.key}`;
+                const stockClass = e.qty <= 0 ? 'stock-out' : (e.qty <= 3 ? 'stock-low' : '');
+                return `
+                    <div class="admin-restock-row" data-product-name="${escapeHtml(e.name.toLowerCase())}">
+                        <div class="admin-restock-label">
+                            <div class="admin-restock-product">${escapeHtml(e.name)}</div>
+                            <div class="admin-restock-variant">${escapeHtml(e.variantLabel)}</div>
+                        </div>
+                        <div class="admin-restock-current ${stockClass}" id="${rowId}-current">now: ${e.qty}</div>
+                        <input type="number" min="0" id="${rowId}-input" placeholder="new #">
+                        <button type="button" onclick="adminRestock('${e.productId}', '${e.key}', '${rowId}')">Set</button>
+                        <span class="admin-restock-status" id="${rowId}-status"></span>
+                    </div>
+                `;
             });
 
             container.innerHTML = rows.length > 0
                 ? rows.join('')
                 : '<p style="color:var(--text-muted); font-size:0.8rem;">No stock-tracked products found.</p>';
+
+            // Re-apply whatever filter text is currently in the box (covers the refresh-after-
+            // restock case, so an active filter doesn't get silently cleared).
+            const filterInput = document.getElementById('adminRestockFilter');
+            if (filterInput && filterInput.value) filterAdminTools(filterInput.value);
+        }
+
+        function filterAdminTools(query) {
+            const q = query.trim().toLowerCase();
+            document.querySelectorAll('#adminToolsList .admin-restock-row').forEach(row => {
+                const matches = !q || (row.dataset.productName || '').includes(q);
+                row.style.display = matches ? 'flex' : 'none';
+            });
         }
 
         async function adminRestock(productId, stripeMetaKey, rowId) {
@@ -2983,6 +3072,18 @@ if (category === 'dtf') {
                 statusEl.textContent = 'Invalid #';
                 return;
             }
+
+            // Pull the product/variant name straight from the row for the confirm message,
+            // rather than passing extra params through the onclick string.
+            const row = input.closest('.admin-restock-row');
+            const productLabel = row ? row.querySelector('.admin-restock-product').textContent : productId;
+            const variantLabel = row ? row.querySelector('.admin-restock-variant').textContent : stripeMetaKey;
+            const currentQty = parseInt((currentEl.textContent.match(/\d+/) || ['0'])[0], 10);
+            const willNotify = currentQty <= 0 && newQuantity > 0;
+
+            const confirmMsg = `Set "${productLabel}" (${variantLabel}) to ${newQuantity}?`
+                + (willNotify ? '\n\nThis will email everyone who wishlisted it.' : '');
+            if (!confirm(confirmMsg)) return;
 
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) { statusEl.textContent = 'Not logged in'; return; }
@@ -3003,10 +3104,154 @@ if (category === 'dtf') {
                 statusEl.textContent = 'Saved ✓';
                 input.value = '';
                 currentEl.textContent = `now: ${newQuantity}`;
+                currentEl.classList.remove('stock-out', 'stock-low');
+                if (newQuantity <= 0) currentEl.classList.add('stock-out');
+                else if (newQuantity <= 3) currentEl.classList.add('stock-low');
                 if (window.productInventory[productId]) window.productInventory[productId][stripeMetaKey] = newQuantity.toString();
                 setTimeout(() => { statusEl.textContent = ''; }, 2000);
+                loadRecentRestockActivity();
             } catch (err) {
                 statusEl.textContent = err.message;
+            }
+        }
+
+        async function searchAdminUsers() {
+            const input = document.getElementById('adminUserSearchInput');
+            const resultsEl = document.getElementById('adminUserSearchResults');
+            const query = input.value.trim();
+            document.getElementById('adminUserEditArea').innerHTML = ''; // close any open edit panel
+            if (!query) { resultsEl.innerHTML = ''; return; }
+
+            resultsEl.innerHTML = '<p style="color:var(--text-muted); font-size:0.75rem;">Searching…</p>';
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { resultsEl.innerHTML = '<p style="color:var(--text-muted); font-size:0.75rem;">Not logged in.</p>'; return; }
+
+            try {
+                const response = await fetch('/api/admin-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ action: 'search', query }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Search failed.');
+                renderUserSearchResults(result.results || []);
+            } catch (err) {
+                resultsEl.innerHTML = `<p style="color:var(--text-muted); font-size:0.75rem;">${escapeHtml(err.message)}</p>`;
+            }
+        }
+
+        function renderUserSearchResults(results) {
+            const resultsEl = document.getElementById('adminUserSearchResults');
+            if (results.length === 0) {
+                resultsEl.innerHTML = '<p style="color:var(--text-muted); font-size:0.75rem;">No matches.</p>';
+                return;
+            }
+            // Stashed here rather than re-fetched, so clicking a result to edit it doesn't need
+            // a second round trip -- the search response already has everything needed.
+            window._adminSearchResults = results;
+            resultsEl.innerHTML = results.map(u => `
+                <div class="admin-user-result" onclick="openUserEditPanel('${u.id}')">
+                    <div class="admin-user-result-info">
+                        <div class="admin-user-result-name">${escapeHtml(u.username || '(no username)')}${u.is_admin ? ' 🛡️' : ''}</div>
+                        <div class="admin-user-result-email">${escapeHtml(u.email || '')}</div>
+                    </div>
+                    <div class="admin-user-result-xp">${u.xp || 0} XP</div>
+                </div>
+            `).join('');
+        }
+
+        function openUserEditPanel(userId) {
+            const user = (window._adminSearchResults || []).find(u => u.id === userId);
+            if (!user) return;
+
+            const badgeChecks = BADGES.map(b => `
+                <label>
+                    <input type="checkbox" value="${b.slug}" ${user.badges && user.badges.includes(b.slug) ? 'checked' : ''}>
+                    <span>${b.icon} ${escapeHtml(b.label)}</span>
+                </label>
+            `).join('');
+
+            document.getElementById('adminUserEditArea').innerHTML = `
+                <div class="admin-user-edit-panel">
+                    <div class="settings-field-hint" style="margin-bottom:10px;">
+                        Editing <strong style="color:var(--text-pure);">${escapeHtml(user.username || user.email || userId)}</strong>
+                        — ${user.order_count || 0} orders, $${parseFloat(user.total_spent || 0).toFixed(2)} spent, ${user.referral_count || 0} referrals
+                    </div>
+                    <div class="admin-user-edit-row">
+                        <label class="settings-field-label" style="margin:0;">XP</label>
+                        <input type="number" min="0" id="adminEditXp" value="${user.xp || 0}">
+                    </div>
+                    <div class="admin-badge-checks" id="adminEditBadges">${badgeChecks}</div>
+                    <div class="admin-is-admin-row">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:none !important;">
+                            <input type="checkbox" id="adminEditIsAdmin" ${user.is_admin ? 'checked' : ''}>
+                            Grant admin panel access (restock tools + this lookup panel)
+                        </label>
+                    </div>
+                    <div class="birthday-field-row" style="margin-top:12px;">
+                        <button class="hover-target" type="button" onclick="saveUserEdits('${userId}')">Save Changes</button>
+                        <span class="admin-restock-status" id="adminEditStatus"></span>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function saveUserEdits(userId) {
+            const statusEl = document.getElementById('adminEditStatus');
+            const xp = document.getElementById('adminEditXp').value;
+            const badges = Array.from(document.querySelectorAll('#adminEditBadges input:checked')).map(cb => cb.value);
+            const isAdmin = document.getElementById('adminEditIsAdmin').checked;
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { statusEl.textContent = 'Not logged in'; return; }
+
+            statusEl.textContent = 'Saving…';
+            try {
+                const response = await fetch('/api/admin-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ action: 'update', userId, xp, badges, is_admin: isAdmin }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Save failed.');
+                statusEl.textContent = 'Saved ✓';
+            } catch (err) {
+                statusEl.textContent = err.message;
+            }
+        }
+
+        async function loadRecentRestockActivity() {
+            const container = document.getElementById('adminActivityLog');
+            if (!container || !supabaseClient) return;
+            try {
+                const { data: entries, error } = await supabaseClient
+                    .from('restock_log')
+                    .select('admin_label, product_id, product_name, stripe_meta_key, previous_qty, new_qty, notified, created_at')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                if (error) throw error;
+
+                if (!entries || entries.length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-muted); font-size:0.75rem;">No activity yet.</p>';
+                    return;
+                }
+
+                container.innerHTML = entries.map(e => `
+                    <div class="admin-activity-entry">
+                        ${new Date(e.created_at).toLocaleString()} — <strong>${escapeHtml(e.admin_label || 'admin')}</strong>
+                        set <strong>${escapeHtml(e.product_name || e.product_id)}</strong> (${escapeHtml(e.stripe_meta_key)})
+                        ${e.previous_qty} → ${e.new_qty}${e.notified ? ' 📧 notified' : ''}
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = `<p style="color:var(--text-muted); font-size:0.75rem;">Could not load activity: ${escapeHtml(err.message)}</p>`;
             }
         }
 
@@ -3182,7 +3427,7 @@ if (category === 'dtf') {
 
                         window.currentUserIsAdmin = !!profile.is_admin;
                         document.getElementById('adminToolsPanel').style.display = window.currentUserIsAdmin ? 'block' : 'none';
-                        if (window.currentUserIsAdmin) renderAdminTools();
+                        if (window.currentUserIsAdmin) { renderAdminTools(); loadRecentRestockActivity(); }
                     }
                 } catch (err) {
                     // Non-fatal -- just keep the email-prefix fallback
