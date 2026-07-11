@@ -32,20 +32,28 @@ const PERKS = {
 // Applies to every tier equally, so it lives outside PERKS rather than repeated on each tier.
 const ANNIVERSARY_XP_MULTIPLIER = 2;
 
-// True during the calendar month matching the shopper's signup month (every year, including
-// their first) -- e.g. signed up March 12 2024 -> every March, XP is doubled.
-function isAnniversaryMonth(createdAtISO, now = new Date()) {
-  if (!createdAtISO) return false;
-  return new Date(createdAtISO).getUTCMonth() === now.getUTCMonth();
-}
-
-// Whether at least a full year has passed since signup -- used to gate the 'anniversary'
-// badge specifically (as opposed to the XP bonus, which applies every anniversary month
-// including the shopper's very first).
+// Whether at least a full year has passed since signup. Used both standalone (nothing else
+// needs it, since isAnniversaryDay below already calls it internally) and exported for
+// clarity/testability.
 function hasCompletedFullYear(createdAtISO, now = new Date()) {
   if (!createdAtISO) return false;
   const oneYearMs = 365 * 24 * 60 * 60 * 1000;
   return (now.getTime() - new Date(createdAtISO).getTime()) >= oneYearMs;
+}
+
+// True ONLY on the exact calendar day matching signup, AND only once a genuine full year has
+// actually passed -- e.g. signed up March 12 2025 -> only March 12 2026 (and every March 12
+// after that), never any other day in March, and never in the first 12 months of the account.
+// Previously this only checked "same month, any year" with no year requirement at all --
+// which meant literally every new signup got double XP immediately on their first order, as
+// an accidental "welcome bonus" nobody actually decided to build. Fixed by requiring both
+// conditions together, not as two separate checks.
+function isAnniversaryDay(createdAtISO, now = new Date()) {
+  if (!createdAtISO) return false;
+  const created = new Date(createdAtISO);
+  return created.getUTCMonth() === now.getUTCMonth()
+    && created.getUTCDate() === now.getUTCDate()
+    && hasCompletedFullYear(createdAtISO, now);
 }
 
 // XP now tracks actual revenue, not item count -- the old "25 + 10/unit" formula let a
@@ -97,5 +105,5 @@ function evaluateOrderBadges({ orderCount, totalSpent, orderUnits, tierName, isA
 module.exports = {
   TIERS, PERKS, ANNIVERSARY_XP_MULTIPLIER,
   xpForOrder, tierForXp, perksForTier, evaluateOrderBadges,
-  isAnniversaryMonth, hasCompletedFullYear,
+  isAnniversaryDay, hasCompletedFullYear,
 };

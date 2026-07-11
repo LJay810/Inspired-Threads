@@ -3,7 +3,7 @@ import { Redis } from '@upstash/redis';
 const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
-const { xpForOrder, tierForXp, evaluateOrderBadges, isAnniversaryMonth, hasCompletedFullYear, ANNIVERSARY_XP_MULTIPLIER } = require('./lib/loyalty');
+const { xpForOrder, tierForXp, evaluateOrderBadges, isAnniversaryDay, ANNIVERSARY_XP_MULTIPLIER } = require('./lib/loyalty');
 const { notifyRestock } = require('./lib/notify');
 const { unpackCartItemMetadata } = require('./lib/cart-metadata');
 
@@ -114,16 +114,18 @@ export default async function handler(req, res) {
             orderUnits += itemData ? (parseInt(itemData.qty, 10) || 0) : 0;
           }
 
-          // Anniversary perk: double XP during the shopper's signup month, every year.
+          // Anniversary perk: double XP, only on the exact day matching signup, only once a
+          // real year has passed -- see isAnniversaryDay in lib/loyalty.js for why this used
+          // to (wrongly) fire as an accidental welcome bonus on every brand-new account.
           // A lookup failure here should never block the (still-valid) base XP award.
           let xpMultiplier = 1;
           let isAnniversaryYear = false;
           try {
             const { data: userData } = await supabaseAdmin.auth.admin.getUserById(supabaseUserId);
             const createdAt = userData && userData.user && userData.user.created_at;
-            if (createdAt && isAnniversaryMonth(createdAt)) {
+            if (createdAt && isAnniversaryDay(createdAt)) {
               xpMultiplier = ANNIVERSARY_XP_MULTIPLIER;
-              isAnniversaryYear = hasCompletedFullYear(createdAt);
+              isAnniversaryYear = true;
             }
           } catch (err) {
             console.warn('Could not check anniversary bonus, awarding standard XP:', err.message);

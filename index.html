@@ -2826,10 +2826,10 @@ if (category === 'dtf') {
         // Perk lines shown for a tier -- plain hardcoded cumulative lists, kept in sync with
         // the PERKS object above by hand (four tiers, simplest to just write them out).
         const PERK_LINES = {
-            Bronze: ['🎂 Birthday coupon: 10% off', '🎉 Double XP during your anniversary month'],
-            Silver: ['🎂 Birthday coupon: 15% off', '🚚 Free shipping on orders $75+', '🎁 Free sticker pack in every order', '🎉 Double XP during your anniversary month'],
-            Gold:   ['🎂 Birthday coupon: 20% off', '🚚 Free shipping on orders $60+', '💸 5% off every order, automatically', '🎁 Free sticker pack in every order', '🎉 Double XP during your anniversary month'],
-            VIP:    ['🎂 Birthday coupon: 25% off', '🚚 $3.50 off shipping, up to 2x/month', '💸 10% off every order, automatically', '🎁 Free sticker pack in every order', '⚡ Early access to new drops', '🎉 Double XP during your anniversary month'],
+            Bronze: ['🎂 Birthday coupon: 10% off', '🎉 Double XP on your account anniversary (after year 1)'],
+            Silver: ['🎂 Birthday coupon: 15% off', '🚚 Free shipping on orders $75+', '🎁 Free sticker pack in every order', '🎉 Double XP on your account anniversary (after year 1)'],
+            Gold:   ['🎂 Birthday coupon: 20% off', '🚚 Free shipping on orders $60+', '💸 5% off every order, automatically', '🎁 Free sticker pack in every order', '🎉 Double XP on your account anniversary (after year 1)'],
+            VIP:    ['🎂 Birthday coupon: 25% off', '🚚 $3.50 off shipping, up to 2x/month', '💸 10% off every order, automatically', '🎁 Free sticker pack in every order', '⚡ Early access to new drops', '🎉 Double XP on your account anniversary (after year 1)'],
         };
         function perkLinesForTier(tierName) {
             return PERK_LINES[tierName] || PERK_LINES.Bronze;
