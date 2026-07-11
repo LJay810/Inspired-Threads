@@ -515,7 +515,11 @@
         }
 
         @media (max-width: 900px) {
-            .badge-grid-scroll { max-height: 260px; }
+            /* Tall enough for exactly 3 full rows at 9 badges (current count) so nothing gets
+               visually sliced off mid-row -- scroll stays enabled via overflow-y on
+               .badge-grid-scroll above, so a future 4th row (10th+ badge) scrolls into view
+               instead of needing this number bumped again by hand. */
+            .badge-grid-scroll { max-height: 380px; }
             .badge-grid { gap: 8px; }
             .badge-item { padding: 10px 4px; }
             .badge-icon-wrap { width: 52px; height: 52px; }
