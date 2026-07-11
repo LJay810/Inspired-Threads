@@ -3,8 +3,8 @@ import { Redis } from '@upstash/redis';
 const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
-const { perksForTier, tierForXp } = require('./lib/loyalty');
-const { packCartItemMetadata } = require('./lib/cart-metadata');
+const { perksForTier, tierForXp } = require('../lib/loyalty');
+const { packCartItemMetadata } = require('../lib/cart-metadata');
 
 // Service-role client: only used server-side, only ever to READ a shopper's own xp so we know
 // which tier's perks to apply. Never exposed to the browser.

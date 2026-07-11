@@ -3,9 +3,9 @@ import { Redis } from '@upstash/redis';
 const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
-const { xpForOrder, tierForXp, evaluateOrderBadges, isAnniversaryDay, ANNIVERSARY_XP_MULTIPLIER } = require('./lib/loyalty');
-const { notifyRestock } = require('./lib/notify');
-const { unpackCartItemMetadata } = require('./lib/cart-metadata');
+const { xpForOrder, tierForXp, evaluateOrderBadges, isAnniversaryDay, ANNIVERSARY_XP_MULTIPLIER } = require('../lib/loyalty');
+const { notifyRestock } = require('../lib/notify');
+const { unpackCartItemMetadata } = require('../lib/cart-metadata');
 
 // Service-role client: bypasses RLS, used only here and in cron-birthday-coupons.js to write
 // loyalty fields the shopper's own browser session is never allowed to touch directly.
