@@ -7,7 +7,8 @@
 -- ============================================================================
 alter table public.profiles
   add column if not exists referral_code text unique,
-  add column if not exists referred_by uuid references auth.users(id),
+  -- SET NULL, never CASCADE -- see account_deletion_cascade.sql for why.
+  add column if not exists referred_by uuid references auth.users(id) on delete set null,
   -- The referee's ONE-TIME 15% off their first order.
   add column if not exists referral_signup_discount_used boolean not null default false,
   -- The referrer's queue of earned "15% off your next order" rewards -- a count, not a
@@ -127,7 +128,7 @@ $$;
 -- anon/authenticated, only the service role (webhook.js, submit-review.js) can touch it.
 create table if not exists public.purchases (
   id bigserial primary key,
-  user_id uuid not null references auth.users(id),
+  user_id uuid not null references auth.users(id) on delete cascade,
   product_id text not null,
   session_id text not null,
   purchased_at timestamptz not null default now(),
@@ -145,7 +146,7 @@ alter table public.purchases enable row level security;
 create table if not exists public.reviews (
   id bigserial primary key,
   product_id text not null,
-  user_id uuid not null references auth.users(id),
+  user_id uuid not null references auth.users(id) on delete cascade,
   username text,
   rating integer not null check (rating between 1 and 5),
   comment text,
@@ -182,7 +183,7 @@ create policy "Anyone can read reviews"
 -- Unlike purchases/reviews, a wishlist is just a personal preference with nothing to verify,
 -- so direct self-service RLS (rather than a routed-through-a-server-endpoint pattern) is fine.
 create table if not exists public.wishlists (
-  user_id uuid not null references auth.users(id),
+  user_id uuid not null references auth.users(id) on delete cascade,
   product_id text not null,
   added_at timestamptz not null default now(),
   primary key (user_id, product_id)
