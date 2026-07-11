@@ -310,23 +310,13 @@
         .close-tiktok { position: absolute; top: 15px; right: 20px; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: color 0.2s; }
         .close-tiktok:hover { color: var(--accent-pink); }
 
-        .reviews-overlay {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 3000;
-            display: flex; justify-content: center; align-items: center; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; backdrop-filter: blur(10px);
-        }
-        .reviews-overlay.active { opacity: 1; pointer-events: all; }
-        .reviews-modal {
-            background: rgba(15, 15, 15, 0.95); border: 1px solid var(--accent-pink); border-radius: 16px; padding: 40px; width: 90%; max-width: 480px; max-height: 80vh; overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px rgba(255,0,127,0.15); transform: translateY(30px) scale(0.95); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); position: relative;
-        }
-        .reviews-overlay.active .reviews-modal { transform: translateY(0) scale(1); }
-        .reviews-modal-title { font-family: var(--font-mono); font-size: 1rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 20px; padding-right: 20px; }
         .review-entry { border-bottom: 1px solid var(--border-subtle); padding: 14px 0; }
         .review-entry:last-child { border-bottom: none; }
         .review-entry-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
         .review-entry-author { font-size: 0.8rem; color: var(--text-pure); font-weight: 600; }
         .review-entry-date { font-size: 0.7rem; color: var(--text-muted); }
         .review-entry-comment { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+        .review-entry-photo { width: 100%; max-width: 240px; border-radius: 10px; margin-top: 10px; display: block; }
         .review-form { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 12px; }
         .review-star-picker { font-size: 1.6rem; color: #f5b800; letter-spacing: 4px; }
         .review-star-btn { cursor: none !important; }
@@ -338,19 +328,33 @@
             background: var(--accent-pink); border: none; border-radius: 6px; color: #fff; padding: 10px 16px;
             font-family: var(--font-sans); font-size: 0.85rem; font-weight: 600; cursor: none !important; align-self: flex-start;
         }
+        .review-form input[type="file"] { font-size: 0.75rem; color: var(--text-muted); }
 
-        /* --- WHAT'S COMING --- */
-        .coming-soon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 30px; max-width: 900px; margin: 0 auto; }
-        .coming-soon-card { position: relative; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 20px; }
-        .coming-soon-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 10px; margin-bottom: 16px; opacity: 0.85; }
-        .coming-soon-title { font-size: 1.1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; margin-bottom: 8px; }
-        .coming-soon-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; }
-        .coming-soon-status {
-            position: absolute; top: 16px; right: 16px; font-family: var(--font-mono); font-size: 0.6rem; text-transform: uppercase;
-            letter-spacing: 0.08em; padding: 5px 10px; border-radius: 20px; z-index: 1;
-        }
-        .status-soon { background: rgba(255,0,127,0.15); border: 1px solid var(--accent-pink); color: var(--accent-pink); }
-        .status-idea { background: rgba(255,255,255,0.08); border: 1px solid var(--border-subtle); color: var(--text-muted); }
+        /* --- REVIEWS PAGE --- */
+        .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 24px; max-width: 900px; margin: 0 auto 40px; }
+        .review-card { position: relative; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 20px; }
+        .review-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .review-card-author { font-weight: 700; color: var(--text-pure); font-size: 0.9rem; }
+        .review-card-date { font-size: 0.7rem; color: var(--text-muted); }
+        .review-card-comment { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-top: 8px; }
+        .review-card-photo { width: 100%; border-radius: 10px; margin-top: 12px; display: block; }
+        .review-submission-area { max-width: 480px; margin: 0 auto; padding: 20px; border: 1px solid var(--border-subtle); border-radius: 14px; background: rgba(255,255,255,0.02); }
+
+        /* --- LEADERBOARD --- */
+        .leaderboard-list { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+        .leaderboard-entry { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--border-subtle); border-radius: 12px; background: rgba(255,255,255,0.02); }
+        .leaderboard-entry.rank-1 { border-color: #f5b800; }
+        .leaderboard-entry.rank-2 { border-color: #c0c0c0; }
+        .leaderboard-entry.rank-3 { border-color: #cd7f32; }
+        .leaderboard-rank { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-muted); min-width: 30px; text-align: center; flex-shrink: 0; }
+        .leaderboard-avatar, .leaderboard-avatar-placeholder { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--border-subtle); flex-shrink: 0; }
+        .leaderboard-avatar { object-fit: cover; }
+        .leaderboard-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .leaderboard-info { flex: 1; min-width: 0; }
+        .leaderboard-name { font-weight: 700; color: var(--text-pure); font-size: 0.9rem; }
+        .leaderboard-tier { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-pink); }
+        .leaderboard-badge-line { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+        .leaderboard-xp { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-pink); white-space: nowrap; flex-shrink: 0; }
 
         /* --- ADMIN TOOLS --- */
         .admin-tools-scroll { max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
@@ -409,6 +413,19 @@
         .admin-activity-entry { font-size: 0.68rem; padding: 6px 4px; border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-family: var(--font-mono); }
         .admin-activity-entry:last-child { border-bottom: none; }
         .admin-activity-entry strong { color: var(--text-pure); }
+
+        .admin-pending-review { padding: 10px; border: 1px solid var(--border-subtle); border-radius: 8px; margin-bottom: 10px; font-size: 0.75rem; }
+        .admin-pending-review-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .admin-pending-review-author { color: var(--text-pure); font-weight: 600; }
+        .admin-pending-review-comment { color: var(--text-muted); line-height: 1.5; margin-bottom: 8px; }
+        .admin-pending-review-photo { max-width: 160px; border-radius: 6px; display: block; margin-bottom: 8px; }
+        .admin-pending-review-actions { display: flex; gap: 8px; align-items: center; }
+        .admin-pending-review-actions button {
+            background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px;
+            color: var(--text-pure); padding: 5px 12px; font-family: var(--font-sans); font-size: 0.7rem; cursor: none !important;
+        }
+        .admin-pending-review-actions button.approve:hover { border-color: #4ade80; color: #4ade80; }
+        .admin-pending-review-actions button.reject:hover { border-color: #ff4d6d; color: #ff4d6d; }
 
         /* --- AUTH (ACCOUNT) MODAL --- */
         .account-btn { border: 1px solid var(--border-subtle); color: var(--text-pure); border-radius: 20px; padding: 8px 18px; transition: var(--transition-snappy); background: none; }
@@ -575,8 +592,6 @@
         .birthday-coupon-banner strong { font-family: var(--font-mono); letter-spacing: 0.05em; color: var(--accent-pink); }
 
         /* --- REVIEWS --- */
-        .review-summary { font-size: 0.75rem; color: var(--text-muted); margin: -6px 0 10px 0; cursor: none !important; }
-        .review-summary:hover { color: var(--accent-pink); text-decoration: underline; }
         .review-stars { color: #f5b800; letter-spacing: 1px; }
         @media (min-width: 901px) {
             .badge-icon-wrap { width: 64px; height: 64px; }
@@ -1046,7 +1061,8 @@
             <div id="indicator"></div>
             <button class="nav-tab active hover-target" onclick="scrollToSection('home')">Home</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('shop')">Shop</button>
-            <button class="nav-tab hover-target" onclick="scrollToSection('whats-coming')">What's Coming!</button>
+            <button class="nav-tab hover-target" onclick="scrollToSection('reviews')">Reviews</button>
+            <button class="nav-tab hover-target" onclick="scrollToSection('leaderboard')">Leaderboard</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('about')">About</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('contact')">Contact</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('schedule')">Live Schedule</button>
@@ -1204,6 +1220,12 @@
                         <div id="adminUserSearchResults"></div>
                         <div id="adminUserEditArea"></div>
 
+                        <div class="perks-panel-title" style="margin-top:22px;">Pending Reviews</div>
+                        <div class="settings-field-hint" style="margin-bottom:10px;">
+                            New review submissions wait here until approved or rejected. Approving awards the reviewer their 'reviewer' badge.
+                        </div>
+                        <div class="admin-tools-scroll" id="adminPendingReviews" style="max-height:280px;"></div>
+
                         <div class="perks-panel-title" style="margin-top:22px;">Recent Activity</div>
                         <div class="admin-tools-scroll" id="adminActivityLog" style="max-height:220px;"></div>
                     </div>
@@ -1229,6 +1251,28 @@
                     <div class="settings-field">
                         <div class="settings-field-label">Email</div>
                         <div class="settings-field-value" id="settingsEmailDisplay"></div>
+                    </div>
+
+                    <div class="settings-field">
+                        <div class="settings-field-label">Profile Picture</div>
+                        <div class="birthday-field-row">
+                            <img id="avatarPreview" src="" alt="Your profile picture" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:1px solid var(--border-subtle); display:none;">
+                            <div id="avatarPreviewPlaceholder" style="width:44px; height:44px; border-radius:50%; background:var(--bg-surface); border:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center; font-size:1.1rem;">👤</div>
+                            <input type="file" id="avatarInput" accept="image/*" class="hover-target" onchange="uploadAvatar(this.files[0])" style="flex:1;">
+                            <span class="birthday-save-status" id="avatarSaveStatus"></span>
+                        </div>
+                        <div class="settings-field-hint">Shown on the Leaderboard if you set a badge below.</div>
+                    </div>
+
+                    <div class="settings-field">
+                        <div class="settings-field-label">Leaderboard Badge</div>
+                        <div class="birthday-field-row">
+                            <select id="badgeSelect" class="hover-target" onchange="saveBadgeSelection(this.value)" style="flex:1;">
+                                <option value="">None — don't show a badge</option>
+                            </select>
+                            <span class="birthday-save-status" id="badgeSaveStatus"></span>
+                        </div>
+                        <div class="settings-field-hint">Pick one earned badge to show off next to your name on the Leaderboard.</div>
                     </div>
 
                     <div class="settings-field">
@@ -1277,15 +1321,6 @@
             <div class="badge-detail-status" id="badgeDetailStatus"></div>
             <h3 class="badge-detail-title" id="badgeDetailTitle"></h3>
             <p class="badge-detail-desc" id="badgeDetailDesc"></p>
-        </div>
-    </div>
-
-    <div class="reviews-overlay" id="reviewsModal" onclick="if(event.target === this) closeReviewsModal()">
-        <div class="reviews-modal" onclick="event.stopPropagation()">
-            <button class="close-tiktok hover-target" onclick="closeReviewsModal()">✕</button>
-            <h3 class="reviews-modal-title" id="reviewsModalTitle"></h3>
-            <div id="reviewsModalList"></div>
-            <div id="reviewsModalFormArea"></div>
         </div>
     </div>
 
@@ -1406,37 +1441,26 @@
         <div class="shop-grid" id="mainShopGrid"></div>
     </section>
 
-    <section id="whats-coming" class="page-section">
-        <h2 class="section-header reveal">What's Coming!</h2>
+    <section id="reviews" class="page-section">
+        <h2 class="section-header reveal">Reviews</h2>
         <p class="reveal" style="color: var(--text-muted); max-width: 640px; margin: 0 auto 40px; text-align: center; font-size: 0.95rem;">
-            A sneak peek at what's headed to the shop next. Nothing here is available to order yet — check back, or watch the Live Schedule for drop announcements.
+            What real customers say about Inspired Threads. Every review here is read by an admin before it goes live.
         </p>
 
-        <!--
-            HAND-EDIT THIS SECTION YOURSELF — there's no admin panel or database behind it,
-            it's just plain HTML. To add a new teaser, copy one whole ".coming-soon-card" div
-            (from the opening <div class="coming-soon-card"...> down to its closing </div>) and
-            paste it right before the closing </div> of ".coming-soon-grid" below. Then edit:
-              - the image src (drop a file in the /images folder, same as your product photos)
-              - the title text
-              - the description text
-              - the little status pill text/color (see the two example styles below)
-            To remove a teaser once it's actually released, just delete its whole card div.
-        -->
-        <div class="coming-soon-grid">
-            <div class="coming-soon-card reveal stagger-1">
-                <div class="coming-soon-status status-soon">Coming Soon</div>
-                <img src="images/Family.png" alt="Preview of an upcoming product" class="coming-soon-img">
-                <h3 class="coming-soon-title">New Fall Design Drop</h3>
-                <p class="coming-soon-desc">A fresh batch of seasonal DTF designs, restocked color options, and a couple of surprises. Exact date announced on the Live Schedule.</p>
-            </div>
+        <div class="reviews-grid" id="approvedReviewsGrid">
+            <p style="color:var(--text-muted); text-align:center; grid-column:1/-1;">Loading reviews…</p>
+        </div>
 
-            <div class="coming-soon-card reveal stagger-2">
-                <div class="coming-soon-status status-idea">In The Works</div>
-                <img src="images/Family.png" alt="Preview of an upcoming product" class="coming-soon-img">
-                <h3 class="coming-soon-title">Loaded Binder Bundles</h3>
-                <p class="coming-soon-desc">Pre-loaded binder sets in a few of the most-requested themes, ready to grab without building one piece by piece.</p>
-            </div>
+        <div class="review-submission-area" id="reviewSubmissionArea"></div>
+    </section>
+
+    <section id="leaderboard" class="page-section">
+        <h2 class="section-header reveal">Leaderboard</h2>
+        <p class="reveal" style="color: var(--text-muted); max-width: 640px; margin: 0 auto 40px; text-align: center; font-size: 0.95rem;">
+            Top customers by XP. Set a profile picture and pick a badge to show off in your Account Settings.
+        </p>
+        <div class="leaderboard-list" id="leaderboardList">
+            <p style="color:var(--text-muted); text-align:center;">Loading leaderboard…</p>
         </div>
     </section>
 
@@ -1802,83 +1826,9 @@ Thank you for supporting my small business and understanding the handmade nature
         };
 
         // Batched: one query for every product on the page, rather than one query per card.
-        async function loadReviewSummaries(productIds) {
-            if (!supabaseClient || productIds.length === 0) return;
-            try {
-                const { data: reviews, error } = await supabaseClient
-                    .from('reviews')
-                    .select('product_id, rating')
-                    .in('product_id', productIds);
-                if (error) throw error;
-
-                const byProduct = {};
-                (reviews || []).forEach(r => {
-                    if (!byProduct[r.product_id]) byProduct[r.product_id] = [];
-                    byProduct[r.product_id].push(r.rating);
-                });
-
-                productIds.forEach(id => {
-                    const el = document.getElementById(`reviewSummary-${id}`);
-                    if (!el) return;
-                    const ratings = byProduct[id];
-                    if (!ratings || ratings.length === 0) {
-                        el.textContent = 'No reviews yet — be the first!';
-                    } else {
-                        const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
-                        el.innerHTML = `<span class="review-stars">${starString(avg)}</span> ${avg.toFixed(1)} (${ratings.length})`;
-                    }
-                });
-            } catch (err) {
-                console.warn('Could not load review summaries:', err.message);
-                productIds.forEach(id => {
-                    const el = document.getElementById(`reviewSummary-${id}`);
-                    if (el) el.textContent = 'Reviews unavailable';
-                });
-            }
-        }
-
         function starString(avg) {
             const rounded = Math.round(avg);
             return '★'.repeat(rounded) + '☆'.repeat(5 - rounded);
-        }
-
-        async function openReviewsModal(productId) {
-            const meta = (window.productMeta && window.productMeta[productId]) || { name: 'This Product' };
-            document.getElementById('reviewsModalTitle').textContent = meta.name;
-            document.getElementById('reviewsModalList').innerHTML = '<p style="color:var(--text-muted);">Loading reviews…</p>';
-            document.getElementById('reviewsModalFormArea').innerHTML = '';
-            document.getElementById('reviewsModal').classList.add('active');
-            document.getElementById('reviewsModal').dataset.productId = productId;
-
-            try {
-                const { data: reviews, error } = await supabaseClient
-                    .from('reviews')
-                    .select('username, rating, comment, created_at')
-                    .eq('product_id', productId)
-                    .order('created_at', { ascending: false });
-                if (error) throw error;
-
-                const listEl = document.getElementById('reviewsModalList');
-                if (!reviews || reviews.length === 0) {
-                    listEl.innerHTML = '<p style="color:var(--text-muted);">No reviews yet.</p>';
-                } else {
-                    listEl.innerHTML = reviews.map(r => `
-                        <div class="review-entry">
-                            <div class="review-entry-header">
-                                <span class="review-stars">${starString(r.rating)}</span>
-                                <span class="review-entry-author">${escapeHtml(r.username || 'Verified Buyer')}</span>
-                                <span class="review-entry-date">${new Date(r.created_at).toLocaleDateString()}</span>
-                            </div>
-                            ${r.comment ? `<p class="review-entry-comment">${escapeHtml(r.comment)}</p>` : ''}
-                        </div>
-                    `).join('');
-                }
-            } catch (err) {
-                document.getElementById('reviewsModalList').innerHTML = '<p style="color:var(--text-muted);">Could not load reviews right now.</p>';
-                console.warn('Could not load reviews:', err.message);
-            }
-
-            await renderReviewFormArea(productId);
         }
 
         function escapeHtml(str) {
@@ -1887,92 +1837,184 @@ Thank you for supporting my small business and understanding the handmade nature
             return div.innerHTML;
         }
 
-        async function renderReviewFormArea(productId) {
-            const formArea = document.getElementById('reviewsModalFormArea');
-            if (!supabaseClient) { formArea.innerHTML = ''; return; }
-
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) {
-                formArea.innerHTML = '<p class="settings-field-hint">Log in to leave a review.</p>';
-                return;
-            }
-
-            // Verified-purchase check is enforced server-side too (submit-review.js) -- this
-            // client-side check is purely so we don't show a form that would just get a 403,
-            // not a security boundary. Goes through has_purchased() rather than a direct
-            // .from('purchases') query, since that table has no RLS read policy for anyone
-            // but the service role -- a direct query here would silently return nothing for
-            // every user on every product, purchased or not.
+        async function loadApprovedReviews() {
+            const grid = document.getElementById('approvedReviewsGrid');
+            if (!grid || !supabaseClient) return;
             try {
-                const { data: hasPurchased } = await supabaseClient.rpc('has_purchased', { p_product_id: productId });
-                const { data: existingReview } = await supabaseClient
-                    .from('reviews').select('id').eq('user_id', session.user.id).eq('product_id', productId).maybeSingle();
+                const { data: reviews, error } = await supabaseClient
+                    .from('site_reviews')
+                    .select('username, rating, comment, photo_url, created_at')
+                    .eq('status', 'approved')
+                    .order('created_at', { ascending: false })
+                    .limit(30);
+                if (error) throw error;
 
-                if (existingReview) {
-                    formArea.innerHTML = '<p class="settings-field-hint">You\'ve already reviewed this product — thank you!</p>';
-                } else if (!hasPurchased) {
-                    formArea.innerHTML = '<p class="settings-field-hint">Only verified buyers can leave a review.</p>';
-                } else {
-                    formArea.innerHTML = `
-                        <div class="review-form">
-                            <div class="review-star-picker" id="reviewStarPicker">
-                                ${[1,2,3,4,5].map(n => `<span class="review-star-btn" data-value="${n}" onclick="setReviewRating(${n})">☆</span>`).join('')}
-                            </div>
-                            <textarea id="reviewCommentInput" class="hover-target" placeholder="What did you think? (optional)" rows="3"></textarea>
-                            <button class="hover-target" type="button" onclick="submitReview('${productId}')">Submit Review</button>
-                            <p class="settings-field-hint" id="reviewSubmitStatus"></p>
-                        </div>
-                    `;
-                    window._selectedReviewRating = 0;
+                if (!reviews || reviews.length === 0) {
+                    grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; grid-column:1/-1;">No reviews yet — be the first!</p>';
+                    return;
                 }
+
+                grid.innerHTML = reviews.map((r, i) => `
+                    <div class="review-card reveal stagger-${(i % 3) + 1}">
+                        <div class="review-card-header">
+                            <span class="review-stars">${starString(r.rating)}</span>
+                        </div>
+                        <div class="review-card-author">${escapeHtml(r.username || 'Customer')}</div>
+                        <div class="review-card-date">${new Date(r.created_at).toLocaleDateString()}</div>
+                        <p class="review-card-comment">${escapeHtml(r.comment)}</p>
+                        ${r.photo_url ? `<img src="${r.photo_url}" alt="Photo from ${escapeHtml(r.username || 'a customer')}'s review" class="review-card-photo">` : ''}
+                    </div>
+                `).join('');
             } catch (err) {
-                formArea.innerHTML = '';
-                console.warn('Could not check review eligibility:', err.message);
+                grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; grid-column:1/-1;">Could not load reviews right now.</p>';
+                console.warn('Could not load approved reviews:', err.message);
             }
         }
 
-        function setReviewRating(value) {
-            window._selectedReviewRating = value;
-            document.querySelectorAll('#reviewStarPicker .review-star-btn').forEach(btn => {
+        async function renderReviewSubmissionArea() {
+            const area = document.getElementById('reviewSubmissionArea');
+            if (!area || !supabaseClient) return;
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                area.innerHTML = '<p class="settings-field-hint" style="text-align:center;">Log in to leave a review.</p>';
+                return;
+            }
+
+            try {
+                const { data: existing } = await supabaseClient
+                    .from('site_reviews').select('status').eq('user_id', session.user.id).maybeSingle();
+
+                if (existing && existing.status === 'pending') {
+                    area.innerHTML = '<p class="settings-field-hint" style="text-align:center;">Your review is awaiting approval. Thanks for your patience!</p>';
+                    return;
+                }
+
+                const resubmitNote = existing && existing.status === 'rejected'
+                    ? '<p class="settings-field-hint" style="margin-bottom:10px;">Your previous submission wasn\'t approved — feel free to try again.</p>'
+                    : '';
+                const alreadyLiveNote = existing && existing.status === 'approved'
+                    ? '<p class="settings-field-hint" style="margin-bottom:10px;">Your review is live! Submitting again will replace it and send it back for approval.</p>'
+                    : '';
+
+                area.innerHTML = `
+                    ${resubmitNote}${alreadyLiveNote}
+                    <div class="review-form" style="margin-top:0; padding-top:0; border-top:none;">
+                        <div class="review-star-picker" id="siteReviewStarPicker">
+                            ${[1,2,3,4,5].map(n => `<span class="review-star-btn" data-value="${n}" onclick="setSiteReviewRating(${n})">☆</span>`).join('')}
+                        </div>
+                        <textarea id="siteReviewCommentInput" class="hover-target" placeholder="Tell other customers about your experience…" rows="4"></textarea>
+                        <input type="file" id="siteReviewPhotoInput" accept="image/*">
+                        <button class="hover-target" type="button" onclick="submitSiteReview()">Submit Review</button>
+                        <p class="settings-field-hint" id="siteReviewStatus"></p>
+                    </div>
+                `;
+                window._selectedSiteReviewRating = 0;
+            } catch (err) {
+                area.innerHTML = '';
+                console.warn('Could not load review submission state:', err.message);
+            }
+        }
+
+        function setSiteReviewRating(value) {
+            window._selectedSiteReviewRating = value;
+            document.querySelectorAll('#siteReviewStarPicker .review-star-btn').forEach(btn => {
                 btn.textContent = parseInt(btn.dataset.value, 10) <= value ? '★' : '☆';
             });
         }
 
-        async function submitReview(productId) {
-            const statusEl = document.getElementById('reviewSubmitStatus');
-            const rating = window._selectedReviewRating || 0;
+        // Uploads straight to Supabase Storage using the shopper's own session -- the RLS
+        // policies on the review-photos bucket only let them write into their own folder, so
+        // this can't be used to overwrite or impersonate anyone else's upload.
+        async function uploadReviewPhoto(file, userId) {
+            const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+            const path = `${userId}/${Date.now()}.${ext}`;
+            const { error } = await supabaseClient.storage.from('review-photos').upload(path, file, { upsert: true });
+            if (error) throw error;
+            const { data } = supabaseClient.storage.from('review-photos').getPublicUrl(path);
+            return data.publicUrl;
+        }
+
+        async function submitSiteReview() {
+            const statusEl = document.getElementById('siteReviewStatus');
+            const rating = window._selectedSiteReviewRating || 0;
             if (rating < 1) {
                 statusEl.textContent = 'Pick a star rating first.';
                 return;
             }
+            const comment = document.getElementById('siteReviewCommentInput').value.trim();
+            if (!comment) {
+                statusEl.textContent = 'Please write a short review.';
+                return;
+            }
 
-            const comment = document.getElementById('reviewCommentInput').value;
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) { statusEl.textContent = 'Please log in.'; return; }
 
             statusEl.textContent = 'Submitting…';
             try {
+                let photoUrl = null;
+                const photoFile = document.getElementById('siteReviewPhotoInput').files[0];
+                if (photoFile) {
+                    statusEl.textContent = 'Uploading photo…';
+                    photoUrl = await uploadReviewPhoto(photoFile, session.user.id);
+                    statusEl.textContent = 'Submitting…';
+                }
+
                 const response = await fetch('/api/submit-review', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${session.access_token}`,
                     },
-                    body: JSON.stringify({ productId, rating, comment }),
+                    body: JSON.stringify({ rating, comment, photoUrl }),
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Something went wrong.');
 
-                statusEl.textContent = 'Thanks for your review!';
-                openReviewsModal(productId); // refresh the list + collapse the form
-                loadReviewSummaries([productId]); // refresh the card's summary too
+                statusEl.textContent = 'Thanks! Your review is awaiting approval.';
+                setTimeout(() => renderReviewSubmissionArea(), 1500);
             } catch (err) {
                 statusEl.textContent = err.message;
             }
         }
 
-        function closeReviewsModal() {
-            document.getElementById('reviewsModal').classList.remove('active');
+        async function loadLeaderboard() {
+            const listEl = document.getElementById('leaderboardList');
+            if (!listEl || !supabaseClient) return;
+            try {
+                const { data: entries, error } = await supabaseClient.rpc('get_leaderboard', { p_limit: 20 });
+                if (error) throw error;
+
+                if (!entries || entries.length === 0) {
+                    listEl.innerHTML = '<p style="color:var(--text-muted); text-align:center;">No one on the board yet — place an order to be the first!</p>';
+                    return;
+                }
+
+                listEl.innerHTML = entries.map((e, i) => {
+                    const rank = i + 1;
+                    const tier = TIERS.find(t => e.xp >= t.minXp);
+                    const badge = e.selected_badge ? BADGES.find(b => b.slug === e.selected_badge) : null;
+                    const avatarHtml = e.avatar_url
+                        ? `<img src="${e.avatar_url}" alt="${escapeHtml(e.username || 'Customer')}'s profile picture" class="leaderboard-avatar">`
+                        : `<div class="leaderboard-avatar-placeholder">👤</div>`;
+                    return `
+                        <div class="leaderboard-entry rank-${rank <= 3 ? rank : ''}">
+                            <div class="leaderboard-rank">#${rank}</div>
+                            ${avatarHtml}
+                            <div class="leaderboard-info">
+                                <div class="leaderboard-name">${escapeHtml(e.username || 'Customer')}</div>
+                                <div class="leaderboard-tier">${tier ? tier.name : 'Bronze'}</div>
+                                ${badge ? `<div class="leaderboard-badge-line">${badge.icon} ${escapeHtml(badge.label)}</div>` : ''}
+                            </div>
+                            <div class="leaderboard-xp">${e.xp} XP</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                listEl.innerHTML = '<p style="color:var(--text-muted); text-align:center;">Could not load the leaderboard right now.</p>';
+                console.warn('Could not load leaderboard:', err.message);
+            }
         }
 
         const shopGrid = document.getElementById('mainShopGrid');
@@ -2195,7 +2237,6 @@ if (category === 'dtf') {
                                 <span class="product-tag">${cardCategory.replace('-', ' ').toUpperCase()}</span>
 
                                 <h3 class="product-title">${product.name}</h3>
-                                <div class="review-summary" id="reviewSummary-${product.id}" onclick="openReviewsModal('${product.id}')">Loading reviews…</div>
                                 ${stockHTML}
                                 <p class="product-desc">${product.description || 'Ready To Press Direct To Fabric Transfers. (Heat Press Only)'}</p>
                                 ${variantHTML}
@@ -2210,8 +2251,7 @@ if (category === 'dtf') {
                      shopGrid.insertAdjacentHTML('beforeend', cardHTML);
                 });
 
-                loadReviewSummaries(products.map(p => p.id));
-                if (window.currentUserIsAdmin) { renderAdminTools(); loadRecentRestockActivity(); }
+                if (window.currentUserIsAdmin) { renderAdminTools(); loadRecentRestockActivity(); loadPendingReviews(); }
 
                 // Silently pre-warm the browser's cache for every DTF thumbnail, in small batches,
                 // so we don't flood the browser's per-host connection limit and create a backlog.
@@ -3255,6 +3295,78 @@ if (category === 'dtf') {
             }
         }
 
+        async function loadPendingReviews() {
+            const container = document.getElementById('adminPendingReviews');
+            if (!container) return;
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) return;
+
+            try {
+                const response = await fetch('/api/admin-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ action: 'list_pending_reviews' }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Could not load pending reviews.');
+                renderPendingReviews(result.pending || []);
+            } catch (err) {
+                container.innerHTML = `<p style="color:var(--text-muted); font-size:0.75rem;">${escapeHtml(err.message)}</p>`;
+            }
+        }
+
+        function renderPendingReviews(pending) {
+            const container = document.getElementById('adminPendingReviews');
+            if (pending.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted); font-size:0.75rem;">Nothing pending.</p>';
+                return;
+            }
+            container.innerHTML = pending.map(r => `
+                <div class="admin-pending-review" id="pending-review-${r.id}">
+                    <div class="admin-pending-review-header">
+                        <span class="admin-pending-review-author">${escapeHtml(r.username || 'Customer')}</span>
+                        <span class="review-stars">${starString(r.rating)}</span>
+                    </div>
+                    <p class="admin-pending-review-comment">${escapeHtml(r.comment)}</p>
+                    ${r.photo_url ? `<img src="${r.photo_url}" alt="Submitted review photo" class="admin-pending-review-photo">` : ''}
+                    <div class="admin-pending-review-actions">
+                        <button class="approve" type="button" onclick="moderateReview(${r.id}, 'approve')">Approve</button>
+                        <button class="reject" type="button" onclick="moderateReview(${r.id}, 'reject')">Reject</button>
+                        <span class="admin-restock-status" id="pending-review-${r.id}-status"></span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function moderateReview(reviewId, decision) {
+            const statusEl = document.getElementById(`pending-review-${reviewId}-status`);
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { statusEl.textContent = 'Not logged in'; return; }
+
+            statusEl.textContent = 'Saving…';
+            try {
+                const response = await fetch('/api/admin-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`,
+                    },
+                    body: JSON.stringify({ action: 'moderate_review', reviewId, decision }),
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Something went wrong.');
+
+                document.getElementById(`pending-review-${reviewId}`).remove();
+                if (decision === 'approve') loadApprovedReviews(); // refresh the public wall too
+            } catch (err) {
+                statusEl.textContent = err.message;
+            }
+        }
+
         function saveStockAlertPhone(phone) {
             saveProfileFields({ stock_alert_phone: phone.trim() || null });
         }
@@ -3335,6 +3447,77 @@ if (category === 'dtf') {
             }
         }
 
+        // Uploads straight to Supabase Storage using the shopper's own session -- the RLS
+        // policies on the avatars bucket only let them write into their own folder, and a DB
+        // trigger on profiles.avatar_url only accepts a URL pointing into that same folder, so
+        // this can't be used to hotlink an arbitrary image or claim someone else's upload.
+        async function uploadAvatar(file) {
+            const statusEl = document.getElementById('avatarSaveStatus');
+            if (!file || !supabaseClient) return;
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { statusEl.textContent = 'Please log in.'; return; }
+
+            statusEl.textContent = 'Uploading…';
+            try {
+                const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+                const path = `${session.user.id}/avatar.${ext}`;
+                const { error: uploadErr } = await supabaseClient.storage.from('avatars').upload(path, file, { upsert: true });
+                if (uploadErr) throw uploadErr;
+
+                const { data: urlData } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+                const { error: updateErr } = await supabaseClient
+                    .from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', session.user.id);
+                if (updateErr) throw updateErr;
+
+                document.getElementById('avatarPreview').src = urlData.publicUrl;
+                document.getElementById('avatarPreview').style.display = 'block';
+                document.getElementById('avatarPreviewPlaceholder').style.display = 'none';
+                statusEl.textContent = 'Saved ✓';
+                setTimeout(() => { statusEl.textContent = ''; }, 2500);
+            } catch (err) {
+                statusEl.textContent = 'Could not upload';
+                console.error('Failed to upload avatar:', err.message);
+            }
+        }
+
+        // Populates the dropdown with ONLY badges this account has actually earned -- the
+        // profiles.selected_badge trigger also enforces this server-side, but starting the UI
+        // from the same constraint means there's nothing to reject in the first place.
+        function populateBadgeSelect(earnedBadges, currentSelection) {
+            const select = document.getElementById('badgeSelect');
+            select.innerHTML = '<option value="">None — don\'t show a badge</option>';
+            BADGES.filter(b => (earnedBadges || []).includes(b.slug)).forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.slug;
+                opt.textContent = `${b.icon} ${b.label}`;
+                if (b.slug === currentSelection) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        async function saveBadgeSelection(slug) {
+            const statusEl = document.getElementById('badgeSaveStatus');
+            if (!supabaseClient) return;
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) return;
+
+            statusEl.textContent = 'Saving...';
+            try {
+                const { error } = await supabaseClient
+                    .from('profiles')
+                    .update({ selected_badge: slug || null })
+                    .eq('id', session.user.id);
+                if (error) throw error;
+                statusEl.textContent = 'Saved ✓';
+                setTimeout(() => { statusEl.textContent = ''; }, 2500);
+            } catch (err) {
+                statusEl.textContent = 'Could not save';
+                console.error('Failed to save badge selection:', err.message);
+            }
+        }
+
         // Paint the badge grid once immediately with defaults (all locked, 0 XP) so it's
         // never blank -- if the live Supabase fetch below succeeds it just repaints with
         // real numbers. Protects against the grid staying empty on a slow/flaky mobile
@@ -3365,7 +3548,7 @@ if (category === 'dtf') {
                     );
                     const fetchProfile = supabaseClient
                         .from('profiles')
-                        .select('username, xp, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin')
+                        .select('username, xp, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin, avatar_url, selected_badge')
                         .eq('id', session.user.id)
                         .single();
 
@@ -3374,6 +3557,14 @@ if (category === 'dtf') {
                         if (profile.username) displayName = profile.username;
                         renderTierAndBadges(profile.xp || 0, profile.badges || [], profile.birthday_code, profile.birthday_code_expires);
                         document.getElementById('birthdayInput').value = profile.birthday || '';
+
+                        if (profile.avatar_url) {
+                            document.getElementById('avatarPreview').src = profile.avatar_url;
+                            document.getElementById('avatarPreview').style.display = 'block';
+                            document.getElementById('avatarPreviewPlaceholder').style.display = 'none';
+                        }
+                        populateBadgeSelect(profile.badges || [], profile.selected_badge);
+                        renderReviewSubmissionArea();
 
                         document.getElementById('stockAlertsToggle').checked = !!profile.stock_alerts_enabled;
                         document.getElementById('stockAlertMethod').style.display = profile.stock_alerts_enabled ? 'block' : 'none';
@@ -3446,6 +3637,12 @@ if (category === 'dtf') {
                 window.currentUserIsAdmin = false;
                 const adminPanel = document.getElementById('adminToolsPanel');
                 if (adminPanel) adminPanel.style.display = 'none';
+
+                renderReviewSubmissionArea();
+                const avatarPreviewEl = document.getElementById('avatarPreview');
+                if (avatarPreviewEl) avatarPreviewEl.style.display = 'none';
+                const avatarPlaceholderEl = document.getElementById('avatarPreviewPlaceholder');
+                if (avatarPlaceholderEl) avatarPlaceholderEl.style.display = 'flex';
             }
         }
 
@@ -4203,6 +4400,8 @@ if (category === 'dtf') {
             updateCartUI(); 
             updateWishlistUI();
             initShopEngine(); 
+            loadApprovedReviews();
+            loadLeaderboard();
         };
     </script>
 

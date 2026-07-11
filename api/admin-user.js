@@ -113,6 +113,44 @@ export default async function handler(req, res) {
             return res.status(200).json({ ok: true });
         }
 
+        if (action === 'list_pending_reviews') {
+            const { data: pending, error } = await supabaseAdmin
+                .from('site_reviews')
+                .select('id, user_id, username, rating, comment, photo_url, created_at')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: true });
+            if (error) throw error;
+            return res.status(200).json({ pending: pending || [] });
+        }
+
+        if (action === 'moderate_review') {
+            const { reviewId, decision } = req.body;
+            if (!reviewId || !['approve', 'reject'].includes(decision)) {
+                return res.status(400).json({ error: 'Missing or invalid reviewId/decision.' });
+            }
+            const newStatus = decision === 'approve' ? 'approved' : 'rejected';
+
+            const { data: reviewRow, error: fetchErr } = await supabaseAdmin
+                .from('site_reviews').select('user_id').eq('id', reviewId).single();
+            if (fetchErr) throw fetchErr;
+
+            const { error: updateErr } = await supabaseAdmin
+                .from('site_reviews')
+                .update({ status: newStatus, reviewed_by: auth.callerId, reviewed_at: new Date().toISOString() })
+                .eq('id', reviewId);
+            if (updateErr) throw updateErr;
+
+            // Award the 'reviewer' badge on approval only -- a rejected submission shouldn't earn it.
+            if (decision === 'approve' && reviewRow) {
+                const { data: currentProfile } = await supabaseAdmin.from('profiles').select('badges').eq('id', reviewRow.user_id).single();
+                if (currentProfile && !(currentProfile.badges || []).includes('reviewer')) {
+                    await supabaseAdmin.rpc('add_badges', { p_user_id: reviewRow.user_id, p_new_badges: ['reviewer'] });
+                }
+            }
+
+            return res.status(200).json({ ok: true });
+        }
+
         return res.status(400).json({ error: 'Unknown action.' });
     } catch (error) {
         console.error('Admin user endpoint error:', error);

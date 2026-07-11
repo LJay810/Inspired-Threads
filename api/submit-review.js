@@ -1,18 +1,20 @@
 const { createClient } = require('@supabase/supabase-js');
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+// Reworked from the old per-product/verified-purchase system into a general site review:
+// one per account, submitted with an optional photo (already uploaded client-side straight to
+// Supabase Storage -- this endpoint just receives the resulting URL), sits pending until an
+// admin approves it via admin-user.js. Trust model swapped from "did you buy this" to
+// "did an admin look at it," since these are no longer tied to a specific purchased product.
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
     try {
-        // Identify the shopper from their own Supabase session token (sent by the client),
-        // rather than trusting a user id in the request body -- a body value could be spoofed
-        // to submit a review as someone else.
         const authHeader = req.headers.authorization || '';
         const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-        if (!token) return res.status(401).json({ error: 'You need to be signed in to leave a review.' });
+        if (!token) return res.status(401).json({ error: 'You need to be signed in to submit a review.' });
 
         const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
         if (userErr || !userData || !userData.user) {
@@ -20,57 +22,50 @@ export default async function handler(req, res) {
         }
         const userId = userData.user.id;
 
-        const { productId, rating, comment } = req.body;
+        const { rating, comment, photoUrl } = req.body;
         const ratingNum = parseInt(rating, 10);
-        if (!productId || !Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
-            return res.status(400).json({ error: 'Missing product or an invalid rating (must be 1-5).' });
+        if (!Number.isInteger(ratingNum) || ratingNum < 1 || ratingNum > 5) {
+            return res.status(400).json({ error: 'Invalid rating (must be 1-5).' });
+        }
+        const commentText = (comment || '').trim();
+        if (!commentText) {
+            return res.status(400).json({ error: 'Please write a short review.' });
+        }
+        if (commentText.length > 1000) {
+            return res.status(400).json({ error: 'Review is too long (max 1000 characters).' });
         }
 
-        // VERIFIED-PURCHASE GATE: this is the whole reason this is a server endpoint instead
-        // of a direct client insert -- a browser could claim anything, but the purchases
-        // table only ever gets written by webhook.js after a real Stripe payment succeeds.
-        const { data: purchase } = await supabaseAdmin
-            .from('purchases')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('product_id', productId)
-            .limit(1)
-            .maybeSingle();
-        if (!purchase) {
-            return res.status(403).json({ error: "You can only review products you've purchased." });
+        // photoUrl, if present, must point into THIS user's own storage folder -- the DB trigger
+        // on profiles.avatar_url does the equivalent check for avatars; this is that same idea
+        // applied here, since review photos don't have a trigger of their own (site_reviews rows
+        // are only ever written server-side, so there's nothing for a trigger to guard against
+        // that this check doesn't already cover).
+        let safePhotoUrl = null;
+        if (photoUrl && typeof photoUrl === 'string' && photoUrl.includes(`/review-photos/${userId}/`)) {
+            safePhotoUrl = photoUrl;
         }
 
-        const { data: profile } = await supabaseAdmin
-            .from('profiles')
-            .select('username')
-            .eq('id', userId)
-            .single();
+        const { data: profile } = await supabaseAdmin.from('profiles').select('username').eq('id', userId).single();
 
-        const { error: insertErr } = await supabaseAdmin
-            .from('reviews')
-            .insert({
-                product_id: productId,
+        // One review per person -- resubmitting (e.g. after a rejection) updates the existing
+        // row and resets it back to pending, rather than creating a duplicate.
+        const { error: upsertErr } = await supabaseAdmin
+            .from('site_reviews')
+            .upsert({
                 user_id: userId,
-                username: (profile && profile.username) || 'Verified Buyer',
+                username: (profile && profile.username) || 'Customer',
                 rating: ratingNum,
-                comment: (comment || '').trim().slice(0, 1000),
-            });
+                comment: commentText,
+                photo_url: safePhotoUrl,
+                status: 'pending',
+                reviewed_by: null,
+                reviewed_at: null,
+            }, { onConflict: 'user_id' });
+        if (upsertErr) throw upsertErr;
 
-        if (insertErr) {
-            if (insertErr.code === '23505') { // unique(product_id, user_id) violation
-                return res.status(409).json({ error: "You've already reviewed this product." });
-            }
-            throw insertErr;
-        }
-
-        // First-ever review from this shopper: award the 'reviewer' badge.
-        const { count } = await supabaseAdmin
-            .from('reviews')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId);
-        if (count === 1) {
-            await supabaseAdmin.rpc('add_badges', { p_user_id: userId, p_new_badges: ['reviewer'] });
-        }
+        // NOTE: the 'reviewer' badge is intentionally NOT awarded here -- it's granted on
+        // approval instead (see admin-user.js's moderate_review action), since a rejected
+        // submission shouldn't earn it.
 
         res.status(200).json({ ok: true });
     } catch (error) {
