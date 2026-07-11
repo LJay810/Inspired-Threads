@@ -45,7 +45,7 @@ export default async function handler(req, res) {
             safePhotoUrl = photoUrl;
         }
 
-        const { data: profile } = await supabaseAdmin.from('profiles').select('username').eq('id', userId).single();
+        const { data: profile } = await supabaseAdmin.from('profiles').select('username, avatar_url').eq('id', userId).single();
 
         // One review per person -- resubmitting (e.g. after a rejection) updates the existing
         // row and resets it back to pending, rather than creating a duplicate.
@@ -54,6 +54,7 @@ export default async function handler(req, res) {
             .upsert({
                 user_id: userId,
                 username: (profile && profile.username) || 'Customer',
+                author_avatar_url: (profile && profile.avatar_url) || null,
                 rating: ratingNum,
                 comment: commentText,
                 photo_url: safePhotoUrl,

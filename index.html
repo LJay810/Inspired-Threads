@@ -332,29 +332,66 @@
 
         /* --- REVIEWS PAGE --- */
         .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 24px; max-width: 900px; margin: 0 auto 40px; }
-        .review-card { position: relative; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 20px; }
-        .review-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-        .review-card-author { font-weight: 700; color: var(--text-pure); font-size: 0.9rem; }
-        .review-card-date { font-size: 0.7rem; color: var(--text-muted); }
-        .review-card-comment { font-size: 0.85rem; color: var(--text-muted); line-height: 1.6; margin-top: 8px; }
-        .review-card-photo { width: 100%; border-radius: 10px; margin-top: 12px; display: block; }
-        .review-submission-area { max-width: 480px; margin: 0 auto; padding: 20px; border: 1px solid var(--border-subtle); border-radius: 14px; background: rgba(255,255,255,0.02); }
+        .review-card {
+            position: relative; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 14px;
+            padding: 24px 22px 20px; transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease; overflow: hidden;
+        }
+        .review-card:hover { border-color: var(--accent-pink); box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255,0,127,0.15); transform: translateY(-3px); }
+        .review-card-quote { position: absolute; top: 6px; right: 16px; font-family: Georgia, serif; font-size: 3.5rem; line-height: 1; color: rgba(255,0,127,0.08); pointer-events: none; user-select: none; }
+        .review-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; position: relative; z-index: 1; }
+        .review-card-avatar, .review-card-avatar-placeholder { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border-subtle); flex-shrink: 0; }
+        .review-card-avatar { object-fit: cover; }
+        .review-card-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+        .review-card-author { font-weight: 700; color: var(--text-pure); font-size: 0.88rem; }
+        .review-card-date { font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono); }
+        .review-card-stars { margin-left: auto; font-size: 0.9rem; flex-shrink: 0; }
+        .review-card-comment { font-size: 0.85rem; color: var(--text-muted); line-height: 1.65; margin-top: 12px; position: relative; z-index: 1; }
+        .review-card-photo { width: 100%; border-radius: 10px; margin-top: 14px; display: block; border: 1px solid var(--border-subtle); }
+        .review-submission-area {
+            max-width: 480px; margin: 0 auto; padding: 26px; border: 1px solid var(--border-subtle); border-radius: 16px;
+            background: rgba(255,255,255,0.02); box-shadow: 0 0 30px rgba(255,0,127,0.06);
+        }
 
         /* --- LEADERBOARD --- */
-        .leaderboard-list { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
-        .leaderboard-entry { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--border-subtle); border-radius: 12px; background: rgba(255,255,255,0.02); }
-        .leaderboard-entry.rank-1 { border-color: #f5b800; }
-        .leaderboard-entry.rank-2 { border-color: #c0c0c0; }
-        .leaderboard-entry.rank-3 { border-color: #cd7f32; }
-        .leaderboard-rank { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-muted); min-width: 30px; text-align: center; flex-shrink: 0; }
-        .leaderboard-avatar, .leaderboard-avatar-placeholder { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--border-subtle); flex-shrink: 0; }
+        .leaderboard-list { max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+        .leaderboard-entry {
+            display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: 1px solid var(--border-subtle); border-radius: 12px;
+            background: rgba(255,255,255,0.02); transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+        }
+        .leaderboard-entry:hover { border-color: var(--accent-pink); box-shadow: 0 10px 30px rgba(0,0,0,0.4), 0 0 16px rgba(255,0,127,0.12); transform: translateY(-2px); }
+        .leaderboard-entry.rank-1 { border-color: #f5b800; box-shadow: 0 0 20px rgba(245,184,0,0.15); }
+        .leaderboard-entry.rank-2 { border-color: #c0c0c0; box-shadow: 0 0 16px rgba(192,192,192,0.12); }
+        .leaderboard-entry.rank-3 { border-color: #cd7f32; box-shadow: 0 0 16px rgba(205,127,50,0.12); }
+        .leaderboard-rank { font-size: 1.3rem; min-width: 34px; text-align: center; flex-shrink: 0; }
+        .leaderboard-entry:not(.rank-1):not(.rank-2):not(.rank-3) .leaderboard-rank { font-family: var(--font-mono); font-size: 1rem; font-weight: 700; color: var(--text-muted); }
+        .leaderboard-avatar-wrap { flex-shrink: 0; }
+        .leaderboard-avatar, .leaderboard-avatar-placeholder { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--border-subtle); }
         .leaderboard-avatar { object-fit: cover; }
-        .leaderboard-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .leaderboard-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; }
         .leaderboard-info { flex: 1; min-width: 0; }
-        .leaderboard-name { font-weight: 700; color: var(--text-pure); font-size: 0.9rem; }
-        .leaderboard-tier { font-family: var(--font-mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-pink); }
-        .leaderboard-badge-line { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
-        .leaderboard-xp { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent-pink); white-space: nowrap; flex-shrink: 0; }
+        .leaderboard-name-row { display: flex; align-items: center; gap: 8px; }
+        .leaderboard-name { font-weight: 700; color: var(--text-pure); font-size: 0.92rem; }
+        .leaderboard-badge-img { width: 20px; height: 20px; border-radius: 5px; flex-shrink: 0; }
+        .leaderboard-tier { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-pink); margin-top: 2px; }
+        .leaderboard-xp { font-family: var(--font-mono); font-size: 1rem; font-weight: 700; color: var(--accent-pink); white-space: nowrap; flex-shrink: 0; text-align: right; }
+        .leaderboard-xp span { font-size: 0.6rem; font-weight: 400; color: var(--text-muted); display: block; margin-top: 1px; }
+
+        .leaderboard-profile-panel {
+            margin-bottom: 25px; padding: 18px; border-radius: 12px; border: 1px solid var(--border-subtle);
+            background: rgba(255,0,127,0.03);
+        }
+        .leaderboard-profile-row { display: flex; align-items: center; gap: 16px; }
+        .leaderboard-profile-avatar-wrap { flex-shrink: 0; }
+        .leaderboard-profile-avatar, .leaderboard-profile-avatar-placeholder {
+            width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--accent-pink);
+        }
+        .leaderboard-profile-avatar { object-fit: cover; }
+        .leaderboard-profile-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+        .leaderboard-profile-upload-btn {
+            display: inline-block; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px;
+            color: var(--text-pure); padding: 8px 16px; font-family: var(--font-sans); font-size: 0.78rem; cursor: none !important; transition: border-color 0.2s ease;
+        }
+        .leaderboard-profile-upload-btn:hover { border-color: var(--accent-pink); }
 
         /* --- ADMIN TOOLS --- */
         .admin-tools-scroll { max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
@@ -1253,26 +1290,27 @@
                         <div class="settings-field-value" id="settingsEmailDisplay"></div>
                     </div>
 
-                    <div class="settings-field">
-                        <div class="settings-field-label">Profile Picture</div>
-                        <div class="birthday-field-row">
-                            <img id="avatarPreview" src="" alt="Your profile picture" style="width:44px; height:44px; border-radius:50%; object-fit:cover; border:1px solid var(--border-subtle); display:none;">
-                            <div id="avatarPreviewPlaceholder" style="width:44px; height:44px; border-radius:50%; background:var(--bg-surface); border:1px solid var(--border-subtle); display:flex; align-items:center; justify-content:center; font-size:1.1rem;">👤</div>
-                            <input type="file" id="avatarInput" accept="image/*" class="hover-target" onchange="uploadAvatar(this.files[0])" style="flex:1;">
-                            <span class="birthday-save-status" id="avatarSaveStatus"></span>
+                    <div class="leaderboard-profile-panel">
+                        <div class="settings-field-label">Leaderboard Profile</div>
+                        <div class="settings-field-hint" style="margin-bottom:14px;">Optional — how you'll appear on the Leaderboard.</div>
+                        <div class="leaderboard-profile-row">
+                            <div class="leaderboard-profile-avatar-wrap">
+                                <img id="avatarPreview" src="" alt="Your profile picture" class="leaderboard-profile-avatar" style="display:none;">
+                                <div id="avatarPreviewPlaceholder" class="leaderboard-profile-avatar-placeholder">👤</div>
+                            </div>
+                            <div style="flex:1; min-width:0;">
+                                <label for="avatarInput" class="leaderboard-profile-upload-btn hover-target">Change Photo</label>
+                                <input type="file" id="avatarInput" accept="image/*" onchange="uploadAvatar(this.files[0])" style="display:none;">
+                                <span class="birthday-save-status" id="avatarSaveStatus" style="display:block; margin-top:6px;"></span>
+                            </div>
                         </div>
-                        <div class="settings-field-hint">Shown on the Leaderboard if you set a badge below.</div>
-                    </div>
-
-                    <div class="settings-field">
-                        <div class="settings-field-label">Leaderboard Badge</div>
-                        <div class="birthday-field-row">
-                            <select id="badgeSelect" class="hover-target" onchange="saveBadgeSelection(this.value)" style="flex:1;">
+                        <div class="settings-field" style="margin-top:16px; margin-bottom:0;">
+                            <div class="settings-field-label" style="margin-bottom:8px;">Badge to Show Off</div>
+                            <select id="badgeSelect" class="variant-select hover-target" onchange="saveBadgeSelection(this.value)" style="width:100%;">
                                 <option value="">None — don't show a badge</option>
                             </select>
                             <span class="birthday-save-status" id="badgeSaveStatus"></span>
                         </div>
-                        <div class="settings-field-hint">Pick one earned badge to show off next to your name on the Leaderboard.</div>
                     </div>
 
                     <div class="settings-field">
@@ -1843,7 +1881,7 @@ Thank you for supporting my small business and understanding the handmade nature
             try {
                 const { data: reviews, error } = await supabaseClient
                     .from('site_reviews')
-                    .select('username, rating, comment, photo_url, created_at')
+                    .select('username, author_avatar_url, rating, comment, photo_url, created_at')
                     .eq('status', 'approved')
                     .order('created_at', { ascending: false })
                     .limit(30);
@@ -1854,17 +1892,26 @@ Thank you for supporting my small business and understanding the handmade nature
                     return;
                 }
 
-                grid.innerHTML = reviews.map((r, i) => `
-                    <div class="review-card reveal stagger-${(i % 3) + 1}">
-                        <div class="review-card-header">
-                            <span class="review-stars">${starString(r.rating)}</span>
+                grid.innerHTML = reviews.map((r, i) => {
+                    const avatarHtml = r.author_avatar_url
+                        ? `<img src="${r.author_avatar_url}" alt="${escapeHtml(r.username || 'Customer')}'s profile picture" class="review-card-avatar">`
+                        : `<div class="review-card-avatar-placeholder">👤</div>`;
+                    return `
+                        <div class="review-card reveal stagger-${(i % 3) + 1}">
+                            <div class="review-card-quote">❝</div>
+                            <div class="review-card-header">
+                                ${avatarHtml}
+                                <div>
+                                    <div class="review-card-author">${escapeHtml(r.username || 'Customer')}</div>
+                                    <div class="review-card-date">${new Date(r.created_at).toLocaleDateString()}</div>
+                                </div>
+                                <span class="review-stars review-card-stars">${starString(r.rating)}</span>
+                            </div>
+                            <p class="review-card-comment">${escapeHtml(r.comment)}</p>
+                            ${r.photo_url ? `<img src="${r.photo_url}" alt="Photo from ${escapeHtml(r.username || 'a customer')}'s review" class="review-card-photo">` : ''}
                         </div>
-                        <div class="review-card-author">${escapeHtml(r.username || 'Customer')}</div>
-                        <div class="review-card-date">${new Date(r.created_at).toLocaleDateString()}</div>
-                        <p class="review-card-comment">${escapeHtml(r.comment)}</p>
-                        ${r.photo_url ? `<img src="${r.photo_url}" alt="Photo from ${escapeHtml(r.username || 'a customer')}'s review" class="review-card-photo">` : ''}
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             } catch (err) {
                 grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; grid-column:1/-1;">Could not load reviews right now.</p>';
                 console.warn('Could not load approved reviews:', err.message);
@@ -1983,13 +2030,15 @@ Thank you for supporting my small business and understanding the handmade nature
             const listEl = document.getElementById('leaderboardList');
             if (!listEl || !supabaseClient) return;
             try {
-                const { data: entries, error } = await supabaseClient.rpc('get_leaderboard', { p_limit: 20 });
+                const { data: entries, error } = await supabaseClient.rpc('get_leaderboard', { p_limit: 10 });
                 if (error) throw error;
 
                 if (!entries || entries.length === 0) {
                     listEl.innerHTML = '<p style="color:var(--text-muted); text-align:center;">No one on the board yet — place an order to be the first!</p>';
                     return;
                 }
+
+                const rankMedal = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
                 listEl.innerHTML = entries.map((e, i) => {
                     const rank = i + 1;
@@ -1998,16 +2047,21 @@ Thank you for supporting my small business and understanding the handmade nature
                     const avatarHtml = e.avatar_url
                         ? `<img src="${e.avatar_url}" alt="${escapeHtml(e.username || 'Customer')}'s profile picture" class="leaderboard-avatar">`
                         : `<div class="leaderboard-avatar-placeholder">👤</div>`;
+                    const badgeHtml = badge
+                        ? `<img src="images/badges/${badge.img}" alt="${escapeHtml(badge.label)}" class="leaderboard-badge-img" title="${escapeHtml(badge.label)}">`
+                        : '';
                     return `
-                        <div class="leaderboard-entry rank-${rank <= 3 ? rank : ''}">
-                            <div class="leaderboard-rank">#${rank}</div>
-                            ${avatarHtml}
+                        <div class="leaderboard-entry rank-${rank <= 3 ? rank : ''} reveal stagger-${Math.min(rank, 3)}">
+                            <div class="leaderboard-rank">${rankMedal[rank] || `#${rank}`}</div>
+                            <div class="leaderboard-avatar-wrap">${avatarHtml}</div>
                             <div class="leaderboard-info">
-                                <div class="leaderboard-name">${escapeHtml(e.username || 'Customer')}</div>
-                                <div class="leaderboard-tier">${tier ? tier.name : 'Bronze'}</div>
-                                ${badge ? `<div class="leaderboard-badge-line">${badge.icon} ${escapeHtml(badge.label)}</div>` : ''}
+                                <div class="leaderboard-name-row">
+                                    <span class="leaderboard-name">${escapeHtml(e.username || 'Customer')}</span>
+                                    ${badgeHtml}
+                                </div>
+                                <div class="leaderboard-tier">${tier ? tier.name : 'Bronze'} Tier</div>
                             </div>
-                            <div class="leaderboard-xp">${e.xp} XP</div>
+                            <div class="leaderboard-xp">${e.xp.toLocaleString()} <span>XP</span></div>
                         </div>
                     `;
                 }).join('');
