@@ -1897,7 +1897,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         ? `<img src="${r.author_avatar_url}" alt="${escapeHtml(r.username || 'Customer')}'s profile picture" class="review-card-avatar">`
                         : `<div class="review-card-avatar-placeholder">👤</div>`;
                     return `
-                        <div class="review-card reveal stagger-${(i % 3) + 1}">
+                        <div class="review-card">
                             <div class="review-card-quote">❝</div>
                             <div class="review-card-header">
                                 ${avatarHtml}
@@ -2051,7 +2051,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         ? `<img src="images/badges/${badge.img}" alt="${escapeHtml(badge.label)}" class="leaderboard-badge-img" title="${escapeHtml(badge.label)}">`
                         : '';
                     return `
-                        <div class="leaderboard-entry rank-${rank <= 3 ? rank : ''} reveal stagger-${Math.min(rank, 3)}">
+                        <div class="leaderboard-entry rank-${rank <= 3 ? rank : ''}">
                             <div class="leaderboard-rank">${rankMedal[rank] || `#${rank}`}</div>
                             <div class="leaderboard-avatar-wrap">${avatarHtml}</div>
                             <div class="leaderboard-info">
