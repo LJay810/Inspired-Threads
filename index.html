@@ -1903,11 +1903,36 @@ Thank you for supporting my small business and understanding the handmade nature
         // new requests for the duration of a typical scroll animation is a safe fix
         // since retapping the same destination mid-animation has no useful effect anyway.
         let scrollNavLocked = false;
+        // FIX: native scrollIntoView({behavior:'smooth'}) has a well-documented mobile Safari/
+        // Chrome reliability problem over LONG scroll distances -- it can undershoot and settle
+        // at the wrong position instead of the real target. This is exactly why Home->Contact
+        // and Home->Leaderboard (the two longest possible jumps on this page, since Home is
+        // first and those sit near the end) landed one section early, while every short hop
+        // worked fine. Calculating the target position once and animating to it manually via
+        // requestAnimationFrame sidesteps the native implementation's long-distance bug
+        // entirely, rather than trying to work around it.
         function scrollToSection(id) {
             if (scrollNavLocked) return;
             scrollNavLocked = true;
-            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
-            setTimeout(() => { scrollNavLocked = false; }, 900);
+
+            const target = document.getElementById(id);
+            const startY = window.pageYOffset;
+            const targetY = target.getBoundingClientRect().top + startY;
+            const distance = targetY - startY;
+            const duration = 700;
+            const startTime = performance.now();
+
+            function step(now) {
+                const progress = Math.min(1, (now - startTime) / duration);
+                const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+                window.scrollTo(0, startY + distance * eased);
+                if (progress < 1) {
+                    requestAnimationFrame(step);
+                } else {
+                    scrollNavLocked = false;
+                }
+            }
+            requestAnimationFrame(step);
         }
 
         function onScroll() {
