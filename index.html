@@ -240,7 +240,7 @@
     .schedule-banner { max-width: 100%; padding: 0 10px; box-sizing: border-box; }
 }
 
-.schedule-text { max-width: 800px; margin: 30px auto 0 auto; text-align: center; padding: 0 20px; box-sizing: border-box; }
+.schedule-text { max-width: 800px; margin: 30px auto 60px auto; text-align: center; padding: 20px 24px; box-sizing: border-box; background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; }
 .schedule-text p { color: var(--text-muted); font-size: clamp(0.95rem, 2vw, 1.15rem); line-height: 1.8; }
        /* --- HERO --- */
         #home { 
@@ -338,7 +338,11 @@
         }
         .review-card:hover { border-color: var(--accent-pink); box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255,0,127,0.15); transform: translateY(-3px); }
         .review-card-quote { position: absolute; top: 6px; right: 16px; font-family: Georgia, serif; font-size: 3.5rem; line-height: 1; color: rgba(255,0,127,0.08); pointer-events: none; user-select: none; }
-        .review-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; position: relative; z-index: 1; }
+        .review-card-header {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 4px; position: relative; z-index: 1;
+            background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 12px;
+        }
         .review-card-avatar, .review-card-avatar-placeholder { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--border-subtle); flex-shrink: 0; }
         .review-card-avatar { object-fit: cover; }
         .review-card-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
@@ -350,7 +354,11 @@
         .review-card-author { font-weight: 700; color: var(--text-pure); font-size: 0.88rem; }
         .review-card-date { font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono); }
         .review-card-stars { margin-left: auto; font-size: 0.9rem; flex-shrink: 0; }
-        .review-card-comment { font-size: 0.85rem; color: var(--text-muted); line-height: 1.65; margin-top: 12px; position: relative; z-index: 1; }
+        .review-card-comment {
+            font-size: 0.85rem; color: var(--text-muted); line-height: 1.65; margin-top: 12px; position: relative; z-index: 1;
+            background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 14px;
+        }
         .review-card-photo { width: 100%; border-radius: 10px; margin-top: 14px; display: block; border: 1px solid var(--border-subtle); }
         .review-submission-area {
             max-width: 480px; margin: 0 auto; padding: 26px; border: 1px solid var(--border-subtle); border-radius: 16px;
@@ -396,12 +404,19 @@
         .leaderboard-avatar, .leaderboard-avatar-placeholder { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--border-subtle); }
         .leaderboard-avatar { object-fit: cover; }
         .leaderboard-avatar-placeholder { background: var(--bg-surface); display: flex; align-items: center; justify-content: center; font-size: 1.15rem; }
-        .leaderboard-info { flex: 1; min-width: 0; }
+        .leaderboard-info {
+            flex: 1; min-width: 0; background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 6px 10px;
+        }
         .leaderboard-name-row { display: flex; align-items: center; gap: 8px; }
         .leaderboard-name { font-weight: 700; color: var(--text-pure); font-size: 0.92rem; }
         .leaderboard-badge-img { width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0; }
         .leaderboard-tier { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-pink); margin-top: 2px; }
-        .leaderboard-xp { font-family: var(--font-mono); font-size: 1rem; font-weight: 700; color: var(--accent-pink); white-space: nowrap; flex-shrink: 0; text-align: right; }
+        .leaderboard-xp {
+            font-family: var(--font-mono); font-size: 1rem; font-weight: 700; color: var(--accent-pink); white-space: nowrap; flex-shrink: 0; text-align: right;
+            background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 6px 10px;
+        }
         .leaderboard-xp span { font-size: 0.6rem; font-weight: 400; color: var(--text-muted); display: block; margin-top: 1px; }
 
         .leaderboard-profile-panel {
@@ -633,6 +648,17 @@
             50%      { box-shadow: 0 0 10px rgba(255,0,127,0.95), 0 0 22px rgba(168,85,247,0.75), 0 0 34px rgba(255,0,127,0.4); }
         }
         .badge-plasma-glow { animation: badgePlasma 2.2s ease-in-out infinite; }
+
+        /* --- DARK GLASS TEXT BACKING --- Frosted dark panel for readability, used anywhere
+           text sits directly on a busy/transparent background instead of a solid card. */
+        .text-glass-bg {
+            background: rgba(10,10,14,0.55);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 10px 16px;
+        }
 
         /* --- TOAST / CELEBRATION SYSTEM --- */
         .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 12px; max-width: 380px; pointer-events: none; }
@@ -1035,6 +1061,7 @@
         }
 
         .home-layout { display: flex; align-items: center; justify-content: center; gap: 12vw; width: 100%; max-width: 1400px; margin: 0 auto; }
+        .home-cards-row { display: flex; align-items: center; justify-content: center; gap: 50px; flex-wrap: wrap; }
         .home-img-wrapper { flex: 0 1 380px; }
         .about-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center; max-width: 1400px; }
         .about-img-wrapper { display: flex; justify-content: center; }
@@ -1124,6 +1151,7 @@
             
             .home-layout { flex-direction: column; gap: 40px; margin-top: 40px; }
             .home-img-wrapper { width: 85%; max-width: 320px; }
+            .home-cards-row { flex-direction: column; gap: 30px; }
             .about-layout { grid-template-columns: 1fr; gap: 40px; }
         }
 
@@ -1169,7 +1197,6 @@
             <button class="nav-tab hover-target" onclick="scrollToSection('leaderboard')">Leaderboard</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('about')">About</button>
             <button class="nav-tab hover-target" onclick="scrollToSection('contact')">Contact</button>
-            <button class="nav-tab hover-target" onclick="scrollToSection('schedule')">Live Schedule</button>
             
             <button class="nav-tab account-btn hover-target" id="accountNavBtn" onclick="openAuthModal()">Account</button>
             <button class="nav-tab wishlist-btn hover-target" onclick="toggleWishlist()">Wishlist (<span id="wishlistNavCount">0</span>)</button>
@@ -1517,10 +1544,15 @@
         </div>         
 
         <div class="home-layout">
-            <div class="home-img-wrapper reveal stagger-1">
-                <img src="images/WelcomeToInspiredThreads.png" class="glow-img hover-target" alt="Welcome to the Crew" onclick="openLightbox(this.src)">
+            <div class="home-cards-row">
+                <div class="home-img-wrapper reveal stagger-1">
+                    <img src="images/WelcomeToInspiredThreads.png" class="glow-img hover-target" alt="Welcome to the Crew" onclick="openLightbox(this.src)">
+                </div>
+                <div class="home-img-wrapper reveal stagger-2">
+                    <img src="images/TikTokLiveSchedule.png" alt="Live Sale Schedule" class="glow-img hover-target" onclick="openLightbox(this.src)">
+                </div>
             </div>
-            <div class="hero-content reveal stagger-2" style="margin-top: 0;">
+            <div class="hero-content reveal stagger-3" style="margin-top: 0;">
                 <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
             </div>
         </div>
@@ -1596,7 +1628,7 @@
 
     <section id="leaderboard" class="page-section">
         <h2 class="section-header reveal">Leaderboard</h2>
-        <p class="reveal" style="color: var(--text-muted); max-width: 640px; margin: 0 auto 40px; text-align: center; font-size: 0.95rem;">
+        <p class="reveal text-glass-bg" style="color: var(--text-muted); max-width: 640px; margin: 0 auto 40px; text-align: center; font-size: 0.95rem;">
             Top customers by XP. Set a profile picture and pick a badge to show off in your Account Settings.
         </p>
         <div class="leaderboard-list" id="leaderboardList">
@@ -1731,21 +1763,11 @@ Thank you for supporting my small business and understanding the handmade nature
         </div>
     </section>
 
-    <section id="schedule" class="page-section">
-        <h2 class="section-header reveal">Live Schedule</h2>
-
-        <!-- Image box: replace the src below with your actual live-schedule graphic.
-             Sized to fit both mobile and desktop, always centered. -->
-        <div class="schedule-banner reveal stagger-1">
-            <img src="images/TikTokLiveSchedule.png" alt="Live Sale Schedule" class="schedule-banner-img hover-target" onclick="openLightbox(this.src)">
-        </div>
-
-        <div class="schedule-text reveal stagger-2">
-            <p>
-                Catch our next TikTok Live sale for first access to new drops, limited restocks, and Live-exclusive claim pricing. Follow along on TikTok so you never miss a start time.
-            </p>
-        </div>
-    </section>
+    <div class="schedule-text reveal">
+        <p>
+            Catch our next TikTok Live sale for first access to new drops, limited restocks, and Live-exclusive claim pricing. Follow along on TikTok so you never miss a start time.
+        </p>
+    </div>
 
      <footer class="site-footer">
     <p>&copy; <span id="footerYear"></span> Inspired Threads LLC. All Rights Reserved.</p>
@@ -2184,7 +2206,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     ? '<p class="settings-field-hint" style="margin-bottom:10px;">Your previous submission wasn\'t approved — feel free to try again.</p>'
                     : '';
                 const alreadyLiveNote = existing && existing.status === 'approved'
-                    ? '<p class="settings-field-hint" style="margin-bottom:10px;">Your review is live! Submitting again will replace it and send it back for approval.</p>'
+                    ? '<p class="settings-field-hint text-glass-bg" style="margin-bottom:10px;">Your review is live! Submitting again will replace it and send it back for approval.</p>'
                     : '';
 
                 area.innerHTML = `
