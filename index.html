@@ -372,7 +372,7 @@
             /* Same fixed-height, dark-background, cropped-to-fill treatment as the DTF product
                cards (.product-image-zone) -- makes review photos uniform instead of each one
                being whatever size the uploaded image happened to be. */
-            .review-card-photo { height: 220px; object-fit: cover; background: #151515; margin-top: 16px; }
+            .review-card-photo { height: 220px; object-fit: contain; background: #151515; padding: 10px; margin-top: 16px; }
 
             /* Caps how much a very long review can stretch a card, so the grid stays visually
                even -- full text is still there, just previewed; nothing is lost, only clipped
@@ -1198,12 +1198,12 @@
         <div class="brand-text">INSPIRED THREADS</div>
         <nav class="nav-container">
             <div id="indicator"></div>
-            <button class="nav-tab active hover-target" onclick="scrollToSection('home')">Home</button>
-            <button class="nav-tab hover-target" onclick="scrollToSection('shop')">Shop</button>
-            <button class="nav-tab hover-target" onclick="scrollToSection('reviews')">Reviews</button>
-            <button class="nav-tab hover-target" onclick="scrollToSection('leaderboard')">Leaderboard</button>
-            <button class="nav-tab hover-target" onclick="scrollToSection('about')">About</button>
-            <button class="nav-tab hover-target" onclick="scrollToSection('contact')">Contact</button>
+            <button class="nav-tab active hover-target" data-section="home" onclick="scrollToSection('home')">Home</button>
+            <button class="nav-tab hover-target" data-section="shop" onclick="scrollToSection('shop')">Shop</button>
+            <button class="nav-tab hover-target" data-section="reviews" onclick="scrollToSection('reviews')">Reviews</button>
+            <button class="nav-tab hover-target" data-section="leaderboard" onclick="scrollToSection('leaderboard')">Leaderboard</button>
+            <button class="nav-tab hover-target" data-section="about" onclick="scrollToSection('about')">About</button>
+            <button class="nav-tab hover-target" data-section="contact" onclick="scrollToSection('contact')">Contact</button>
             
             <button class="nav-tab account-btn hover-target" id="accountNavBtn" onclick="openAuthModal()">Account</button>
             <button class="nav-tab wishlist-btn hover-target" onclick="toggleWishlist()">Wishlist (<span id="wishlistNavCount">0</span>)</button>
@@ -1783,13 +1783,22 @@ Thank you for supporting my small business and understanding the handmade nature
 <script>document.getElementById('footerYear').textContent = new Date().getFullYear();</script>
 
     <script>
-        // --- FIX: iOS "double tap" bug ---
-        // Any element with a CSS :hover rule (every nav button here has one) makes iOS Safari
-        // treat the first tap as simulating :hover and only fires the actual click on a second
-        // tap. This is why Home/Shop/About etc. sometimes needed two taps to trigger a scroll.
-        // A no-op touchstart listener is the standard, well-known fix -- it makes iOS treat taps
-        // as immediate clicks instead of doing the hover-simulation step first.
-        document.addEventListener('touchstart', function () {}, { passive: true });
+        // --- FIX: mobile "double tap" bug on nav tabs ---
+        // The .nav-tab:hover CSS rule is already correctly scoped to hover-capable devices
+        // only (see @media (hover:hover) above), and a generic no-op touchstart listener was
+        // already in place -- but that older trick has become unreliable across modern mobile
+        // browser versions, which is why this was still happening in practice. This replaces
+        // it with a more direct fix: each nav tab gets its own touchend listener that calls
+        // scrollToSection() immediately and prevents the browser's follow-up synthetic click
+        // event from also firing -- bypassing the hover-simulation/click-delay pipeline
+        // entirely instead of trying to out-guess it. scrollNavLocked (see scrollToSection
+        // below) already safely no-ops any redundant call, so this can never double-navigate.
+        document.querySelectorAll('.nav-tab[data-section]').forEach(tab => {
+            tab.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                scrollToSection(tab.dataset.section);
+            }, { passive: false });
+        });
 
         // --- 0. HARDWARE ACCELERATED UI ENGINE ---
         let attachHoverTargets = () => {};
@@ -2205,7 +2214,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     .from('site_reviews').select('status').eq('user_id', session.user.id).maybeSingle();
 
                 if (existing && existing.status === 'pending') {
-                    area.innerHTML = '<p class="settings-field-hint text-glass-bg" style="text-align:center;">Your review is being processed.</p>';
+                    area.innerHTML = '<p class="settings-field-hint text-glass-bg" style="text-align:center;">Your review is awaiting approval. Thanks for your patience!</p>';
                     return;
                 }
 
@@ -2213,7 +2222,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     ? '<p class="settings-field-hint text-glass-bg" style="margin-bottom:10px;">Your previous submission wasn\'t approved — feel free to try again.</p>'
                     : '';
                 const alreadyLiveNote = existing && existing.status === 'approved'
-                    ? '<p class="settings-field-hint text-glass-bg" style="margin-bottom:10px;">Your review is live! Submitting again will replace it.</p>'
+                    ? '<p class="settings-field-hint text-glass-bg" style="margin-bottom:10px;">Your review is live! Submitting again will replace it and send it back for approval.</p>'
                     : '';
 
                 area.innerHTML = `
@@ -2291,7 +2300,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Something went wrong.');
 
-                statusEl.textContent = 'Thank You!';
+                statusEl.textContent = 'Thanks! Your review is awaiting approval.';
                 setTimeout(() => renderReviewSubmissionArea(), 1500);
             } catch (err) {
                 statusEl.textContent = err.message;
