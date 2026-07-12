@@ -1060,8 +1060,9 @@
             transform: translateY(-5px) scale(1.02);
         }
 
-        .home-layout { display: flex; align-items: center; justify-content: center; gap: 12vw; width: 100%; max-width: 1400px; margin: 0 auto; }
-        .home-cards-row { display: flex; align-items: center; justify-content: center; gap: 50px; flex-wrap: wrap; }
+        .home-layout { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 50px; width: 100%; max-width: 1400px; margin: 0 auto; }
+        .home-cards-row { display: flex; align-items: center; justify-content: space-between; gap: 50px; width: 100%; flex-wrap: wrap; }
+        .home-card-img { aspect-ratio: 3 / 4; object-fit: cover; }
         .home-img-wrapper { flex: 0 1 380px; }
         .about-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center; max-width: 1400px; }
         .about-img-wrapper { display: flex; justify-content: center; }
@@ -1546,10 +1547,10 @@
         <div class="home-layout">
             <div class="home-cards-row">
                 <div class="home-img-wrapper reveal stagger-1">
-                    <img src="images/WelcomeToInspiredThreads.png" class="glow-img hover-target" alt="Welcome to the Crew" onclick="openLightbox(this.src)">
+                    <img src="images/WelcomeToInspiredThreads.png" class="glow-img home-card-img hover-target" alt="Welcome to the Crew" onclick="openLightbox(this.src)">
                 </div>
                 <div class="home-img-wrapper reveal stagger-2">
-                    <img src="images/TikTokLiveSchedule.png" alt="Live Sale Schedule" class="glow-img hover-target" onclick="openLightbox(this.src)">
+                    <img src="images/TikTokLiveSchedule.png" alt="Live Sale Schedule" class="glow-img home-card-img hover-target" onclick="openLightbox(this.src)">
                 </div>
             </div>
             <div class="hero-content reveal stagger-3" style="margin-top: 0;">
@@ -2149,7 +2150,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 if (error) throw error;
 
                 if (!reviews || reviews.length === 0) {
-                    grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; grid-column:1/-1;">No reviews yet — be the first!</p>';
+                    grid.innerHTML = '<p class="text-glass-bg" style="color:var(--text-muted); text-align:center; grid-column:1/-1;">No reviews yet — be the first!</p>';
                     return;
                 }
 
@@ -2178,7 +2179,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     `;
                 }).join('');
             } catch (err) {
-                grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; grid-column:1/-1;">Could not load reviews right now.</p>';
+                grid.innerHTML = '<p class="text-glass-bg" style="color:var(--text-muted); text-align:center; grid-column:1/-1;">Could not load reviews right now.</p>';
                 console.warn('Could not load approved reviews:', err.message);
             }
         }
@@ -2189,7 +2190,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) {
-                area.innerHTML = '<p class="settings-field-hint" style="text-align:center;">Log in to leave a review.</p>';
+                area.innerHTML = '<p class="settings-field-hint text-glass-bg" style="text-align:center;">Log in to leave a review.</p>';
                 return;
             }
 
@@ -2198,12 +2199,12 @@ Thank you for supporting my small business and understanding the handmade nature
                     .from('site_reviews').select('status').eq('user_id', session.user.id).maybeSingle();
 
                 if (existing && existing.status === 'pending') {
-                    area.innerHTML = '<p class="settings-field-hint" style="text-align:center;">Your review is awaiting approval. Thanks for your patience!</p>';
+                    area.innerHTML = '<p class="settings-field-hint text-glass-bg" style="text-align:center;">Your review is awaiting approval. Thanks for your patience!</p>';
                     return;
                 }
 
                 const resubmitNote = existing && existing.status === 'rejected'
-                    ? '<p class="settings-field-hint" style="margin-bottom:10px;">Your previous submission wasn\'t approved — feel free to try again.</p>'
+                    ? '<p class="settings-field-hint text-glass-bg" style="margin-bottom:10px;">Your previous submission wasn\'t approved — feel free to try again.</p>'
                     : '';
                 const alreadyLiveNote = existing && existing.status === 'approved'
                     ? '<p class="settings-field-hint text-glass-bg" style="margin-bottom:10px;">Your review is live! Submitting again will replace it and send it back for approval.</p>'
