@@ -234,6 +234,7 @@ let session = null;
 let categories = [];
 let productsCache = [];
 let currentVariantColors = {}; // { colorName: { imageUrl, stockBySize: {size: qty} } }
+let variantMatrixCategoryId = null; // which category currentVariantColors was loaded/built for -- see onProductCategoryChange
 let selectedLayoutType = null;
 
 async function boot() {
@@ -381,6 +382,10 @@ function openCategoryModal(id) {
         document.getElementById('cat_originalId').value = c.id;
         document.getElementById('cat_label').value = c.label;
         document.getElementById('cat_id').value = c.id;
+        // Slug can't actually be changed after creation (saveCategory always sends the
+        // original id regardless of what's typed here) -- lock the field so that isn't a silent
+        // no-op that looks like it worked.
+        document.getElementById('cat_id').readOnly = true;
         document.getElementById('cat_filter_group').value = c.filter_group || '';
         document.getElementById('cat_parent_id').value = c.parent_id || '';
         document.getElementById('cat_sort_order').value = (c.sort_order != null && c.sort_order !== 99) ? c.sort_order : '';
@@ -390,6 +395,7 @@ function openCategoryModal(id) {
         renderLayoutConfigFields(c.card_layout_type, c.config || {});
     } else {
         document.getElementById('categoryModalTitle').textContent = 'Add Category';
+        document.getElementById('cat_id').readOnly = false;
         selectLayoutType('simple');
     }
     document.getElementById('categoryModalOverlay').classList.add('open');
@@ -399,8 +405,12 @@ function closeCategoryModal() { document.getElementById('categoryModalOverlay').
 async function uploadCategorySizeChart(evt) {
     const file = evt.target.files[0];
     if (!file) return;
-    const url = await uploadToStorage(file);
-    document.getElementById('cat_size_chart_url').value = url;
+    try {
+        const url = await uploadToStorage(file);
+        document.getElementById('cat_size_chart_url').value = url;
+    } catch (err) {
+        document.getElementById('categoryModalError').innerHTML = `<div class="admin-error-banner">Image upload failed: ${escapeHtml(err.message)}</div>`;
+    }
 }
 
 function buildCategoryConfigFromForm() {
@@ -490,6 +500,12 @@ function renderProductsTable() {
         const syncBadge = p.stripe_sync_status === 'error'
             ? `<span class="badge error" title="${escapeHtml(p.stripe_sync_error || '')}">Sync failed</span> <button class="admin-btn small secondary" onclick='retrySync(${JSON.stringify(p.id)})'>Retry</button>`
             : `<span class="badge ok">Synced</span>`;
+        const publishedCell = p.published
+            ? 'Yes'
+            : '<span class="badge error">No -- Archived</span>';
+        const archiveOrRestoreBtn = p.published
+            ? `<button class="admin-btn small danger" onclick='deleteProduct(${JSON.stringify(p.id)})'>Archive</button>`
+            : `<button class="admin-btn small" onclick='restoreProduct(${JSON.stringify(p.id)})'>Restore</button>`;
         return `
         <tr>
             <td><img class="admin-thumb" src="${p.images && p.images[0] || ''}" onerror="this.style.opacity=0"></td>
@@ -497,11 +513,11 @@ function renderProductsTable() {
             <td>${escapeHtml(p.category_id)}</td>
             <td>$${(p.price_cents / 100).toFixed(2)}</td>
             <td>${stockLabel}</td>
-            <td>${p.published ? 'Yes' : 'No'}</td>
+            <td>${publishedCell}</td>
             <td>${syncBadge}</td>
             <td>
                 <button class="admin-btn small secondary" onclick='openProductModal(${JSON.stringify(p.id)})'>Edit</button>
-                <button class="admin-btn small danger" onclick='deleteProduct(${JSON.stringify(p.id)})'>Archive</button>
+                ${archiveOrRestoreBtn}
             </td>
         </tr>`;
     }).join('');
@@ -522,6 +538,13 @@ async function deleteProduct(id) {
     } catch (err) { alert(err.message); }
 }
 
+async function restoreProduct(id) {
+    try {
+        await adminApi('/api/admin-products', { action: 'update', id, published: true });
+        await loadProducts();
+    } catch (err) { alert(err.message); }
+}
+
 let currentProductImages = [];
 
 function onProductCategoryChange() {
@@ -534,7 +557,14 @@ function onProductCategoryChange() {
     document.getElementById('prod_stock_field').style.display = category.card_layout_type === 'variant-apparel' ? 'none' : 'block';
     document.getElementById('prod_variants_field').style.display = category.card_layout_type === 'variant-apparel' ? 'block' : 'none';
 
-    if (category.card_layout_type === 'variant-apparel' && Object.keys(currentVariantColors).length === 0) {
+    if (category.card_layout_type === 'variant-apparel') {
+        // Colors/stock loaded for a DIFFERENT category (e.g. editing a product and switching
+        // it from thread-tshirt to thread-hoodie) don't carry over -- those sizes/colors belong
+        // to the old category and would show as stale, mismatched headers otherwise.
+        if (catId !== variantMatrixCategoryId) {
+            currentVariantColors = {};
+            variantMatrixCategoryId = catId;
+        }
         renderVariantMatrix(category.config?.sizes || []);
     }
 }
@@ -557,7 +587,13 @@ function addVariantColorRow() {
         renderVariantMatrix(sizes);
     };
 
-    if (file) { uploadToStorage(file).then(addRow); } else { addRow(null); }
+    if (file) {
+        uploadToStorage(file).then(addRow).catch(err => {
+            document.getElementById('productModalError').innerHTML = `<div class="admin-error-banner">Image upload failed: ${escapeHtml(err.message)}</div>`;
+        });
+    } else {
+        addRow(null);
+    }
 }
 
 function removeVariantColor(color) {
@@ -599,11 +635,19 @@ function removeProductImage(i) { currentProductImages.splice(i, 1); renderImageS
 
 async function uploadProductImages(evt) {
     const files = Array.from(evt.target.files);
+    let failedCount = 0;
     for (const file of files) {
-        const url = await uploadToStorage(file);
-        currentProductImages.push(url);
+        try {
+            const url = await uploadToStorage(file);
+            currentProductImages.push(url);
+            renderImageStrip(); // per-file, so an upload that fails partway through doesn't lose ones that already succeeded
+        } catch (err) {
+            failedCount++;
+        }
     }
-    renderImageStrip();
+    if (failedCount > 0) {
+        document.getElementById('productModalError').innerHTML = `<div class="admin-error-banner">${failedCount} image(s) failed to upload. The rest were added successfully.</div>`;
+    }
     evt.target.value = '';
 }
 
@@ -621,6 +665,7 @@ function openProductModal(id) {
     document.getElementById('prod_id').value = '';
     currentProductImages = [];
     currentVariantColors = {};
+    variantMatrixCategoryId = null;
     populateCategoryDropdowns();
 
     if (id) {
@@ -644,14 +689,16 @@ function openProductModal(id) {
         }
         currentProductImages = (p.images || []).slice();
 
+        // Marks these colors as already belonging to the product's current category, so
+        // onProductCategoryChange() below renders them as-is instead of treating this initial
+        // load as a "category changed, wipe it" case.
+        variantMatrixCategoryId = p.category_id;
         (p.product_variants || []).forEach(v => {
             if (!currentVariantColors[v.color]) currentVariantColors[v.color] = { imageUrl: v.color_image_url, stockBySize: {} };
             currentVariantColors[v.color].stockBySize[v.size] = v.stock;
         });
 
         onProductCategoryChange();
-        const category = categories.find(c => c.id === p.category_id);
-        renderVariantMatrix(category?.config?.sizes || []);
     } else {
         document.getElementById('productModalTitle').textContent = 'Add Product';
         if (categories.length > 0) { document.getElementById('prod_category_id').value = categories[0].id; onProductCategoryChange(); }

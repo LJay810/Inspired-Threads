@@ -66,7 +66,11 @@ export default async function handler(req, res) {
                 .select('*, product_variants(*)')
                 .eq('stripe_price_id', item.priceId)
                 .single();
-            if (productErr || !product) {
+            if (productErr || !product || !product.published) {
+                // Covers both a truly deleted product AND one an admin has since archived --
+                // an archived product's Stripe Price is also now inactive (see stripe-sync.js),
+                // so Stripe itself would likely reject this line item anyway; this just gives a
+                // clean, specific error instead of a raw Stripe API failure.
                 return res.status(400).json({ error: `"${item.name || 'An item'}" in your cart is no longer available.` });
             }
             const { data: productCategory } = await supabaseAdmin

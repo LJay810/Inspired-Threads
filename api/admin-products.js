@@ -34,7 +34,11 @@ export default async function handler(req, res) {
         if (action === 'list') {
             const { category_id, search, published } = req.body;
             let query = supabaseAdmin.from('products').select('*, product_variants(*)').order('sort_order', { ascending: true });
-            if (category_id) query = query.eq('category_id', category_id);
+            // Matches EITHER column -- a product's top-level category_id is always the parent
+            // (e.g. 'dtf'), never a sub-category like 'dtf-kids', which only ever lives in
+            // sub_category_id. Filtering on category_id alone meant picking a sub-category from
+            // this dropdown always returned zero results.
+            if (category_id) query = query.or(`category_id.eq.${category_id},sub_category_id.eq.${category_id}`);
             if (published !== undefined) query = query.eq('published', !!published);
             if (search) query = query.ilike('name', `%${search}%`);
             const { data, error } = await query;
