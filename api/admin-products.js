@@ -43,7 +43,7 @@ export default async function handler(req, res) {
         }
 
         if (action === 'create') {
-            const { name, description, category_id, price_dollars, images, dtf_placement, sub_category_id, stock, variants, extra_metadata } = req.body;
+            const { name, description, category_id, price_dollars, images, dtf_placement, sub_category_id, stock, variants, extra_metadata, sort_order, published } = req.body;
             if (!name || !category_id || price_dollars === undefined) {
                 return res.status(400).json({ error: 'Missing name, category_id, or price_dollars.' });
             }
@@ -65,7 +65,8 @@ export default async function handler(req, res) {
                 sub_category_id: sub_category_id || null,
                 stock: category.card_layout_type === 'variant-apparel' ? null : (stock !== undefined && stock !== null ? parseInt(stock, 10) : null),
                 extra_metadata: extra_metadata && typeof extra_metadata === 'object' ? extra_metadata : {},
-                published: true,
+                published: published !== undefined ? !!published : true,
+                ...(Number.isInteger(sort_order) ? { sort_order } : {}),
             }).select().single();
             if (insErr) throw insErr;
 
@@ -78,7 +79,7 @@ export default async function handler(req, res) {
         }
 
         if (action === 'update') {
-            const { id, name, description, category_id, price_dollars, images, dtf_placement, sub_category_id, stock, variants, published, extra_metadata } = req.body;
+            const { id, name, description, category_id, price_dollars, images, dtf_placement, sub_category_id, stock, variants, published, extra_metadata, sort_order } = req.body;
             if (!id) return res.status(400).json({ error: 'Missing id.' });
 
             const { data: existing, error: fetchErr } = await supabaseAdmin.from('products').select('*').eq('id', id).single();
@@ -94,6 +95,7 @@ export default async function handler(req, res) {
             if (stock !== undefined) updateFields.stock = stock === null ? null : parseInt(stock, 10);
             if (published !== undefined) updateFields.published = !!published;
             if (extra_metadata !== undefined) updateFields.extra_metadata = (extra_metadata && typeof extra_metadata === 'object') ? extra_metadata : {};
+            if (Number.isInteger(sort_order)) updateFields.sort_order = sort_order;
 
             let priceChanged = false;
             if (price_dollars !== undefined) {

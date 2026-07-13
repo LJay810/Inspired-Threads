@@ -143,6 +143,7 @@
             <div class="admin-field"><label>Slug / ID</label><input type="text" id="cat_id" required></div>
             <div class="admin-field"><label>Filter group (which top filter button)</label><input type="text" id="cat_filter_group" placeholder="e.g. thread, dtf"></div>
             <div class="admin-field"><label>Parent category (optional, for sub-filters)</label><select id="cat_parent_id"><option value="">None</option></select></div>
+            <div class="admin-field"><label>Sort order (lower numbers show first in the filter bar; leave blank to show last)</label><input type="number" id="cat_sort_order" placeholder="e.g. 3"></div>
             <div class="admin-field">
                 <label>Card layout type</label>
                 <div class="admin-radio-row" id="cat_layout_radio">
@@ -178,6 +179,7 @@
             <div class="admin-field"><label>Category</label><select id="prod_category_id" required onchange="onProductCategoryChange()"></select></div>
             <div class="admin-field" id="prod_subcat_field" style="display:none;"><label>Sub-category (e.g. DTF pocket/kids)</label><select id="prod_sub_category_id"><option value="">None</option></select></div>
             <div class="admin-field"><label>Price (USD)</label><input type="number" id="prod_price" step="0.01" min="0.01" required></div>
+            <div class="admin-field"><label>Sort order (lower numbers show first in the shop; leave blank to show last)</label><input type="number" id="prod_sort_order" placeholder="e.g. 5"></div>
             <div class="admin-field"><label><input type="checkbox" id="prod_published" checked style="width:auto;"> Published</label></div>
 
             <div class="admin-field">
@@ -381,6 +383,7 @@ function openCategoryModal(id) {
         document.getElementById('cat_id').value = c.id;
         document.getElementById('cat_filter_group').value = c.filter_group || '';
         document.getElementById('cat_parent_id').value = c.parent_id || '';
+        document.getElementById('cat_sort_order').value = (c.sort_order != null && c.sort_order !== 99) ? c.sort_order : '';
         document.getElementById('cat_size_chart_url').value = c.size_chart_image_url || '';
         document.getElementById('cat_active').checked = c.active;
         selectLayoutType(c.card_layout_type);
@@ -431,6 +434,7 @@ async function saveCategory(evt) {
         id: document.getElementById('cat_id').value,
         filter_group: document.getElementById('cat_filter_group').value,
         parent_id: document.getElementById('cat_parent_id').value || null,
+        sort_order: document.getElementById('cat_sort_order').value !== '' ? parseInt(document.getElementById('cat_sort_order').value, 10) : undefined,
         card_layout_type: selectedLayoutType,
         size_chart_image_url: document.getElementById('cat_size_chart_url').value,
         active: document.getElementById('cat_active').checked,
@@ -629,6 +633,7 @@ function openProductModal(id) {
         document.getElementById('prod_sub_category_id').value = p.sub_category_id || '';
         document.getElementById('prod_price').value = (p.price_cents / 100).toFixed(2);
         document.getElementById('prod_published').checked = p.published;
+        document.getElementById('prod_sort_order').value = (p.sort_order != null && p.sort_order !== 99) ? p.sort_order : '';
         document.getElementById('prod_stock').value = p.stock ?? '';
         document.getElementById('prod_extra_metadata').value = p.extra_metadata && Object.keys(p.extra_metadata).length ? JSON.stringify(p.extra_metadata, null, 2) : '';
         if (p.dtf_placement) {
@@ -680,6 +685,9 @@ async function saveProduct(evt) {
         images: currentProductImages,
         published: document.getElementById('prod_published').checked,
     };
+
+    const sortOrderVal = document.getElementById('prod_sort_order').value;
+    if (sortOrderVal !== '') payload.sort_order = parseInt(sortOrderVal, 10);
 
     const extraMetaRaw = document.getElementById('prod_extra_metadata').value.trim();
     if (extraMetaRaw) {
