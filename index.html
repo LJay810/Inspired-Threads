@@ -1152,7 +1152,12 @@
         .home-cards-row .home-img-wrapper:first-of-type { justify-self: end; }
         .home-cards-row .home-img-wrapper:last-of-type { justify-self: start; }
         .home-cards-row .hero-content { justify-self: center; }
-        .home-card-img { aspect-ratio: 3 / 4; object-fit: cover; }
+        /* contain (not cover) so the full image shows in the card itself -- cover was cropping
+           in whatever the source image's aspect ratio didn't match 3:4, hiding details that
+           only showed up once you opened the lightbox. Card size/aspect ratio is unchanged;
+           #151515 fills any letterboxed space, matching the same treatment used for review
+           photos elsewhere on the site. */
+        .home-card-img { aspect-ratio: 3 / 4; object-fit: contain; background: #151515; }
         .home-img-wrapper { flex: 0 1 380px; }
         .about-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center; max-width: 1400px; }
         .about-img-wrapper { display: flex; justify-content: center; }
