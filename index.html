@@ -439,17 +439,50 @@
         .leaderboard-info {
             flex: 1; min-width: 0; max-width: 100%; background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 6px 10px; box-sizing: border-box;
+            position: relative;
         }
+        /* Only entries with a badge get the reserved right-hand gutter -- keeps entries without
+           one (most of them) using their full width for the name instead of leaving dead space. */
+        .leaderboard-info.has-badge { padding-right: 46px; }
         .leaderboard-name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
         .leaderboard-name { font-weight: 700; color: var(--text-pure); font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-        .leaderboard-badge-img { width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0; }
-        .leaderboard-tier { font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-pink); margin-top: 2px; }
+        /* Pulled out of the name row's flow and pinned to the far right, vertically centered
+           across the full name+tier box (not just next to the name text) -- and sized up a bit
+           from the old 26px so it actually reads at a glance. */
+        .leaderboard-badge-img {
+            width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+            position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+        }
+        .leaderboard-tier {
+            font-family: var(--font-mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-pink); margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
         .leaderboard-xp {
             font-family: var(--font-mono); font-size: 1rem; font-weight: 700; color: var(--accent-pink); white-space: nowrap; flex-shrink: 0; text-align: right;
             background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 6px 10px; box-sizing: border-box;
         }
         .leaderboard-xp span { font-size: 0.6rem; font-weight: 400; color: var(--text-muted); display: block; margin-top: 1px; }
+
+        /* Mobile fix: the desktop sizing (64px avatar, 34px rank column, 14px gaps, roomy XP
+           box) adds up to more than a narrow phone's content width once you also account for
+           .page-section's 20px side padding at this breakpoint -- so the row was overflowing
+           past the edge of the site's normal content width (clipped, not scrollable, since
+           html has overflow-x:hidden). Everything below is tightened so the full row -- rank,
+           avatar, name/tier, XP -- always fits inside that same width, on any phone down to a
+           320px-wide screen. Nothing here touches desktop. */
+        @media (max-width: 900px) {
+            .leaderboard-entry { gap: 8px; padding: 10px 12px; }
+            .leaderboard-rank { min-width: 24px; font-size: 1.1rem; }
+            .leaderboard-entry:not(.rank-1):not(.rank-2):not(.rank-3) .leaderboard-rank { font-size: 0.85rem; }
+            .leaderboard-avatar, .leaderboard-avatar-placeholder { width: 48px; height: 48px; }
+            .leaderboard-avatar-placeholder { font-size: 1rem; }
+            .leaderboard-info { padding: 5px 8px; }
+            .leaderboard-info.has-badge { padding-right: 34px; }
+            .leaderboard-badge-img { width: 26px; height: 26px; right: 6px; }
+            .leaderboard-name { font-size: 0.82rem; }
+            .leaderboard-xp { font-size: 0.82rem; padding: 5px 8px; }
+        }
 
         .leaderboard-profile-panel {
             margin-bottom: 25px; padding: 18px; border-radius: 12px; border: 1px solid var(--border-subtle);
@@ -2407,7 +2440,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         <div class="leaderboard-entry rank-${rank <= 3 ? rank : ''}">
                             <div class="leaderboard-rank">${rankMedal[rank] || `#${rank}`}</div>
                             <div class="leaderboard-avatar-wrap">${avatarHtml}</div>
-                            <div class="leaderboard-info">
+                            <div class="leaderboard-info${badge ? ' has-badge' : ''}">
                                 <div class="leaderboard-name-row">
                                     <span class="leaderboard-name">${escapeHtml(e.username || 'Customer')}</span>
                                     ${badgeHtml}
