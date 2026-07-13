@@ -184,23 +184,22 @@
             transform: scale(1.1) translateY(-2px);
         }
 
-        /* Mobile: pinned to the header's own left/right edges, vertically centered across the
-           whole (multi-row, wrapped) header block -- lands them in the black gutter space
-           below ABOUT (left) and below the username/CART (right), and since <header> is
-           position:fixed, they now stay put through scroll instead of disappearing once you
+        /* Mobile: pinned to the header's own left/right edges, aligned with the bottom
+           WISHLIST/CART row specifically (anchored from the header's bottom edge, not
+           vertically centered across the whole wrapped header) -- and since <header> is
+           position:fixed, they stay put through scroll instead of disappearing once you
            scroll past Home. */
         @media (max-width: 900px) {
             .header-left { gap: 0; }
             .social-stack { position: static; }
             .social-btn {
-                width: 36px;
-                height: 36px;
+                width: 40px;
+                height: 40px;
                 position: absolute;
-                top: 50%;
-                transform: translateY(-50%);
+                bottom: 4px;
             }
-            .social-btn:hover { transform: translateY(-50%) scale(1.1); }
-            .social-btn svg { width: 18px; height: 18px; }
+            .social-btn:hover { transform: scale(1.1); }
+            .social-btn svg { width: 20px; height: 20px; }
             .social-stack a[aria-label="Facebook"] { left: 8px; }
             .social-stack a[aria-label="TikTok"] { right: 8px; }
         }
