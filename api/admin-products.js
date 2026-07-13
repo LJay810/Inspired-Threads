@@ -55,18 +55,39 @@ export default async function handler(req, res) {
             const { data: category, error: catErr } = await supabaseAdmin.from('categories').select('*').eq('id', category_id).single();
             if (catErr || !category) return res.status(400).json({ error: 'Unknown category_id.' });
 
+            // Default a new product to the FRONT of its own category (newest first) unless an
+            // explicit sort_order was given -- one lower than whatever's currently lowest in
+            // this category, so it's guaranteed to sort ahead of everything already there.
+            // Falls back to 1 for the very first product ever added to a category. Sort order
+            // is a single global ranking, but since the storefront only ever displays one
+            // category at a time (filtering just hides the rest), "lowest within this category"
+            // is what actually controls where it visually lands.
+            let resolvedSortOrder = sort_order;
+            if (!Number.isInteger(resolvedSortOrder)) {
+                const { data: lowestInCategory } = await supabaseAdmin
+                    .from('products')
+                    .select('sort_order')
+                    .eq('category_id', category_id)
+                    .order('sort_order', { ascending: true })
+                    .limit(1)
+                    .maybeSingle();
+                resolvedSortOrder = (lowestInCategory && Number.isInteger(lowestInCategory.sort_order))
+                    ? lowestInCategory.sort_order - 1
+                    : 1;
+            }
+
             const { data: product, error: insErr } = await supabaseAdmin.from('products').insert({
                 name,
                 description: description || null,
                 category_id,
                 images: Array.isArray(images) ? images : [],
                 price_cents: priceCents,
+                sort_order: resolvedSortOrder,
                 dtf_placement: dtf_placement || null,
                 sub_category_id: sub_category_id || null,
                 stock: category.card_layout_type === 'variant-apparel' ? null : (stock !== undefined && stock !== null ? parseInt(stock, 10) : null),
                 extra_metadata: extra_metadata && typeof extra_metadata === 'object' ? extra_metadata : {},
                 published: published !== undefined ? !!published : true,
-                ...(Number.isInteger(sort_order) ? { sort_order } : {}),
             }).select().single();
             if (insErr) throw insErr;
 
