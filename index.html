@@ -394,8 +394,14 @@
                with an ellipsis past 5 lines. min-height mirrors that same 5-line cap so SHORT
                comments also reserve the full box -- otherwise a one-line review leaves its photo
                sitting higher than a neighboring card's five-line review, and the row of photos
-               looks staggered instead of flush. */
-            .review-card-comment {
+               looks staggered instead of flush.
+               Scoped to .has-photo only: this clamp exists purely to keep the PHOTO underneath
+               aligned across a row. A review with no photo has nothing below it to align, so it
+               gets no clamp/min-height here and just shows its full comment -- same as mobile
+               already does. Applying the clamp to those too was the bug: it forced a hard cutoff
+               at a fixed height with no photo there to justify it, cutting the text off mid-word
+               instead of wrapping the card naturally to fit. */
+            .review-card-comment.has-photo {
                 display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
                 min-height: 140px;
             }
@@ -951,6 +957,13 @@
 
         /* --- SHOP CATEGORY FILTERS --- */
         .shop-controls { display: flex; flex-direction: column; margin-bottom: 50px; position: relative; z-index: 50; }
+        .size-chart-btn {
+            display: inline-flex; align-items: center; gap: 8px; align-self: flex-start;
+            background: rgba(255, 0, 127, 0.06); border: 1px solid var(--accent-pink); color: var(--accent-pink);
+            padding: 10px 22px; border-radius: 30px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.12em; margin: 16px 0 4px; transition: var(--transition-snappy);
+        }
+        .size-chart-btn:hover { background: rgba(255, 0, 127, 0.18); color: #fff; box-shadow: 0 0 20px rgba(255, 0, 127, 0.3); }
         .filter-bar { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px; align-items: center; }
 
         .filter-btn { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); color: var(--text-muted); padding: 10px 24px; border-radius: 30px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; transition: var(--transition-snappy); }
@@ -1637,6 +1650,7 @@
     <section id="shop" class="page-section">
         <div class="shop-controls reveal">
             <h2 class="section-header">Featured Collection</h2>
+            <button class="size-chart-btn hover-target" onclick="openLightbox('images/SizeChart.jpg')">📏 Size Chart</button>
             <div class="filter-bar">
                 <div class="dropdown hover-target" tabindex="0">
     <button class="filter-btn dropdown-toggle active hover-target" data-filter="dtf" id="defaultFilter">DTF Transfers</button>
@@ -2276,7 +2290,7 @@ Thank you for supporting my small business and understanding the handmade nature
                                 </div>
                                 <span class="review-stars review-card-stars">${starString(r.rating)}</span>
                             </div>
-                            <p class="review-card-comment">${escapeHtml(r.comment)}</p>
+                            <p class="review-card-comment${r.photo_url ? ' has-photo' : ''}">${escapeHtml(r.comment)}</p>
                             ${r.photo_url ? `<img src="${r.photo_url}" alt="Photo from ${escapeHtml(r.username || 'a customer')}'s review" class="review-card-photo hover-target" onclick="openLightbox(this.src)">` : ''}
                         </div>
                     `;
@@ -3207,6 +3221,29 @@ if (category === 'dtf') {
 
         filterBtns.forEach(btn => {
             btn.addEventListener('click', () => applyFilter(btn.getAttribute('data-filter'), btn));
+        });
+
+        // --- FIX: DTF Transfers dropdown not closing on mobile ---
+        // The dropdown is purely CSS-driven: :hover opens/closes it for mouse users, and
+        // :focus-within (from tapping the toggle button) is what opens it on touch devices,
+        // since touch has no hover state at all. On desktop, moving the mouse away always ends
+        // :hover regardless of focus. On mobile there's no such thing -- and tapping a
+        // non-interactive area of the page (a product card, blank space, etc.) doesn't reliably
+        // blur a previously-focused button on iOS/Android, so :focus-within keeps matching and
+        // the panel just stays open. Explicitly blurring whatever's focused inside the dropdown
+        // on any outside tap removes that :focus-within match and lets the existing CSS close
+        // transition run exactly like it already does on desktop.
+        document.addEventListener('click', (e) => {
+            document.querySelectorAll('.dropdown').forEach(dropdown => {
+                if (!dropdown.contains(e.target) && dropdown.matches(':focus-within')) {
+                    if (dropdown.matches(':focus')) {
+                        dropdown.blur();
+                    } else {
+                        const focused = dropdown.querySelector(':focus');
+                        if (focused) focused.blur();
+                    }
+                }
+            });
         });
 
         // --- 6b. AUTH (SUPABASE) ---
