@@ -351,15 +351,26 @@
             position: absolute; bottom: -2px; right: -2px; width: 22px; height: 22px; border-radius: 6px;
             border: 2px solid var(--bg-main); background: var(--bg-main);
         }
-        .review-card-author { font-weight: 700; color: var(--text-pure); font-size: 0.88rem; }
+        /* Wraps author + date so it's the item that shrinks/truncates when space is tight --
+           without this, a long username has no min-width to give up and pushes the stars past
+           the card's right edge, where they get clipped by .review-card's overflow:hidden. */
+        .review-card-meta { flex: 1 1 auto; min-width: 0; }
+        .review-card-author {
+            font-weight: 700; color: var(--text-pure); font-size: 0.88rem;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
         .review-card-date { font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono); }
-        .review-card-stars { margin-left: auto; font-size: 0.9rem; flex-shrink: 0; }
+        .review-card-stars { margin-left: auto; font-size: 0.9rem; flex-shrink: 0; white-space: nowrap; }
         .review-card-comment {
             font-size: 0.85rem; color: var(--text-muted); line-height: 1.65; margin-top: 12px; position: relative; z-index: 1;
             background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 14px; max-width: 100%; box-sizing: border-box;
         }
-        .review-card-photo { width: 100%; border-radius: 10px; margin-top: 14px; display: block; border: 1px solid var(--border-subtle); }
+        .review-card-photo {
+            width: 100%; border-radius: 10px; margin-top: 14px; display: block; border: 1px solid var(--border-subtle);
+            cursor: pointer; transition: opacity 0.2s ease;
+        }
+        .review-card-photo:hover { opacity: 0.85; }
         .review-submission-area {
             max-width: 480px; margin: 0 auto; padding: 26px; border: 1px solid var(--border-subtle); border-radius: 16px;
             background: rgba(255,255,255,0.02); box-shadow: 0 0 30px rgba(255,0,127,0.06);
@@ -376,10 +387,18 @@
 
             /* Caps how much a very long review can stretch a card, so the grid stays visually
                even -- full text is still there, just previewed; nothing is lost, only clipped
-               with an ellipsis past 5 lines. */
+               with an ellipsis past 5 lines. min-height mirrors that same 5-line cap so SHORT
+               comments also reserve the full box -- otherwise a one-line review leaves its photo
+               sitting higher than a neighboring card's five-line review, and the row of photos
+               looks staggered instead of flush. */
             .review-card-comment {
                 display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+                min-height: 140px;
             }
+
+            /* Photo sizing is already fixed above (height:220px + object-fit:contain), and every
+               card in a row shares the same column width from the grid -- so once the comment
+               box above is a consistent height, the photos align flush left-to-right too. */
 
             /* Bigger again on top of the base 56px/22px size -- desktop has the room to let the
                badge detail actually read clearly, mobile keeps the smaller base size. */
@@ -2222,14 +2241,14 @@ Thank you for supporting my small business and understanding the handmade nature
                             <div class="review-card-quote">❝</div>
                             <div class="review-card-header">
                                 <div class="review-card-avatar-wrap">${avatarHtml}${badgeHtml}</div>
-                                <div>
+                                <div class="review-card-meta">
                                     <div class="review-card-author">${escapeHtml(r.username || 'Customer')}</div>
                                     <div class="review-card-date">${new Date(r.created_at).toLocaleDateString()}</div>
                                 </div>
                                 <span class="review-stars review-card-stars">${starString(r.rating)}</span>
                             </div>
                             <p class="review-card-comment">${escapeHtml(r.comment)}</p>
-                            ${r.photo_url ? `<img src="${r.photo_url}" alt="Photo from ${escapeHtml(r.username || 'a customer')}'s review" class="review-card-photo">` : ''}
+                            ${r.photo_url ? `<img src="${r.photo_url}" alt="Photo from ${escapeHtml(r.username || 'a customer')}'s review" class="review-card-photo hover-target" onclick="openLightbox(this.src)">` : ''}
                         </div>
                     `;
                 }).join('');
