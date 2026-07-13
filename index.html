@@ -3928,11 +3928,19 @@ Thank you for supporting my small business and understanding the handmade nature
                 if (uploadErr) throw uploadErr;
 
                 const { data: urlData } = supabaseClient.storage.from('avatars').getPublicUrl(path);
+                // Cache-bust: the upload path is always the same filename per user (avatar.jpg),
+                // so the URL itself never changes between uploads -- browsers (mobile Safari
+                // especially) then just keep showing the old cached image forever, even though
+                // the upload and save both genuinely succeeded. Appending a version query param
+                // makes the stored URL itself unique per upload, so this fixes it everywhere
+                // avatar_url is read from (this preview, the leaderboard, review cards), not
+                // just here.
+                const bustedUrl = `${urlData.publicUrl}?v=${Date.now()}`;
                 const { error: updateErr } = await supabaseClient
-                    .from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', session.user.id);
+                    .from('profiles').update({ avatar_url: bustedUrl }).eq('id', session.user.id);
                 if (updateErr) throw updateErr;
 
-                document.getElementById('avatarPreview').src = urlData.publicUrl;
+                document.getElementById('avatarPreview').src = bustedUrl;
                 document.getElementById('avatarPreview').style.display = 'block';
                 document.getElementById('avatarPreviewPlaceholder').style.display = 'none';
                 statusEl.textContent = 'Saved ✓';
