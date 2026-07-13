@@ -1972,18 +1972,15 @@ Thank you for supporting my small business and understanding the handmade nature
         // at the wrong position instead of the real target. This is exactly why Home->Contact
         // and Home->Leaderboard (the two longest possible jumps on this page, since Home is
         // first and those sit near the end) landed one section early, while every short hop
-        // worked fine. Calculating the target position once and animating to it manually via
-        // requestAnimationFrame sidesteps the native implementation's long-distance bug
-        // entirely, rather than trying to work around it.
-        // Desktop keeps the smooth animated scroll below. Mobile gets an instant jump instead --
-        // not because animation is inherently unreliable, but because mobile browsers can
-        // collapse/expand their address bar WHILE a scroll animation is running, changing the
-        // real viewport height mid-transition. That shifts the page's actual scrollable extent
-        // out from under a position calculated at the start, which is exactly what caused long
-        // jumps (Home->Contact, Home->Leaderboard) to undershoot even with the custom rAF
-        // animation. An instant jump has no "during the animation" window for that to happen in,
-        // so it can't undershoot regardless of distance. Checked at call time against the same
-        // 900px breakpoint the site's own CSS already uses for "is this a mobile layout."
+        // worked fine.
+        // Both mobile and desktop now jump instantly instead of animating. Desktop used to
+        // animate the scroll over 700ms via requestAnimationFrame, calculating the target
+        // position once at the start -- but that has the same class of bug: anything that
+        // shifts page layout mid-animation (lazy-loaded images/content resizing sections above
+        // the target, etc.) moves the real target out from under a position calculated before
+        // the animation began, causing the same undershoot/land-one-section-early problem and
+        // requiring a second click to actually arrive. An instant jump recalculates and lands
+        // in one step, so there's no "during the animation" window for that to happen in.
         function scrollToSection(id) {
             if (scrollNavLocked) return;
             scrollNavLocked = true;
@@ -1992,27 +1989,8 @@ Thank you for supporting my small business and understanding the handmade nature
             const startY = window.pageYOffset;
             const targetY = target.getBoundingClientRect().top + startY;
 
-            if (window.innerWidth <= 900) {
-                window.scrollTo(0, targetY);
-                scrollNavLocked = false;
-                return;
-            }
-
-            const distance = targetY - startY;
-            const duration = 700;
-            const startTime = performance.now();
-
-            function step(now) {
-                const progress = Math.min(1, (now - startTime) / duration);
-                const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-                window.scrollTo(0, startY + distance * eased);
-                if (progress < 1) {
-                    requestAnimationFrame(step);
-                } else {
-                    scrollNavLocked = false;
-                }
-            }
-            requestAnimationFrame(step);
+            window.scrollTo(0, targetY);
+            scrollNavLocked = false;
         }
 
         function onScroll() {
