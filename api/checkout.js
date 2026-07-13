@@ -58,39 +58,49 @@ export default async function handler(req, res) {
 
             // Catalog lookup is now Supabase, keyed by the Stripe price id the cart already
             // carries (unchanged from the shopper's perspective -- priceId still comes from
-            // /api/products, which now sources it from products.stripe_price_id). Category is
-            // fetched separately (rather than an embedded FK select) to avoid depending on
-            // Postgres's auto-generated constraint name for products.category_id.
-            const { data: product, error: productErr } = await supabaseAdmin
+            // /api/products, which now sources it from products.stripe_price_id).
+            const { data: dbProduct } = await supabaseAdmin
                 .from('products')
                 .select('*, product_variants(*)')
                 .eq('stripe_price_id', item.priceId)
-                .single();
-            if (productErr || !product || !product.published) {
-                // Covers both a truly deleted product AND one an admin has since archived --
-                // an archived product's Stripe Price is also now inactive (see stripe-sync.js),
-                // so Stripe itself would likely reject this line item anyway; this just gives a
-                // clean, specific error instead of a raw Stripe API failure.
-                return res.status(400).json({ error: `"${item.name || 'An item'}" in your cart is no longer available.` });
+                .maybeSingle();
+
+            let product, hasVariants, stripeMetaKey, redisKey, hasStockLimit;
+
+            if (dbProduct && dbProduct.published) {
+                product = dbProduct;
+                const { data: productCategory } = await supabaseAdmin
+                    .from('categories').select('card_layout_type').eq('id', product.category_id).single();
+                hasVariants = productCategory && productCategory.card_layout_type === 'variant-apparel';
+                stripeMetaKey = hasVariants ? `stock_${item.size}_${item.color}` : 'stock';
+                redisKey = `stock_${product.id}_${stripeMetaKey}`;
+                hasStockLimit = hasVariants
+                    ? product.product_variants.some(v => v.size === item.size && v.color === item.color)
+                    : product.stock !== null;
+            } else {
+                // FALLBACK: not in the admin-managed catalog -- e.g. the standalone TikTok Live
+                // Claims product, which uses its own hardcoded Stripe Price IDs (see index.html)
+                // and was deliberately left out of the catalog migration since it isn't a normal
+                // shop product. Read straight from Stripe, same as this whole codebase did
+                // before the catalog existed, so anything Stripe-only still checks out fine.
+                let stripePrice;
+                try {
+                    stripePrice = await stripe.prices.retrieve(item.priceId, { expand: ['product'] });
+                } catch (err) {
+                    return res.status(400).json({ error: `"${item.name || 'An item'}" in your cart is no longer available.` });
+                }
+                const stripeProduct = stripePrice.product;
+                if (!stripePrice.active || !stripeProduct || !stripeProduct.active) {
+                    return res.status(400).json({ error: `"${item.name || 'An item'}" in your cart is no longer available.` });
+                }
+                product = { id: stripeProduct.id, name: stripeProduct.name, price_cents: stripePrice.unit_amount || 0 };
+                hasVariants = stripeProduct.metadata && stripeProduct.metadata.hasVariants === 'true';
+                stripeMetaKey = hasVariants ? `stock_${item.size}_${item.color}` : 'stock';
+                redisKey = `stock_${stripeProduct.id}_${stripeMetaKey}`;
+                hasStockLimit = stripeProduct.metadata && stripeProduct.metadata[stripeMetaKey] !== undefined;
             }
-            const { data: productCategory } = await supabaseAdmin
-                .from('categories').select('card_layout_type').eq('id', product.category_id).single();
 
             subtotalCents += product.price_cents * item.quantity;
-            const hasVariants = productCategory && productCategory.card_layout_type === 'variant-apparel';
-
-            // Exact key format: 'stock' for standard items, 'stock_Small_Black' style for variants
-            const stripeMetaKey = hasVariants ? `stock_${item.size}_${item.color}` : 'stock';
-
-            // Canonical Redis key, built the same way everywhere (checkout.js, products.js)
-            const redisKey = `stock_${product.id}_${stripeMetaKey}`;
-
-            // UNTRACKED GUARD: only touch Redis if this item is actually stock-tracked. Made-to-
-            // order / unlimited items (product.stock === null, or the size/color combo has no
-            // matching product_variants row) are left alone entirely.
-            const hasStockLimit = hasVariants
-                ? product.product_variants.some(v => v.size === item.size && v.color === item.color)
-                : product.stock !== null;
 
             if (hasStockLimit) {
                 // Atomic check-and-decrement. Redis executes DECRBY as a single operation,
