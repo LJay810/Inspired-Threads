@@ -20,6 +20,9 @@
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="icon" type="image/png" href="images/inspiredthreadsLogoIcon2.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
     <style>
         /* ======================================================================
            PORTAL INTRO — CSS
@@ -4914,22 +4917,56 @@ if (category === 'dtf') {
     <canvas id="portalIntroCanvas"></canvas>
     <script>
     /* ==========================================================================
-       PORTAL INTRO — JS 
+       PORTAL INTRO — JS  (v4: cosmic refinement pass — more detail everywhere)
        --------------------------------------------------------------------------
-       Design notes for smoothness (why this version doesn't stutter):
-       - Everything renders on ONE canvas. The dark veil, the hole, the ring and
-         the smoke are all drawn per-frame on the GPU-backed canvas; there are
-         ZERO per-frame DOM/style mutations (the old version rewrote a CSS mask
-         string on a fullscreen element every frame — a main-thread repaint).
-       - All soft/glowy shapes are PRE-RENDERED once into small offscreen sprite
-         canvases (tinted puffs, hole eraser, background veil). Per frame we only
-         do cheap drawImage calls — no gradient creation, no ctx.filter.
-       - Physics uses real delta-time (clamped), so motion speed is identical on
-         60Hz, 120Hz, or a phone that dips to 45fps — no fast/slow skipping.
-       - Spawning is per-SECOND via an accumulator (not per-frame), so smoke
-         density is framerate-independent.
-       - Device tiering: mobile gets a lower pixel-ratio cap and particle cap to
-         protect fill-rate; desktop gets the full HD treatment.
+       Beats, in order: GATHER (a lone star-seed gathers at dead centre, no hole
+       yet) -> IGNITE (hole punches open a few px; flash + screen-shake + a
+       double shockwave pulse + a radiating starburst + a burst of hyperspace
+       light-streaks all fire together) -> OPEN (hole eases out to cover the
+       screen while a starfield, one shooting star, swirling nebula smoke,
+       tapered comet-tail sparks, twinkling glints, expanding event-horizon
+       ripples, spinning spiral-galaxy arms with orbiting glint beads, and the
+       calligraphy signature all play) -> SETTLE (ring afterglow + trailing
+       particles fade to the hard stop).
+
+       Changes in this pass, per feedback:
+       - Removed the central pulsing "singularity" dot entirely — nothing sits
+         at dead centre once the starburst fades.
+       - Nebula cloud color variation is now baked directly into the veil
+         sprite (free at runtime, since the veil is only rebuilt on resize).
+       - Warp streaks now curve slightly and taper across 3 glow layers instead
+         of a straight uniform line.
+       - Ripples vary in hue and get a brighter thin inner echo.
+       - Nebula wisps now tumble with a slow continuous spin.
+       - Comet sparks get a proper 3-segment tapered tail instead of one line.
+       - Sparkles and stars both get occasional cool blue-white variants; the
+         brightest ~12% of stars get a sparse extra bloom.
+       - One deterministic shooting star crosses the sky mid-timeline.
+       - The glow ring gets an extra soft outer halo layer plus two sets of
+         small orbiting glint beads riding just outside/inside it.
+       - Spiral arms now carry a couple of small bright glint "stars" of their
+         own, like a cluster riding along the arm.
+       The calligraphy "Inspired Threads" signature (script font, left-to-right
+       wipe reveal) is functionally unchanged from the last pass.
+
+       Design notes for smoothness (why this still doesn't stutter):
+       - Everything renders on ONE canvas, zero per-frame DOM/style mutations.
+       - Soft/glowy shapes are PRE-RENDERED once into offscreen sprite canvases
+         (nebula puffs, hole eraser, veil, ignition flash). Per frame we only
+         do cheap drawImage/arc/rect/line calls -- no gradient creation, no
+         ctx.filter, anywhere in the per-frame path (shadowBlur is used, but
+         only on a handful of small elements per frame: a few bright stars,
+         the ring beads, the ignition starburst — never on the bulk particle
+         counts).
+       - Comet sparks, sparkles, and stars are drawn with plain fills/strokes
+         (no sprites needed) since they're tiny -- cheaper than drawImage at
+         that size and keeps buildSprites() lean.
+       - Physics uses real delta-time (clamped), so motion speed is identical
+         on 60Hz, 120Hz, or a phone that dips to 45fps.
+       - Spawning is per-SECOND via accumulators (not per-frame), so density
+         is framerate-independent for every particle species.
+       - Device tiering: mobile gets a lower pixel-ratio cap and lower caps
+         across every particle type to protect fill-rate.
        ========================================================================== */
     (() => {
         const canvas = document.getElementById('portalIntroCanvas');
@@ -4938,35 +4975,69 @@ if (category === 'dtf') {
 
         // ---------- Device tiering ----------
         const IS_MOBILE = (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) || ('ontouchstart' in window && window.innerWidth < 1024);
-        const DPR_CAP       = IS_MOBILE ? 1.5 : 2;
-        const MAX_PARTICLES = IS_MOBILE ? 220 : 420;
-        const SPAWN_IGNITE  = IS_MOBILE ? 110 : 170;  // particles per second
-        const SPAWN_OPEN    = IS_MOBILE ? 300 : 520;
+        const DPR_CAP        = IS_MOBILE ? 1.5 : 2;
+        const MAX_PARTICLES  = IS_MOBILE ? 220 : 460;   // nebula wisps
+        const SPAWN_IGNITE   = IS_MOBILE ? 110 : 190;
+        const SPAWN_OPEN     = IS_MOBILE ? 300 : 560;
+        const MAX_EMBERS     = IS_MOBILE ? 85  : 190;   // comet sparks
+        const EMBER_IGNITE   = IS_MOBILE ? 34  : 65;
+        const EMBER_OPEN     = IS_MOBILE ? 70  : 150;
+        const MAX_SPARKLES   = IS_MOBILE ? 34  : 80;
+        const SPARKLE_RATE   = IS_MOBILE ? 11  : 26;
+        const WARP_COUNT     = IS_MOBILE ? 12  : 26;    // hyperspace light streaks fired at ignition
+        const STAR_COUNT     = IS_MOBILE ? 70  : 170;   // starfield, whole duration
+        const RIPPLE_MAX     = IS_MOBILE ? 4   : 8;     // event-horizon ripple rings
+        const RIPPLE_RATE    = 2.6;                     // rings/sec while the portal is opening
 
         // ---------- State ----------
         let W = 0, H = 0, CX = 0, CY = 0, MAXR = 0, DPR = 1;
-        let running = false, rafId = 0, startTime = 0, lastNow = 0, spawnAcc = 0;
-        const particles = [];
+        let running = false, rafId = 0, startTime = 0, lastNow = 0;
+        let spawnAcc = 0, emberAcc = 0, sparkleAcc = 0, rippleAcc = 0;
+        let flashFired = false, flashStartT = 0;
+
+        const particles = [];   // nebula smoke wisps
+        const embers = [];      // comet-tail sparks with gravity
+        const sparkles = [];    // twinkling glints
+        const stars = [];       // ambient starfield (whole duration)
+        const warpStreaks = []; // hyperspace light streaks fired at ignition
+        const ripples = [];     // expanding event-horizon ripple rings
 
         // ---------- Offscreen sprites (built once / on resize) ----------
-        let veilSprite = null;   // the dark background covering the site
-        let holeSprite = null;   // soft-edged white disc used to erase the hole
-        let puffSprites = [];    // pre-tinted smoke puffs, one per palette hue
+        let veilSprite = null;    // the dark space backdrop covering the site
+        let holeSprite = null;    // soft-edged white disc used to erase the hole
+        let puffSprites = [];     // pre-tinted nebula puffs, one per palette hue
+        let flashSprite = null;   // soft radial burst used for the ignition flash/bloom
 
-        const HUES = [326, 316, 302, 288, 272];
+        // Pink -> magenta -> violet -> blue-violet: a nebula gradient, pink-dominant for brand
+        const HUES = [330, 318, 300, 280, 258, 235];
 
         function buildSprites() {
-            // Veil: pre-rendered dark gradient background (drawn 1:1 each frame)
+            // Veil: deep-space gradient (indigo-black, not flat black)
             veilSprite = document.createElement('canvas');
-            veilSprite.width = Math.max(2, Math.round(W / 2));   // half-res: it's a soft gradient, upscaling is invisible
+            veilSprite.width = Math.max(2, Math.round(W / 2));
             veilSprite.height = Math.max(2, Math.round(H / 2));
             const vg = veilSprite.getContext('2d');
             const base = vg.createRadialGradient(veilSprite.width/2, veilSprite.height*0.45, 0, veilSprite.width/2, veilSprite.height/2, Math.max(veilSprite.width, veilSprite.height)*0.75);
-            base.addColorStop(0, '#1a1225');
-            base.addColorStop(0.55, '#100c16');
-            base.addColorStop(1, '#0a0a0a');
+            base.addColorStop(0, '#1c1030');
+            base.addColorStop(0.55, '#100b1e');
+            base.addColorStop(1, '#050307');
             vg.fillStyle = base;
             vg.fillRect(0, 0, veilSprite.width, veilSprite.height);
+
+            // Nebula cloud texture baked directly into the veil — since the veil is only
+            // rebuilt on resize (never per-frame), this adds background richness for free
+            vg.globalCompositeOperation = 'lighter';
+            for (let i = 0; i < 5; i++) {
+                const hue = HUES[(Math.random() * HUES.length) | 0];
+                const bx = Math.random() * veilSprite.width, by = Math.random() * veilSprite.height;
+                const br = (0.22 + Math.random() * 0.34) * Math.max(veilSprite.width, veilSprite.height);
+                const cgrad = vg.createRadialGradient(bx, by, 0, bx, by, br);
+                cgrad.addColorStop(0, `hsla(${hue}, 75%, 26%, 0.32)`);
+                cgrad.addColorStop(1, `hsla(${hue}, 75%, 16%, 0)`);
+                vg.fillStyle = cgrad;
+                vg.fillRect(0, 0, veilSprite.width, veilSprite.height);
+            }
+            vg.globalCompositeOperation = 'source-over';
 
             // Hole eraser: solid center, soft rim (last 6%) — scales with radius
             holeSprite = document.createElement('canvas');
@@ -4979,7 +5050,7 @@ if (category === 'dtf') {
             hg.fillStyle = hgrad;
             hg.fillRect(0, 0, 256, 256);
 
-            // Smoke puffs: one pre-tinted soft sprite per hue (bright pink core → colored haze)
+            // Nebula puffs: one pre-tinted soft sprite per hue
             puffSprites = HUES.map(hue => {
                 const c = document.createElement('canvas');
                 c.width = c.height = 128;
@@ -4993,13 +5064,43 @@ if (category === 'dtf') {
                 g.fillRect(0, 0, 128, 128);
                 return c;
             });
+
+            // Ignition flash / bloom
+            flashSprite = document.createElement('canvas');
+            flashSprite.width = flashSprite.height = 256;
+            const fg = flashSprite.getContext('2d');
+            const fgrad = fg.createRadialGradient(128, 128, 0, 128, 128, 128);
+            fgrad.addColorStop(0.0, 'rgba(255,255,255,0.95)');
+            fgrad.addColorStop(0.25, 'hsla(330, 100%, 85%, 0.6)');
+            fgrad.addColorStop(0.6, 'hsla(320, 100%, 65%, 0.22)');
+            fgrad.addColorStop(1.0, 'hsla(310, 100%, 55%, 0)');
+            fg.fillStyle = fgrad;
+            fg.fillRect(0, 0, 256, 256);
+        }
+
+        function buildStarfield() {
+            stars.length = 0;
+            for (let i = 0; i < STAR_COUNT; i++) {
+                const depth = Math.random(); // 0 = far/dim/small, 1 = near/bright/bigger
+                stars.push({
+                    x: Math.random() * W, y: Math.random() * H,
+                    vx: (Math.random() - 0.5) * 6 * (0.4 + depth),
+                    vy: (Math.random() - 0.5) * 6 * (0.4 + depth) - 2 * (0.4 + depth),
+                    size: 0.6 + depth * 1.8,
+                    alpha: 0.05 + depth * 0.22,
+                    phase: Math.random() * Math.PI * 2,
+                    twinkleSpeed: 0.8 + Math.random() * 2.2,
+                    cool: Math.random() < 0.16, // occasional cool blue-white star among the pink dust
+                    depth, // kept for the sparse extra-bloom pass on only the brightest stars
+                });
+            }
         }
 
         function resize() {
             // Once the intro has already played, there's nothing left to redraw — stop
             // doing any work at all. This is what was crashing iOS Safari during fast
             // scrolling: scrolling toggles the address bar, which fires 'resize'
-            // repeatedly, and this used to rebuild 7 canvases from scratch every time.
+            // repeatedly, and this used to rebuild canvases from scratch every time.
             if (canvas.classList.contains('portal-done')) return;
             W = window.innerWidth; H = window.innerHeight;
             DPR = Math.min(window.devicePixelRatio || 1, DPR_CAP);
@@ -5009,44 +5110,523 @@ if (category === 'dtf') {
             CX = W / 2; CY = H / 2;
             MAXR = Math.hypot(CX, CY) + 60;
             buildSprites();
+            buildStarfield();
+            buildFlourishText();
         }
         window.addEventListener('resize', resize);
         window.addEventListener('orientationchange', resize);
 
         // ---------- Timeline ----------
-        const T1 = 0.85, T2 = 2.45, TEND = 3.3; // ignite end / open end / hard stop (seconds)
+        const T_GATHER = 0.35, T_IGNITE = 1.05, T_OPEN = 2.75, T_END = 3.9;
         const easeInOutQuint = t => t < 0.5 ? 16*t*t*t*t*t : 1 - Math.pow(-2*t + 2, 5) / 2;
+        const easeOutQuad = t => t * (2 - t);
 
         function holeRadiusAt(t) {
-            if (t <= T1) {
-                const pulse = Math.sin(t * 8.5) * 2.5;
-                return 8 + (t / T1) * 24 + pulse;
+            if (t <= T_GATHER) {
+                const g = t / T_GATHER;
+                return g * g * 3; // seed-of-light beat: barely visible, mostly sold by the flash/shockwave
             }
-            const k = Math.min((t - T1) / (T2 - T1), 1);
+            if (t <= T_IGNITE) {
+                const local = t - T_GATHER, span = T_IGNITE - T_GATHER;
+                const pulse = Math.sin(local * 9) * 2.5;
+                return 8 + (local / span) * 24 + pulse;
+            }
+            const k = Math.min((t - T_IGNITE) / (T_OPEN - T_IGNITE), 1);
             return 32 + easeInOutQuint(k) * (MAXR - 32);
         }
 
-        // ---------- Particles ----------
+        // ---------- Calligraphy signature: actual "Inspired Threads" text ----------
+        // Canvas can't trace arbitrary glyph outlines like a pen, so the "being written"
+        // feel comes from a left-to-right wipe reveal (clip rect that grows with progress)
+        // plus a small glowing spark riding the reveal edge — not a literal per-letter draw,
+        // but reads as ink being laid down left to right, which is what matters visually.
+        const FL_START = 1.4, FL_DRAW = 1.05, FL_HOLD = 0.2, FL_FADE = 0.4;
+        const SCRIPT_FONT = 'Great Vibes';
+        let flourishLines = []; // [{ text, size, width }], 1 line on wide screens, 2 on narrow
+
+        // Kick the webfont off loading as early as possible so it's ready well before
+        // FL_START — this only *requests* it; drawFlourish() below reads whatever is
+        // available each frame, so if it's still loading we transparently fall back to
+        // the generic 'cursive' face and self-correct the moment the real font lands.
+        if (document.fonts && document.fonts.load) {
+            document.fonts.load(`64px "${SCRIPT_FONT}"`).catch(() => {});
+        }
+
+        function buildFlourishText() {
+            const fontStack = size => `${size}px "${SCRIPT_FONT}", "Brush Script MT", cursive`;
+            const maxWidth = W * 0.84;
+            const minLegibleSize = Math.min(W, H) * 0.085;
+
+            ctx.font = fontStack(Math.min(W, H) * 0.16);
+            const oneLineWidth = ctx.measureText('Inspired Threads').width;
+
+            if (oneLineWidth <= maxWidth) {
+                flourishLines = [{ text: 'Inspired Threads', size: Math.min(W, H) * 0.16, width: oneLineWidth }];
+                return;
+            }
+            const scaledSize = (Math.min(W, H) * 0.16) * (maxWidth / oneLineWidth);
+            if (scaledSize >= minLegibleSize) {
+                ctx.font = fontStack(scaledSize);
+                flourishLines = [{ text: 'Inspired Threads', size: scaledSize, width: ctx.measureText('Inspired Threads').width }];
+                return;
+            }
+            // Too cramped as one line (typical on phones) — stack it as a two-line signature
+            let size2 = Math.min(W, H) * 0.20;
+            ctx.font = fontStack(size2);
+            const w1 = ctx.measureText('Inspired').width, w2 = ctx.measureText('Threads').width;
+            const maxWordW = Math.max(w1, w2);
+            if (maxWordW > maxWidth) size2 *= maxWidth / maxWordW;
+            ctx.font = fontStack(size2);
+            flourishLines = [
+                { text: 'Inspired', size: size2, width: ctx.measureText('Inspired').width },
+                { text: 'Threads', size: size2, width: ctx.measureText('Threads').width },
+            ];
+        }
+
+        function drawFlourish(t) {
+            if (t < FL_START || flourishLines.length === 0) return;
+            const drawEnd = FL_START + FL_DRAW;
+            const holdEnd = drawEnd + FL_HOLD;
+            const fadeEnd = holdEnd + FL_FADE;
+            if (t >= fadeEnd) return;
+
+            let progress, alpha;
+            if (t < drawEnd) { progress = (t - FL_START) / FL_DRAW; alpha = Math.min(progress * 2.2, 1); }
+            else if (t < holdEnd) { progress = 1; alpha = 1; }
+            else { progress = 1; alpha = 1 - (t - holdEnd) / FL_FADE; }
+            if (alpha <= 0.01) return;
+
+            const maxLineW = Math.max(...flourishLines.map(l => l.width));
+            const biggestSize = Math.max(...flourishLines.map(l => l.size));
+            const lineGap = biggestSize * 1.02;
+            const startY = CY - ((flourishLines.length - 1) / 2) * lineGap;
+            const revealed = 6 + maxLineW * easeOutQuad(progress);
+            const clipLeft = CX - maxLineW / 2 - 10;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(clipLeft, startY - biggestSize * 1.1, revealed + 10, lineGap * (flourishLines.length - 1) + biggestSize * 2.2);
+            ctx.clip();
+
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            flourishLines.forEach((line, i) => {
+                const ly = startY + i * lineGap;
+                ctx.font = `${line.size}px "${SCRIPT_FONT}", "Brush Script MT", cursive`;
+                // soft glow pass
+                ctx.shadowColor = `hsla(322, 100%, 65%, ${alpha * 0.9})`;
+                ctx.shadowBlur = line.size * 0.30;
+                ctx.fillStyle = `hsla(330, 100%, 88%, ${alpha * 0.55})`;
+                ctx.fillText(line.text, CX, ly);
+                // crisp bright core pass
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = `hsla(335, 100%, 97%, ${alpha * 0.95})`;
+                ctx.fillText(line.text, CX, ly);
+            });
+            ctx.shadowBlur = 0;
+            ctx.restore(); // undo clip
+
+            // A small spark riding the writing edge while the wipe is still in progress
+            if (progress < 0.98) {
+                const edgeX = clipLeft + revealed;
+                const edgeY = CY;
+                ctx.globalCompositeOperation = 'lighter';
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = 'hsla(330, 100%, 92%, 1)';
+                ctx.shadowColor = 'hsla(322, 100%, 70%, 0.9)';
+                ctx.shadowBlur = 14;
+                ctx.beginPath();
+                ctx.arc(edgeX, edgeY, 3.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // ---------- Hyperspace warp streaks (fired once, at ignition) ----------
+        function generateWarpStreaks() {
+            warpStreaks.length = 0;
+            for (let i = 0; i < WARP_COUNT; i++) {
+                warpStreaks.push({
+                    angle: Math.random() * Math.PI * 2,
+                    len: (IS_MOBILE ? 70 : 110) + Math.random() * (IS_MOBILE ? 110 : 220),
+                    delay: Math.random() * 0.25,
+                    dur: 0.35 + Math.random() * 0.3,
+                    hue: HUES[(Math.random() * HUES.length) | 0],
+                    widthScale: 0.6 + Math.random(),
+                    curve: (Math.random() - 0.5) * 50, // gentle bend, as if light is skimming the vortex
+                });
+            }
+        }
+        function drawWarpStreaks(t, R) {
+            ctx.globalCompositeOperation = 'lighter';
+            for (const ws of warpStreaks) {
+                const localT = t - T_GATHER - ws.delay;
+                if (localT <= 0) continue;
+                const growProg = Math.min(localT / ws.dur, 1);
+                let alpha = localT < ws.dur ? easeOutQuad(growProg) : Math.max(0, 1 - (localT - ws.dur) / 0.35);
+                if (alpha <= 0.01) continue;
+
+                const length = ws.len * easeOutQuad(growProg);
+                const innerR = R + 4, outerR = innerR + length, midR = (innerR + outerR) / 2;
+                const perpAngle = ws.angle + Math.PI / 2;
+                const x1 = CX + Math.cos(ws.angle) * innerR, y1 = CY + Math.sin(ws.angle) * innerR;
+                const x2 = CX + Math.cos(ws.angle) * outerR, y2 = CY + Math.sin(ws.angle) * outerR;
+                const mx = CX + Math.cos(ws.angle) * midR + Math.cos(perpAngle) * ws.curve;
+                const my = CY + Math.sin(ws.angle) * midR + Math.sin(perpAngle) * ws.curve;
+
+                const layers = [
+                    { w: 6.5 * ws.widthScale, a: 0.12, hueOff: 0 },
+                    { w: 3   * ws.widthScale, a: 0.30, hueOff: 4 },
+                    { w: 1.2 * ws.widthScale, a: 0.90, hueOff: 10 },
+                ];
+                for (const L of layers) {
+                    ctx.strokeStyle = `hsla(${ws.hue + L.hueOff}, 100%, 86%, ${alpha * L.a})`;
+                    ctx.lineWidth = L.w;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.quadraticCurveTo(mx, my, x2, y2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // ---------- Event-horizon ripples (replace the old torn-edge detail) ----------
+        function spawnRipple(t, R) {
+            if (ripples.length >= RIPPLE_MAX) return;
+            ripples.push({ born: t, baseR: R, hue: HUES[(Math.random() * HUES.length) | 0] });
+        }
+        function drawRipples(t) {
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                const rp = ripples[i];
+                const age = t - rp.born;
+                const dur = 0.9;
+                if (age >= dur) {
+                    const last = ripples.pop();
+                    if (i < ripples.length) ripples[i] = last;
+                    continue;
+                }
+                const k = age / dur;
+                const rad = rp.baseR + k * 150;
+                if (rad <= 0) continue;
+                const alpha = (1 - k) * 0.5;
+                ctx.beginPath();
+                ctx.arc(CX, CY, rad, 0, Math.PI * 2);
+                ctx.strokeStyle = `hsla(${rp.hue}, 100%, 82%, ${alpha})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // brighter, thinner inner echo for a touch more depth
+                ctx.beginPath();
+                ctx.arc(CX, CY, rad * 0.985, 0, Math.PI * 2);
+                ctx.strokeStyle = `hsla(${rp.hue + 10}, 100%, 94%, ${alpha * 0.6})`;
+                ctx.lineWidth = 0.7;
+                ctx.stroke();
+            }
+        }
+
+        // ---------- Ignition starburst (radiating flare spikes, dies with the flash) ----------
+        let flareSpikes = [];
+        function generateFlareSpikes() {
+            const count = IS_MOBILE ? 10 : 16;
+            flareSpikes = Array.from({ length: count }, (_, i) => ({
+                angle: (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.25,
+                len: (IS_MOBILE ? 60 : 90) + Math.random() * (IS_MOBILE ? 60 : 120),
+                hue: HUES[(Math.random() * HUES.length) | 0],
+            }));
+        }
+        function drawFlareSpikes(st) {
+            // st = seconds since ignition flash started; spikes shoot out fast then vanish
+            const dur = 0.4;
+            if (st >= dur) return;
+            const k = easeOutQuad(Math.min(st / dur, 1));
+            const alpha = 1 - k;
+            if (alpha <= 0.01) return;
+            ctx.globalCompositeOperation = 'lighter';
+            for (const fs of flareSpikes) {
+                const len = fs.len * k;
+                const x2 = CX + Math.cos(fs.angle) * len, y2 = CY + Math.sin(fs.angle) * len;
+                ctx.strokeStyle = `hsla(${fs.hue}, 100%, 90%, ${alpha * 0.8})`;
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                ctx.moveTo(CX, CY);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        }
+
+        // ---------- Nebula smoke wisps ----------
         function spawnWisp(radius, intensity) {
             if (particles.length >= MAX_PARTICLES) return;
             const a = Math.random() * Math.PI * 2;
             const cos = Math.cos(a), sin = Math.sin(a);
-            const outward = 22 + Math.random() * 60;          // px/sec
-            const swirl = (Math.random() - 0.5) * 110;        // px/sec tangential
+            const outward = 18 + Math.random() * 55;
+            const swirl = (Math.random() - 0.5) * 260; // strong tangential swirl -> visible spiral arms
             particles.push({
                 x: CX + cos * radius,
                 y: CY + sin * radius,
                 vx: cos * outward + -sin * swirl,
                 vy: sin * outward +  cos * swirl,
                 life: 0,
-                ttl: 0.9 + Math.random() * 1.2,
-                size: (16 + Math.random() * 52) * intensity,  // px diameter at birth
-                grow: 28 + Math.random() * 55,                // px/sec
-                alpha: 0.35 + Math.random() * 0.35,
+                ttl: 0.85 + Math.random() * 1.3,
+                size: (14 + Math.random() * 58) * intensity,
+                grow: 26 + Math.random() * 60,
+                alpha: 0.32 + Math.random() * 0.38,
                 sprite: puffSprites[(Math.random() * puffSprites.length) | 0],
                 wobbleSeed: Math.random() * 1000,
-                squash: 0.7 + Math.random() * 0.3,
+                squash: 0.65 + Math.random() * 0.35,
+                spin: (Math.random() - 0.5) * 1.8, // slow continuous tumble, rad/sec
+                rot0: Math.random() * Math.PI * 2,
             });
+        }
+
+        // ---------- Comet-tail sparks (embers with gravity + tapered multi-segment streak) ----------
+        function spawnEmber(radius) {
+            if (embers.length >= MAX_EMBERS) return;
+            const a = Math.random() * Math.PI * 2;
+            const cos = Math.cos(a), sin = Math.sin(a);
+            const speed = 100 + Math.random() * 210;
+            embers.push({
+                x: CX + cos * radius, y: CY + sin * radius,
+                vx: cos * speed, vy: sin * speed - (70 + Math.random() * 80),
+                life: 0, ttl: 0.5 + Math.random() * 0.75,
+                size: 1.6 + Math.random() * 3.0,
+                grav: 130 + Math.random() * 120,
+                hue: HUES[(Math.random() * HUES.length) | 0],
+            });
+        }
+        function updateAndDrawEmbers(dt) {
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i = embers.length - 1; i >= 0; i--) {
+                const e = embers[i];
+                e.life += dt;
+                if (e.life >= e.ttl) {
+                    const last = embers.pop();
+                    if (i < embers.length) embers[i] = last;
+                    continue;
+                }
+                e.vy += e.grav * dt;
+                e.x += e.vx * dt; e.y += e.vy * dt;
+                const k = e.life / e.ttl;
+                const alpha = (1 - k) * (k < 0.1 ? k / 0.1 : 1);
+
+                // Tapered 3-segment comet tail: framerate-independent length (velocity-based),
+                // shrinking width/alpha per segment for a richer streak than one uniform line
+                const speedMag = Math.hypot(e.vx, e.vy) || 1;
+                const ux = e.vx / speedMag, uy = e.vy / speedMag;
+                const tailLen = Math.min(46, speedMag * 0.09);
+                const segs = [
+                    { from: 0,        to: tailLen * 0.33, w: e.size * 0.62, a: 0.42 },
+                    { from: tailLen*0.33, to: tailLen * 0.66, w: e.size * 0.42, a: 0.26 },
+                    { from: tailLen*0.66, to: tailLen * 1.0,  w: e.size * 0.24, a: 0.12 },
+                ];
+                for (const seg of segs) {
+                    const x1 = e.x - ux * seg.from, y1 = e.y - uy * seg.from;
+                    const x2 = e.x - ux * seg.to,   y2 = e.y - uy * seg.to;
+                    ctx.strokeStyle = `hsla(${e.hue}, 100%, 80%, ${alpha * seg.a})`;
+                    ctx.lineWidth = seg.w;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = `hsla(${e.hue}, 100%, 90%, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // ---------- Sparkles (twinkling glints) ----------
+        function spawnSparkle(withinR) {
+            if (sparkles.length >= MAX_SPARKLES) return;
+            const a = Math.random() * Math.PI * 2;
+            const rr = Math.sqrt(Math.random()) * withinR * 0.92;
+            sparkles.push({
+                x: CX + Math.cos(a) * rr, y: CY + Math.sin(a) * rr,
+                life: 0, ttl: 0.5 + Math.random() * 0.9,
+                size: 2.2 + Math.random() * 3.2,
+                phase: Math.random() * Math.PI * 2,
+                twinkleSpeed: 6 + Math.random() * 6,
+                rot: Math.random() * Math.PI,
+                cool: Math.random() < 0.22, // occasional cool blue-white glint, matches the starfield
+            });
+        }
+        function updateAndDrawSparkles(dt, t) {
+            ctx.globalCompositeOperation = 'lighter';
+            for (let i = sparkles.length - 1; i >= 0; i--) {
+                const s = sparkles[i];
+                s.life += dt;
+                if (s.life >= s.ttl) {
+                    const last = sparkles.pop();
+                    if (i < sparkles.length) sparkles[i] = last;
+                    continue;
+                }
+                const k = s.life / s.ttl;
+                const envelope = Math.sin(Math.PI * k);
+                const tw = 0.5 + 0.5 * Math.sin(s.phase + s.life * s.twinkleSpeed);
+                const alpha = envelope * tw;
+                if (alpha <= 0.02) continue;
+
+                ctx.save();
+                ctx.translate(s.x, s.y);
+                ctx.rotate(s.rot + s.life * 0.6);
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = s.cool ? 'hsla(210, 100%, 90%, 1)' : 'hsla(330, 100%, 92%, 1)';
+                const L = s.size * 3.4, Wd = s.size * 0.55;
+                ctx.fillRect(-L / 2, -Wd / 2, L, Wd);
+                ctx.fillRect(-Wd / 2, -L / 2, Wd, L);
+                ctx.beginPath();
+                ctx.arc(0, 0, s.size * 0.85, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        // ---------- Starfield (ambient depth, whole duration) ----------
+        function updateAndDrawStars(dt, t) {
+            ctx.globalCompositeOperation = 'lighter';
+            for (const s of stars) {
+                s.x += s.vx * dt; s.y += s.vy * dt;
+                if (s.x < -10) s.x = W + 10; else if (s.x > W + 10) s.x = -10;
+                if (s.y < -10) s.y = H + 10; else if (s.y > H + 10) s.y = -10;
+                const tw = 0.55 + 0.45 * Math.sin(s.phase + t * s.twinkleSpeed);
+                const col = s.cool ? '#d8e8ff' : '#ffd7ec';
+                ctx.globalAlpha = s.alpha * tw;
+                ctx.fillStyle = col;
+                // Sparse extra bloom on only the brightest ~12% of stars — cheap since it's rare
+                if (s.depth > 0.88) {
+                    ctx.shadowColor = col;
+                    ctx.shadowBlur = 5.5;
+                } else {
+                    ctx.shadowBlur = 0;
+                }
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
+        }
+
+        // ---------- One shooting star (a single deterministic flourish, mid-timeline) ----------
+        let shootFired = false, shootStar = null;
+        const SHOOT_AT = 1.85;
+        function spawnShootingStar() {
+            const edge = Math.floor(Math.random() * 4);
+            let x, y, angle;
+            if (edge === 0) { x = Math.random() * W; y = -20; angle = Math.PI * 0.5 + (Math.random() - 0.5) * 0.6; }
+            else if (edge === 1) { x = W + 20; y = Math.random() * H * 0.6; angle = Math.PI + (Math.random() - 0.5) * 0.6; }
+            else if (edge === 2) { x = Math.random() * W; y = -20; angle = Math.PI * 0.5 + (Math.random() - 0.5) * 0.6; }
+            else { x = -20; y = Math.random() * H * 0.6; angle = 0 + (Math.random() - 0.5) * 0.6; }
+            shootStar = {
+                x, y, vx: Math.cos(angle) * 900, vy: Math.sin(angle) * 900,
+                life: 0, ttl: 0.55,
+            };
+        }
+        function updateAndDrawShootingStar(dt) {
+            if (!shootStar) return;
+            shootStar.life += dt;
+            if (shootStar.life >= shootStar.ttl) { shootStar = null; return; }
+            shootStar.x += shootStar.vx * dt;
+            shootStar.y += shootStar.vy * dt;
+            const k = shootStar.life / shootStar.ttl;
+            const alpha = Math.sin(Math.PI * Math.min(k * 1.4, 1));
+            const speedMag = Math.hypot(shootStar.vx, shootStar.vy) || 1;
+            const ux = shootStar.vx / speedMag, uy = shootStar.vy / speedMag;
+            const tailLen = 130;
+            const tx = shootStar.x - ux * tailLen, ty = shootStar.y - uy * tailLen;
+
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.strokeStyle = `hsla(210, 100%, 92%, ${alpha * 0.85})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(shootStar.x, shootStar.y); ctx.stroke();
+            ctx.strokeStyle = `hsla(210, 100%, 96%, ${alpha * 0.35})`;
+            ctx.lineWidth = 5;
+            ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(shootStar.x, shootStar.y); ctx.stroke();
+            ctx.fillStyle = `hsla(210, 100%, 97%, ${alpha})`;
+            ctx.beginPath(); ctx.arc(shootStar.x, shootStar.y, 2, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // ---------- Spiral galaxy arms (replace the old mechanical aperture blades) ----------
+        function drawSpiralArms(t, R, ringAlpha) {
+            if (R <= 0) return;
+            const armCount = 3, pointsPerArm = 22, rotSpeed = 1.6;
+            ctx.globalCompositeOperation = 'lighter';
+            for (let a = 0; a < armCount; a++) {
+                const armOffset = (a / armCount) * Math.PI * 2;
+                const hue = HUES[a % HUES.length];
+                ctx.beginPath();
+                let lastX = 0, lastY = 0;
+                for (let p = 0; p <= pointsPerArm; p++) {
+                    const f = p / pointsPerArm;
+                    const rad = R + 6 + f * (R * 0.55 + 40);
+                    const ang = armOffset + t * rotSpeed + f * 2.4;
+                    const x = CX + Math.cos(ang) * rad, y = CY + Math.sin(ang) * rad;
+                    if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                    lastX = x; lastY = y;
+                    // A couple of small bright glint "stars" riding the arm, like a cluster
+                    if (p === 9 || p === 16) {
+                        const tw = 0.6 + 0.4 * Math.sin(t * 5 + p + a * 2);
+                        ctx.save();
+                        ctx.fillStyle = `hsla(${hue}, 100%, 90%, ${0.55 * ringAlpha * tw})`;
+                        ctx.beginPath();
+                        ctx.arc(x, y, 2.1, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                }
+                ctx.strokeStyle = `hsla(${hue}, 100%, 72%, ${0.22 * ringAlpha})`;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+            for (let a = 0; a < armCount; a++) {
+                const armOffset = (a / armCount) * Math.PI * 2 + 0.9;
+                const hue = HUES[(a + 2) % HUES.length];
+                ctx.beginPath();
+                for (let p = 0; p <= pointsPerArm; p++) {
+                    const f = p / pointsPerArm;
+                    const rad = R + 6 + f * (R * 0.55 + 40);
+                    const ang = armOffset - t * rotSpeed * 0.7 + f * 2.0;
+                    const x = CX + Math.cos(ang) * rad, y = CY + Math.sin(ang) * rad;
+                    if (p === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = `hsla(${hue}, 100%, 85%, ${0.12 * ringAlpha})`;
+                ctx.lineWidth = 1.4;
+                ctx.stroke();
+            }
+        }
+
+        // ---------- Orbiting glint beads riding the main glow ring ----------
+        function drawRingBeads(t, R, ringAlpha) {
+            ctx.globalCompositeOperation = 'lighter';
+            const outer = { count: 8, rot: t * 0.7, radiusOff: 14, size: 2.4 };
+            for (let i = 0; i < outer.count; i++) {
+                const ang = outer.rot + i * (Math.PI * 2 / outer.count);
+                const x = CX + Math.cos(ang) * (R + outer.radiusOff), y = CY + Math.sin(ang) * (R + outer.radiusOff);
+                const hue = HUES[i % HUES.length];
+                ctx.fillStyle = `hsla(${hue}, 100%, 88%, ${0.7 * ringAlpha})`;
+                ctx.shadowColor = `hsla(${hue}, 100%, 80%, ${0.8 * ringAlpha})`;
+                ctx.shadowBlur = 6;
+                ctx.beginPath();
+                ctx.arc(x, y, outer.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+            const inner = { count: 5, rot: -t * 1.1, radiusOff: -10, size: 1.7 };
+            for (let i = 0; i < inner.count; i++) {
+                const ang = inner.rot + i * (Math.PI * 2 / inner.count);
+                const rad = Math.max(3, R + inner.radiusOff);
+                const x = CX + Math.cos(ang) * rad, y = CY + Math.sin(ang) * rad;
+                const hue = HUES[(i + 3) % HUES.length];
+                ctx.fillStyle = `hsla(${hue}, 100%, 90%, ${0.5 * ringAlpha})`;
+                ctx.beginPath();
+                ctx.arc(x, y, inner.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
         }
 
         // ---------- Frame ----------
@@ -5056,13 +5636,47 @@ if (category === 'dtf') {
             lastNow = now;
 
             const R = holeRadiusAt(t);
-            const opening = t > T1;
+            const opening = t > T_IGNITE;
 
-            // Spawn via per-second accumulator (framerate-independent density)
-            if (t < T2 + 0.1) {
+            if (!flashFired && t >= T_GATHER) {
+                flashFired = true;
+                flashStartT = t;
+                generateWarpStreaks();
+                generateFlareSpikes();
+            }
+            if (!shootFired && t >= SHOOT_AT) {
+                shootFired = true;
+                spawnShootingStar();
+            }
+
+            // ----- Spawning (framerate-independent, per-second accumulators) -----
+            if (t < T_OPEN + 0.1) {
                 spawnAcc += (opening ? SPAWN_OPEN : SPAWN_IGNITE) * dt;
                 const intensity = opening ? 1.1 : 0.65;
                 while (spawnAcc >= 1) { spawnWisp(R, intensity); spawnAcc -= 1; }
+            }
+            if (t > T_GATHER && t < T_OPEN + 0.05) {
+                emberAcc += (opening ? EMBER_OPEN : EMBER_IGNITE) * dt;
+                while (emberAcc >= 1) { spawnEmber(R); emberAcc -= 1; }
+            }
+            if (t > T_IGNITE + 0.25 && t < T_END - 0.3) {
+                sparkleAcc += SPARKLE_RATE * dt;
+                while (sparkleAcc >= 1) { spawnSparkle(R); sparkleAcc -= 1; }
+            }
+            if (t > T_IGNITE && t < T_OPEN + 0.1) {
+                rippleAcc += RIPPLE_RATE * dt;
+                while (rippleAcc >= 1) { spawnRipple(t, R); rippleAcc -= 1; }
+            }
+
+            // ----- Screen shake (decays fast, only right at ignition) -----
+            let shakeX = 0, shakeY = 0;
+            if (flashFired) {
+                const st = t - flashStartT;
+                if (st < 0.34) {
+                    const mag = 16 * (1 - st / 0.34);
+                    shakeX = (Math.random() - 0.5) * mag;
+                    shakeY = (Math.random() - 0.5) * mag;
+                }
             }
 
             // ----- Draw -----
@@ -5070,16 +5684,63 @@ if (category === 'dtf') {
             ctx.globalAlpha = 1;
             ctx.clearRect(0, 0, W, H);
 
-            // 1) Dark veil covering the site (skip once the hole exceeds the screen)
+            ctx.save();
+            ctx.translate(shakeX, shakeY);
+
+            // 1) Starfield + one shooting star (always, subtle depth cue)
+            updateAndDrawStars(dt, t);
+            updateAndDrawShootingStar(dt);
+
+            // 2) Dark veil + eraser hole
             if (R < MAXR) {
+                ctx.globalCompositeOperation = 'source-over';
                 ctx.drawImage(veilSprite, 0, 0, W, H);
-                // 2) Erase the hole (soft edge scales with radius)
                 ctx.globalCompositeOperation = 'destination-out';
                 const d = R * 2 * (1 / 0.94); // compensate: sprite is solid to 94% of its radius
                 ctx.drawImage(holeSprite, CX - d / 2, CY - d / 2, d, d);
             }
 
-            // 3) Smoke wisps (additive glow)
+            // 3) Ignition flash / bloom + double shockwave pulse + starburst spikes
+            if (flashFired) {
+                const st = t - flashStartT;
+                const alpha = Math.max(0, 1 - st / 0.35);
+                if (alpha > 0) {
+                    ctx.globalCompositeOperation = 'lighter';
+                    const sizePx = 60 + st * 720;
+                    ctx.globalAlpha = alpha;
+                    ctx.drawImage(flashSprite, CX - sizePx / 2, CY - sizePx / 2, sizePx, sizePx);
+                    ctx.globalAlpha = 1;
+                }
+                if (st < 0.5) {
+                    const sw = easeOutQuad(Math.min(st / 0.5, 1));
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.beginPath();
+                    ctx.arc(CX, CY, sw * 170, 0, Math.PI * 2);
+                    ctx.strokeStyle = `hsla(330, 100%, 88%, ${(1 - sw) * 0.75})`;
+                    ctx.lineWidth = 3 * (1 - sw) + 1;
+                    ctx.stroke();
+                }
+                if (st >= 0.12) {
+                    const st2 = st - 0.12;
+                    if (st2 < 0.5) {
+                        const sw2 = easeOutQuad(Math.min(st2 / 0.5, 1));
+                        ctx.beginPath();
+                        ctx.arc(CX, CY, sw2 * 145, 0, Math.PI * 2);
+                        ctx.strokeStyle = `hsla(268, 100%, 85%, ${(1 - sw2) * 0.5})`;
+                        ctx.lineWidth = 2.2 * (1 - sw2) + 0.8;
+                        ctx.stroke();
+                    }
+                }
+                drawFlareSpikes(st);
+            }
+
+            // 4) Event-horizon ripples
+            drawRipples(t);
+
+            // 5) Hyperspace warp streaks
+            if (t < T_OPEN) drawWarpStreaks(t, R);
+
+            // 6) Nebula smoke wisps (additive glow, slow continuous tumble)
             ctx.globalCompositeOperation = 'lighter';
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
@@ -5091,7 +5752,6 @@ if (category === 'dtf') {
                 }
                 const k = p.life / p.ttl;
 
-                // wispy drift: outward velocity + sine wobble + gentle upward lift
                 const wob = Math.sin(p.wobbleSeed + p.life * 3.0);
                 p.x += (p.vx + Math.cos(p.wobbleSeed + p.life * 2.1) * 32) * dt;
                 p.y += (p.vy + wob * 32 - 14) * dt;
@@ -5100,15 +5760,27 @@ if (category === 'dtf') {
                 const fadeIn = k < 0.12 ? k / 0.12 : 1;
                 ctx.globalAlpha = p.alpha * (1 - k) * fadeIn;
                 const w = size, h = size * (p.squash + 0.25 * wob);
-                ctx.drawImage(p.sprite, p.x - w / 2, p.y - h / 2, w, h);
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot0 + p.spin * p.life);
+                ctx.drawImage(p.sprite, -w / 2, -h / 2, w, h);
+                ctx.restore();
             }
             ctx.globalAlpha = 1;
 
-            // 4) The glowing ring
-            if (t < T2 + 0.2 && R < MAXR) {
-                const ringAlpha = t > T2 ? Math.max(1 - (t - T2) / 0.2, 0) : 1;
+            // 7) Comet sparks + sparkles
+            updateAndDrawEmbers(dt);
+            updateAndDrawSparkles(dt, t);
+
+            // 8) Calligraphy signature — actual "Inspired Threads" text, script font
+            drawFlourish(t);
+
+            // 9) Glow ring + spinning spiral galaxy arms + orbiting glint beads
+            if (t < T_OPEN + 0.2 && R < MAXR) {
+                const ringAlpha = t > T_OPEN ? Math.max(1 - (t - T_OPEN) / 0.2, 0) : 1;
                 ctx.globalCompositeOperation = 'lighter';
                 const layers = [
+                    { w: 38, l: 50, a: 0.025 },
                     { w: 24, l: 58, a: 0.06 }, { w: 13, l: 60, a: 0.13 },
                     { w: 6,  l: 66, a: 0.34 }, { w: 2.5, l: 74, a: 0.85 },
                 ];
@@ -5124,10 +5796,16 @@ if (category === 'dtf') {
                 ctx.strokeStyle = `hsla(322, 100%, 93%, ${0.5 * ringAlpha})`;
                 ctx.lineWidth = 1;
                 ctx.stroke();
+
+                drawSpiralArms(t, R, ringAlpha);
+                drawRingBeads(t, R, ringAlpha);
             }
 
-            // 5) End conditions
-            if (t >= TEND || (t >= T2 + 0.25 && particles.length === 0)) {
+            ctx.restore(); // undo the screen-shake translate
+
+            // 10) End conditions
+            const trailingParticles = particles.length + embers.length + sparkles.length;
+            if (t >= T_END || (t >= T_OPEN + 0.25 && trailingParticles === 0)) {
                 stopPortalIntro();
                 return;
             }
@@ -5137,12 +5815,14 @@ if (category === 'dtf') {
         function stopPortalIntro() {
             running = false;
             cancelAnimationFrame(rafId);
-            particles.length = 0;
+            particles.length = 0; embers.length = 0; sparkles.length = 0;
+            warpStreaks.length = 0; ripples.length = 0; stars.length = 0;
+            flareSpikes = []; shootStar = null;
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             canvas.classList.add('portal-done');
             // Fully release the sprite canvases from memory — nothing needs them again.
-            veilSprite = null; holeSprite = null; puffSprites = [];
+            veilSprite = null; holeSprite = null; puffSprites = []; flashSprite = null;
             document.dispatchEvent(new CustomEvent('portal-intro-done'));
         }
 
@@ -5151,7 +5831,9 @@ if (category === 'dtf') {
             running = true;
             canvas.classList.remove('portal-done');
             resize();
-            spawnAcc = 0;
+            spawnAcc = 0; emberAcc = 0; sparkleAcc = 0; rippleAcc = 0;
+            flashFired = false; flashStartT = 0;
+            shootFired = false; shootStar = null;
             startTime = performance.now();
             lastNow = startTime;
             rafId = requestAnimationFrame(frame);
