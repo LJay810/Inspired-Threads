@@ -1,60 +1,109 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 import { Redis } from '@upstash/redis';
 const kv = Redis.fromEnv();
 
+const { createClient } = require('@supabase/supabase-js');
+const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+// Catalog now lives in Supabase (categories/products/product_variants), not Stripe -- Stripe is
+// only invisible payment plumbing (see lib/stripe-sync.js). This endpoint reassembles the exact
+// same response shape the storefront (index.html's initShopEngine) has always consumed --
+// {id, name, description, images[], metadata{}, price, priceId} with a flat metadata map
+// carrying category/hasVariants/sub_category/sort_order/dtf_top-left-width-height/thumb1-4/
+// stock(_<Size>_<Color>) -- so nothing downstream needs to change for this cutover alone.
 export default async function handler(req, res) {
     if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
     try {
-        const products = await stripe.products.list({
-            active: true,
-            limit: 100,
-            expand: ['data.default_price'],
-        }).autoPagingToArray({ limit: 1000 });
+        const { data: categories, error: catErr } = await supabaseAdmin
+            .from('categories')
+            .select('id, card_layout_type');
+        if (catErr) throw catErr;
+        const categoriesById = Object.fromEntries((categories || []).map(c => [c.id, c]));
+
+        const { data: products, error: prodErr } = await supabaseAdmin
+            .from('products')
+            .select('*, product_variants(*)')
+            .eq('published', true);
+        if (prodErr) throw prodErr;
 
         const formattedProducts = await Promise.all(
-            products
-                .filter(product => product.default_price && product.default_price.unit_amount)
-                .map(async (product) => {
-                    let liveMetadata = { ...product.metadata };
+            (products || []).map(async (product) => {
+                const category = categoriesById[product.category_id];
+                const hasVariants = !!category && category.card_layout_type === 'variant-apparel';
 
-                    // Only iterates keys that already exist in Stripe metadata. A fully open-ended
-                    // (made-to-order) product with no stock_* fields simply has nothing to loop over here.
-                    for (const key of Object.keys(liveMetadata)) {
-                        if (key.startsWith('stock_') || key === 'stock') {
-                            // Same canonical key format used in checkout.js
-                            const redisKey = `stock_${product.id}_${key}`;
+                const metadata = {
+                    // extra_metadata first so the fixed fields below always win on key collision --
+                    // it's a free-form escape hatch (DTF visualizer per-garment overrides like
+                    // scale_tshirt/nudge_x_hoodie/design_type), not meant to shadow known fields.
+                    ...(product.extra_metadata || {}),
+                    category: product.category_id,
+                    hasVariants: hasVariants ? 'true' : 'false',
+                    sort_order: (product.sort_order != null ? product.sort_order : 99).toString(),
+                };
+                if (product.sub_category_id) metadata.sub_category = product.sub_category_id;
+                if (product.dtf_placement) {
+                    if (product.dtf_placement.top) metadata.dtf_top = product.dtf_placement.top;
+                    if (product.dtf_placement.left) metadata.dtf_left = product.dtf_placement.left;
+                    if (product.dtf_placement.width) metadata.dtf_width = product.dtf_placement.width;
+                    if (product.dtf_placement.height) metadata.dtf_height = product.dtf_placement.height;
+                }
 
-                            let liveStock = await kv.get(redisKey);
+                // Gallery layout (loaded-binders): images[0] is the main photo, images[1..4]
+                // become metadata.thumb1..4, matching the old separate-metadata-fields contract.
+                if (category && category.card_layout_type === 'gallery' && product.images && product.images.length > 1) {
+                    product.images.slice(1, 5).forEach((url, i) => { metadata[`thumb${i + 1}`] = url; });
+                }
 
-                            // Lazy init: first time this key is read, seed Redis from Stripe's
-                            // metadata number so the two stay in sync automatically.
-                            if (liveStock === null) {
-                                liveStock = parseInt(product.metadata[key]);
-                                await kv.set(redisKey, liveStock);
-                            }
-
-                            liveMetadata[key] = liveStock.toString();
-                        }
+                // Seed the raw (pre-live) stock number(s) into metadata, same shape as the old
+                // Stripe-metadata contract, before the Redis overlay loop below makes them live.
+                if (hasVariants) {
+                    for (const variant of product.product_variants || []) {
+                        metadata[`stock_${variant.size}_${variant.color}`] = variant.stock.toString();
                     }
+                } else if (product.stock !== null && product.stock !== undefined) {
+                    metadata.stock = product.stock.toString();
+                }
 
-                    return {
-                        id: product.id,
-                        name: product.name,
-                        description: product.description,
-                        images: product.images,
-                        metadata: liveMetadata, // now reflects live Redis-backed counts
-                        price: (product.default_price.unit_amount / 100).toFixed(2),
-                        priceId: product.default_price.id
-                    };
-                })
+                // Live Redis overlay -- unchanged logic from before, just seeded from the
+                // Supabase mirror instead of Stripe metadata on first read.
+                for (const key of Object.keys(metadata)) {
+                    if (key.startsWith('stock_') || key === 'stock') {
+                        const redisKey = `stock_${product.id}_${key}`;
+                        let liveStock = await kv.get(redisKey);
+                        if (liveStock === null) {
+                            liveStock = parseInt(metadata[key], 10) || 0;
+                            await kv.set(redisKey, liveStock);
+                        }
+                        metadata[key] = liveStock.toString();
+                    }
+                }
+
+                // Per-product variant list (size/color/image) -- replaces the old shared,
+                // category-wide variantConfig.colors map. Each product can now have its own
+                // photo per color instead of every product in a category being forced to share
+                // the same color->image map.
+                const variants = hasVariants
+                    ? (product.product_variants || []).map(v => ({ size: v.size, color: v.color, colorImageUrl: v.color_image_url }))
+                    : [];
+
+                return {
+                    id: product.id,
+                    name: product.name,
+                    description: product.description,
+                    images: product.images || [],
+                    metadata,
+                    variants,
+                    price: (product.price_cents / 100).toFixed(2),
+                    priceId: product.stripe_price_id,
+                };
+            })
         );
 
         res.status(200).json(formattedProducts);
     } catch (error) {
-        console.error('Stripe API Error:', error.message);
+        console.error('Products API error:', error.message);
         res.status(500).json({ error: error.message });
     }
 }

@@ -6,6 +6,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { xpForOrder, tierForXp, evaluateOrderBadges, isAnniversaryDay, ANNIVERSARY_XP_MULTIPLIER } = require('../lib/loyalty');
 const { notifyRestock } = require('../lib/notify');
 const { unpackCartItemMetadata } = require('../lib/cart-metadata');
+const { mirrorStockToCatalog } = require('../lib/catalog-stock');
 
 // Service-role client: bypasses RLS, used only here and in cron-birthday-coupons.js to write
 // loyalty fields the shopper's own browser session is never allowed to touch directly.
@@ -53,9 +54,9 @@ export default async function handler(req, res) {
   const itemCount = parseInt(metadata.item_count);
 
   try {
-    // PAYMENT SUCCESSFUL: sync the live Redis count back into Stripe metadata as a cold-storage
-    // backup. This is naturally idempotent (just re-copies the current value), so no per-item
-    // lock is needed here even on a retry.
+    // PAYMENT SUCCESSFUL: sync the live Redis count back into its Supabase cold-storage mirror.
+    // This is naturally idempotent (just re-copies the current value), so no per-item lock is
+    // needed here even on a retry.
     if (event.type === 'checkout.session.completed') {
       for (let i = 0; i < itemCount; i++) {
         const itemData = unpackCartItemMetadata(metadata, i);
@@ -63,10 +64,7 @@ export default async function handler(req, res) {
 
         const finalStock = await kv.get(itemData.redisKey);
         if (finalStock !== null) {
-          const product = await stripe.products.retrieve(itemData.prodId);
-          await stripe.products.update(itemData.prodId, {
-            metadata: { ...product.metadata, [itemData.stripeMetaKey]: finalStock.toString() },
-          });
+          await mirrorStockToCatalog(itemData.prodId, itemData.stripeMetaKey, parseInt(finalStock, 10) || 0);
         }
       }
 
@@ -213,9 +211,9 @@ export default async function handler(req, res) {
         const previousStockLevel = newStockLevel - qtyToReturn;
         if (previousStockLevel <= 0 && newStockLevel > 0) {
           try {
-            const product = await stripe.products.retrieve(itemData.prodId);
-            const imageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
-            await notifyRestock(supabaseAdmin, itemData.prodId, product.name, imageUrl);
+            const { data: product } = await supabaseAdmin.from('products').select('name, images').eq('id', itemData.prodId).single();
+            const imageUrl = product && product.images && product.images.length > 0 ? product.images[0] : null;
+            await notifyRestock(supabaseAdmin, itemData.prodId, product && product.name, imageUrl);
           } catch (err) {
             // Never let a notification failure block the actual stock release.
             console.error('Restock notification failed:', err.message);

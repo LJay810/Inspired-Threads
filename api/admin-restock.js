@@ -1,10 +1,12 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 import { Redis } from '@upstash/redis';
 const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const { requireAdmin } = require('../lib/require-admin');
 const { notifyRestock } = require('../lib/notify');
+const { syncVariantStockToStripe } = require('../lib/stripe-sync');
+const { mirrorStockToCatalog } = require('../lib/catalog-stock');
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -12,26 +14,9 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Identify the caller from their own session token, same pattern as submit-review.js --
-        // never trust a user id passed in the request body.
-        const authHeader = req.headers.authorization || '';
-        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-        if (!token) return res.status(401).json({ error: 'Not signed in.' });
-
-        const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-        if (userErr || !userData || !userData.user) {
-            return res.status(401).json({ error: 'Your session has expired -- please sign in again.' });
-        }
-        const userId = userData.user.id;
-
-        // ADMIN GATE: this is the actual security boundary. The button only being visible to
-        // admins on the frontend is UX -- anyone could still call this endpoint directly, so
-        // this server-side check is what really stops them.
-        const { data: profile } = await supabaseAdmin.from('profiles').select('is_admin, username').eq('id', userId).single();
-        if (!profile || !profile.is_admin) {
-            return res.status(403).json({ error: 'Not authorized.' });
-        }
-        const adminLabel = profile.username || userData.user.email || userId;
+        const auth = await requireAdmin(req);
+        if (auth.error) return res.status(auth.status).json({ error: auth.error });
+        const adminLabel = auth.username || auth.callerId;
 
         const { productId, stripeMetaKey, newQuantity } = req.body;
         const qty = parseInt(newQuantity, 10);
@@ -47,21 +32,25 @@ export default async function handler(req, res) {
 
         await kv.set(redisKey, qty);
 
-        // Keep Stripe's metadata as the cold-storage mirror, same as webhook.js already does
-        // after a completed order -- so the Dashboard and products.js's lazy-init both stay in
-        // sync with reality, not just Redis.
-        const product = await stripe.products.retrieve(productId);
-        await stripe.products.update(productId, {
-            metadata: { ...product.metadata, [stripeMetaKey]: qty.toString() },
-        });
+        // Cold-storage mirror is now Supabase (product_variants for size/color keys, products.stock
+        // for the plain "stock" key), replacing Stripe metadata's old role -- same reasoning as
+        // before: keeps a persistent source in sync with Redis, not just live in memory.
+        await mirrorStockToCatalog(productId, stripeMetaKey, qty);
+        const { data: productRow } = await supabaseAdmin.from('products').select('name, images').eq('id', productId).single();
+        const productName = productRow && productRow.name;
+
+        // Mirrors the Stripe Dashboard's product metadata too, purely for cosmetic parity --
+        // never blocks the restock itself if Stripe is unreachable.
+        syncVariantStockToStripe(productId, stripeMetaKey, qty).catch(err =>
+            console.error('Stripe stock mirror failed (restock itself still succeeded):', err.message));
 
         // Only a genuine 0-or-below -> positive crossing counts as a restock worth alerting
         // wishlisters about -- same rule the automatic cart-release path uses, so correcting a
         // typo (5 -> 6) or topping up an already-available item stays silent.
         let didNotify = false;
-        if (previousStockLevel <= 0 && qty > 0) {
-            const imageUrl = product.images && product.images.length > 0 ? product.images[0] : null;
-            await notifyRestock(supabaseAdmin, productId, product.name, imageUrl);
+        if (previousStockLevel <= 0 && qty > 0 && productRow) {
+            const imageUrl = productRow.images && productRow.images.length > 0 ? productRow.images[0] : null;
+            await notifyRestock(supabaseAdmin, productId, productName, imageUrl);
             didNotify = true;
         }
 
@@ -69,10 +58,10 @@ export default async function handler(req, res) {
         // block the restock itself, just means this one action won't show in the activity feed.
         try {
             await supabaseAdmin.from('restock_log').insert({
-                admin_user_id: userId,
+                admin_user_id: auth.callerId,
                 admin_label: adminLabel,
                 product_id: productId,
-                product_name: product.name,
+                product_name: productName,
                 stripe_meta_key: stripeMetaKey,
                 previous_qty: previousStockLevel,
                 new_qty: qty,

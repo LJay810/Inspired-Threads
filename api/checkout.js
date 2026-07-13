@@ -6,8 +6,10 @@ const { createClient } = require('@supabase/supabase-js');
 const { perksForTier, tierForXp } = require('../lib/loyalty');
 const { packCartItemMetadata } = require('../lib/cart-metadata');
 
-// Service-role client: only used server-side, only ever to READ a shopper's own xp so we know
-// which tier's perks to apply. Never exposed to the browser.
+// Service-role client: reads a shopper's own xp (to pick tier perks) AND is now also the
+// catalog lookup for checkout -- product name/price/stock-tracking come from our own
+// products/categories tables, not from Stripe, since Stripe is invisible payment plumbing now
+// (see lib/stripe-sync.js). Never exposed to the browser.
 const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
     ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     : null;
@@ -53,20 +55,38 @@ export default async function handler(req, res) {
 
         for (let i = 0; i < cartItems.length; i++) {
             const item = cartItems[i];
-            const price = await stripe.prices.retrieve(item.priceId, { expand: ['product'] });
-            const product = price.product;
-            subtotalCents += (price.unit_amount || 0) * item.quantity;
-            const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
 
-            // Exact Stripe metadata key: 'stock' for standard items, 'stock_Small_Black' style for variants
+            // Catalog lookup is now Supabase, keyed by the Stripe price id the cart already
+            // carries (unchanged from the shopper's perspective -- priceId still comes from
+            // /api/products, which now sources it from products.stripe_price_id). Category is
+            // fetched separately (rather than an embedded FK select) to avoid depending on
+            // Postgres's auto-generated constraint name for products.category_id.
+            const { data: product, error: productErr } = await supabaseAdmin
+                .from('products')
+                .select('*, product_variants(*)')
+                .eq('stripe_price_id', item.priceId)
+                .single();
+            if (productErr || !product) {
+                return res.status(400).json({ error: `"${item.name || 'An item'}" in your cart is no longer available.` });
+            }
+            const { data: productCategory } = await supabaseAdmin
+                .from('categories').select('card_layout_type').eq('id', product.category_id).single();
+
+            subtotalCents += product.price_cents * item.quantity;
+            const hasVariants = productCategory && productCategory.card_layout_type === 'variant-apparel';
+
+            // Exact key format: 'stock' for standard items, 'stock_Small_Black' style for variants
             const stripeMetaKey = hasVariants ? `stock_${item.size}_${item.color}` : 'stock';
 
             // Canonical Redis key, built the same way everywhere (checkout.js, products.js)
             const redisKey = `stock_${product.id}_${stripeMetaKey}`;
 
-            // UNTRACKED GUARD: only touch Redis if this item actually has a stock field in Stripe.
-            // Made-to-order / unlimited items (no stock_* metadata) are left alone entirely.
-            const hasStockLimit = product.metadata && product.metadata[stripeMetaKey] !== undefined;
+            // UNTRACKED GUARD: only touch Redis if this item is actually stock-tracked. Made-to-
+            // order / unlimited items (product.stock === null, or the size/color combo has no
+            // matching product_variants row) are left alone entirely.
+            const hasStockLimit = hasVariants
+                ? product.product_variants.some(v => v.size === item.size && v.color === item.color)
+                : product.stock !== null;
 
             if (hasStockLimit) {
                 // Atomic check-and-decrement. Redis executes DECRBY as a single operation,

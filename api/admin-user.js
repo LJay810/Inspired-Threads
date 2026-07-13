@@ -1,25 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-async function requireAdmin(req) {
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return { error: 'Not signed in.', status: 401 };
-
-    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-    if (userErr || !userData || !userData.user) {
-        return { error: 'Your session has expired -- please sign in again.', status: 401 };
-    }
-
-    // ADMIN GATE: the real security boundary, same pattern as admin-restock.js. The panel only
-    // being visible to admins client-side is UX -- this server-side check is what actually stops
-    // anyone else from calling this endpoint directly.
-    const { data: profile } = await supabaseAdmin.from('profiles').select('is_admin').eq('id', userData.user.id).single();
-    if (!profile || !profile.is_admin) {
-        return { error: 'Not authorized.', status: 403 };
-    }
-    return { callerId: userData.user.id };
-}
+const { requireAdmin } = require('../lib/require-admin');
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {

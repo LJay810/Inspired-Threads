@@ -1,0 +1,35 @@
+/* Shared design tokens -- extracted from index.html's :root block so admin.html can match the
+   storefront's look without duplicating its full stylesheet. If you tweak the palette in one
+   place, update it in both (index.html's :root and this file) until/unless index.html itself
+   is changed to load this file directly. */
+:root {
+    --bg-main: #030303;
+    --bg-surface: #0a0a0a;
+    --bg-card: #121212;
+    --text-pure: #ffffff;
+    --text-muted: #8e9aa8;
+    --accent-pink: #ff007f;
+    --accent-pink-hover: #cc0066;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+
+    --transition-fluid: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    --transition-snappy: all 0.15s ease-out;
+
+    --font-mono: 'SFMono-Regular', Consolas, Menlo, monospace;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg-main); }
+body {
+    background: var(--bg-main);
+    color: var(--text-pure);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--bg-main); }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 5px; border: 2px solid var(--bg-main); }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-pink); }

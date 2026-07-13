@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inspired Threads | Admin</title>
+<link rel="icon" type="image/png" href="images/inspiredthreadsLogoIcon2.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="shared/design-tokens.css">
+<style>
+    body { visibility: hidden; } /* revealed by AdminAuth.init() once the admin check passes */
+
+    .admin-shell { display: flex; min-height: 100vh; }
+
+    .admin-sidebar {
+        width: 220px; flex-shrink: 0; background: var(--bg-surface);
+        border-right: 1px solid var(--border-subtle); padding: 24px 16px;
+        display: flex; flex-direction: column; gap: 4px;
+    }
+    .admin-logo { font-family: var(--font-mono); font-weight: 800; letter-spacing: 0.05em; color: var(--accent-pink); font-size: 0.9rem; margin-bottom: 24px; }
+    .admin-nav-btn {
+        background: none; border: none; color: var(--text-muted); text-align: left; padding: 10px 12px;
+        border-radius: 6px; cursor: pointer; font-family: var(--font-sans); font-size: 0.9rem; font-weight: 600;
+    }
+    .admin-nav-btn:hover { background: var(--bg-card); color: var(--text-pure); }
+    .admin-nav-btn.active { background: rgba(255,0,127,0.12); color: var(--accent-pink); }
+    .admin-nav-divider { height: 1px; background: var(--border-subtle); margin: 12px 0; }
+    .admin-nav-link { color: var(--text-muted); font-size: 0.82rem; padding: 8px 12px; text-decoration: none; }
+    .admin-nav-link:hover { color: var(--text-pure); }
+
+    .admin-main { flex: 1; padding: 28px 36px; max-width: 1200px; }
+    .admin-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+    .admin-topbar h1 { font-size: 1.4rem; }
+    .admin-topbar .who { color: var(--text-muted); font-size: 0.85rem; }
+    .admin-topbar button { background: none; border: 1px solid var(--border-subtle); color: var(--text-muted); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-left: 10px; }
+    .admin-topbar button:hover { color: var(--text-pure); border-color: var(--text-muted); }
+
+    .admin-tab-panel { display: none; }
+    .admin-tab-panel.active { display: block; }
+
+    .admin-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+    .admin-toolbar input, .admin-toolbar select { background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-pure); padding: 8px 10px; border-radius: 6px; font-size: 0.85rem; }
+    .admin-btn { background: var(--accent-pink); color: #fff; border: none; padding: 9px 16px; border-radius: 6px; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+    .admin-btn:hover { background: var(--accent-pink-hover); }
+    .admin-btn.secondary { background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-pure); }
+    .admin-btn.danger { background: #3a1420; color: #ff6b8a; border: 1px solid #5c1f30; }
+    .admin-btn.small { padding: 5px 10px; font-size: 0.75rem; }
+
+    table.admin-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .admin-table th { text-align: left; color: var(--text-muted); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .admin-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+    .admin-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .admin-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; background: #1a1a1a; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; background: var(--bg-card); border: 1px solid var(--border-subtle); }
+    .badge.ok { color: #4ade80; border-color: #1e4d33; }
+    .badge.error { color: #ff6b8a; border-color: #5c1f30; }
+
+    .admin-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 40px 20px; }
+    .admin-modal-overlay.open { display: flex; }
+    .admin-modal { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 28px; width: 100%; max-width: 640px; }
+    .admin-modal h2 { font-size: 1.1rem; margin-bottom: 18px; }
+    .admin-field { margin-bottom: 14px; }
+    .admin-field label { display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 5px; font-weight: 600; }
+    .admin-field input[type=text], .admin-field input[type=number], .admin-field textarea, .admin-field select {
+        width: 100%; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-pure);
+        padding: 9px 11px; border-radius: 6px; font-size: 0.85rem; font-family: var(--font-sans);
+    }
+    .admin-field textarea { min-height: 70px; resize: vertical; }
+    .admin-radio-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .admin-radio-card { border: 1px solid var(--border-subtle); border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 0.78rem; }
+    .admin-radio-card.selected { border-color: var(--accent-pink); color: var(--accent-pink); background: rgba(255,0,127,0.06); }
+    .admin-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+    .admin-error-banner { background: #3a1420; color: #ff9db1; padding: 10px 14px; border-radius: 6px; font-size: 0.82rem; margin-bottom: 14px; }
+    .chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .chip { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 4px 10px; font-size: 0.75rem; display: flex; align-items: center; gap: 6px; }
+    .chip button { background: none; border: none; color: #ff6b8a; cursor: pointer; font-weight: 800; }
+
+    .variant-matrix-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 8px; }
+    .variant-matrix-table th, .variant-matrix-table td { border: 1px solid var(--border-subtle); padding: 6px 8px; text-align: center; }
+    .variant-matrix-table input[type=number] { width: 60px; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-pure); padding: 4px; border-radius: 4px; }
+    .image-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .image-strip .img-slot { position: relative; width: 70px; height: 70px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-subtle); }
+    .image-strip .img-slot img { width: 100%; height: 100%; object-fit: cover; }
+    .image-strip .img-slot button { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.7); color: #ff6b8a; border: none; border-radius: 3px; font-size: 0.65rem; cursor: pointer; }
+    .empty-state { color: var(--text-muted); font-size: 0.85rem; padding: 30px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="admin-shell">
+    <aside class="admin-sidebar">
+        <div class="admin-logo">INSPIRED THREADS<br>ADMIN</div>
+        <button class="admin-nav-btn active" data-tab="categories" onclick="switchTab('categories')">Categories</button>
+        <button class="admin-nav-btn" data-tab="products" onclick="switchTab('products')">Products</button>
+        <div class="admin-nav-divider"></div>
+        <a class="admin-nav-link" href="/#account">← Restock / Customers / Reviews (existing tools)</a>
+        <a class="admin-nav-link" href="/">← Back to storefront</a>
+    </aside>
+
+    <main class="admin-main">
+        <div class="admin-topbar">
+            <h1>Admin Panel</h1>
+            <div>
+                <span class="who" id="whoAmI"></span>
+                <button onclick="AdminAuth.signOut()">Sign out</button>
+            </div>
+        </div>
+
+        <!-- ===================== CATEGORIES TAB ===================== -->
+        <section class="admin-tab-panel active" id="tab-categories">
+            <div class="admin-toolbar">
+                <button class="admin-btn" onclick="openCategoryModal()">+ Add Category</button>
+            </div>
+            <table class="admin-table">
+                <thead><tr><th>Label</th><th>Layout</th><th>Filter Group</th><th>Products</th><th>Active</th><th></th></tr></thead>
+                <tbody id="categoriesTableBody"><tr><td colspan="6" class="empty-state">Loading...</td></tr></tbody>
+            </table>
+        </section>
+
+        <!-- ===================== PRODUCTS TAB ===================== -->
+        <section class="admin-tab-panel" id="tab-products">
+            <div class="admin-toolbar">
+                <button class="admin-btn" onclick="openProductModal()">+ Add Product</button>
+                <select id="productFilterCategory" onchange="loadProducts()"><option value="">All categories</option></select>
+                <input type="text" id="productFilterSearch" placeholder="Search by name..." oninput="debouncedLoadProducts()">
+            </div>
+            <table class="admin-table">
+                <thead><tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Published</th><th>Stripe</th><th></th></tr></thead>
+                <tbody id="productsTableBody"><tr><td colspan="8" class="empty-state">Loading...</td></tr></tbody>
+            </table>
+        </section>
+    </main>
+</div>
+
+<!-- ===================== CATEGORY MODAL ===================== -->
+<div class="admin-modal-overlay" id="categoryModalOverlay">
+    <div class="admin-modal">
+        <h2 id="categoryModalTitle">Add Category</h2>
+        <div id="categoryModalError"></div>
+        <form id="categoryForm" onsubmit="saveCategory(event)">
+            <input type="hidden" id="cat_originalId">
+            <div class="admin-field"><label>Label</label><input type="text" id="cat_label" required oninput="autoSlug()"></div>
+            <div class="admin-field"><label>Slug / ID</label><input type="text" id="cat_id" required></div>
+            <div class="admin-field"><label>Filter group (which top filter button)</label><input type="text" id="cat_filter_group" placeholder="e.g. thread, dtf"></div>
+            <div class="admin-field"><label>Parent category (optional, for sub-filters)</label><select id="cat_parent_id"><option value="">None</option></select></div>
+            <div class="admin-field">
+                <label>Card layout type</label>
+                <div class="admin-radio-row" id="cat_layout_radio">
+                    <div class="admin-radio-card" data-value="variant-apparel" onclick="selectLayoutType('variant-apparel')">Variant Apparel<br><small>Sizes + colors</small></div>
+                    <div class="admin-radio-card" data-value="gallery" onclick="selectLayoutType('gallery')">Gallery<br><small>Main + thumbnails</small></div>
+                    <div class="admin-radio-card" data-value="design-attach" onclick="selectLayoutType('design-attach')">Design-Attach<br><small>DTF overlay, no variants</small></div>
+                    <div class="admin-radio-card" data-value="simple" onclick="selectLayoutType('simple')">Simple<br><small>Just an image</small></div>
+                </div>
+            </div>
+
+            <div id="layoutConfigFields"></div>
+
+            <div class="admin-field"><label>Size chart image URL (optional)</label><input type="text" id="cat_size_chart_url" placeholder="Upload below or paste a URL"><input type="file" accept="image/*" onchange="uploadCategorySizeChart(event)"></div>
+            <div class="admin-field"><label><input type="checkbox" id="cat_active" checked style="width:auto;"> Active</label></div>
+
+            <div class="admin-modal-actions">
+                <button type="button" class="admin-btn secondary" onclick="closeCategoryModal()">Cancel</button>
+                <button type="submit" class="admin-btn">Save Category</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ===================== PRODUCT MODAL ===================== -->
+<div class="admin-modal-overlay" id="productModalOverlay">
+    <div class="admin-modal" style="max-width: 760px;">
+        <h2 id="productModalTitle">Add Product</h2>
+        <div id="productModalError"></div>
+        <form id="productForm" onsubmit="saveProduct(event)">
+            <input type="hidden" id="prod_id">
+            <div class="admin-field"><label>Name</label><input type="text" id="prod_name" required></div>
+            <div class="admin-field"><label>Description</label><textarea id="prod_description"></textarea></div>
+            <div class="admin-field"><label>Category</label><select id="prod_category_id" required onchange="onProductCategoryChange()"></select></div>
+            <div class="admin-field" id="prod_subcat_field" style="display:none;"><label>Sub-category (e.g. DTF pocket/kids)</label><select id="prod_sub_category_id"><option value="">None</option></select></div>
+            <div class="admin-field"><label>Price (USD)</label><input type="number" id="prod_price" step="0.01" min="0.01" required></div>
+            <div class="admin-field"><label><input type="checkbox" id="prod_published" checked style="width:auto;"> Published</label></div>
+
+            <div class="admin-field">
+                <label>Images (first = main photo)</label>
+                <input type="file" accept="image/*" multiple onchange="uploadProductImages(event)">
+                <div class="image-strip" id="prod_images_strip"></div>
+            </div>
+
+            <div class="admin-field" id="prod_dtf_fields" style="display:none;">
+                <label>DTF placement override (optional, % values)</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="prod_dtf_top" placeholder="top">
+                    <input type="text" id="prod_dtf_left" placeholder="left">
+                    <input type="text" id="prod_dtf_width" placeholder="width">
+                    <input type="text" id="prod_dtf_height" placeholder="height">
+                </div>
+            </div>
+
+            <div class="admin-field" id="prod_stock_field" style="display:none;">
+                <label>Stock (leave blank for made-to-order / unlimited)</label>
+                <input type="number" id="prod_stock" min="0">
+            </div>
+
+            <div class="admin-field" id="prod_variants_field" style="display:none;">
+                <label>Variants (size × color × stock)</label>
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <input type="text" id="newVariantColor" placeholder="Add a color, e.g. Black">
+                    <input type="file" accept="image/*" id="newVariantColorImg">
+                    <button type="button" class="admin-btn small secondary" onclick="addVariantColorRow()">+ Add Color</button>
+                </div>
+                <div id="variantMatrixWrap"></div>
+            </div>
+
+            <div class="admin-field">
+                <label>Advanced metadata (JSON, optional -- e.g. DTF design per-garment overrides like scale_tshirt, nudge_x_hoodie, design_type)</label>
+                <textarea id="prod_extra_metadata" placeholder="{}"></textarea>
+            </div>
+
+            <div id="prod_sync_status"></div>
+
+            <div class="admin-modal-actions">
+                <button type="button" class="admin-btn secondary" onclick="closeProductModal()">Cancel</button>
+                <button type="submit" class="admin-btn">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="shared/admin-auth.js"></script>
+<script>
+let session = null;
+let categories = [];
+let productsCache = [];
+let currentVariantColors = {}; // { colorName: { imageUrl, stockBySize: {size: qty} } }
+let selectedLayoutType = null;
+
+async function boot() {
+    session = await AdminAuth.init();
+    if (!session) return;
+    document.getElementById('whoAmI').textContent = session.profile.username || session.user.email;
+    await loadCategories();
+    switchTab('categories');
+}
+boot();
+
+function switchTab(tab) {
+    document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
+    if (tab === 'products') loadProducts();
+}
+
+async function adminApi(endpoint, body) {
+    const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...AdminAuth.authHeader(session.accessToken) },
+        body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Request failed');
+    return data;
+}
+
+// ===================== CATEGORIES =====================
+
+async function loadCategories() {
+    const { categories: cats } = await adminApi('/api/admin-categories', { action: 'list' });
+    categories = cats;
+    renderCategoriesTable();
+    populateCategoryDropdowns();
+}
+
+function renderCategoriesTable() {
+    const body = document.getElementById('categoriesTableBody');
+    if (categories.length === 0) { body.innerHTML = '<tr><td colspan="6" class="empty-state">No categories yet.</td></tr>'; return; }
+    body.innerHTML = categories.map(c => `
+        <tr>
+            <td>${escapeHtml(c.label)}</td>
+            <td><span class="badge">${c.card_layout_type}</span></td>
+            <td>${escapeHtml(c.filter_group || '—')}</td>
+            <td>${c.product_count}</td>
+            <td>${c.active ? 'Yes' : 'No'}</td>
+            <td>
+                <button class="admin-btn small secondary" onclick='openCategoryModal(${JSON.stringify(c.id)})'>Edit</button>
+                <button class="admin-btn small danger" onclick='deleteCategory(${JSON.stringify(c.id)})'>Delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function populateCategoryDropdowns() {
+    const parentSelect = document.getElementById('cat_parent_id');
+    parentSelect.innerHTML = '<option value="">None</option>' + categories.map(c => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+
+    const prodCatSelect = document.getElementById('prod_category_id');
+    prodCatSelect.innerHTML = categories.map(c => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+
+    const prodSubCatSelect = document.getElementById('prod_sub_category_id');
+    prodSubCatSelect.innerHTML = '<option value="">None</option>' + categories.map(c => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+
+    const filterCatSelect = document.getElementById('productFilterCategory');
+    filterCatSelect.innerHTML = '<option value="">All categories</option>' + categories.map(c => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+}
+
+function selectLayoutType(type) {
+    selectedLayoutType = type;
+    document.querySelectorAll('#cat_layout_radio .admin-radio-card').forEach(el => el.classList.toggle('selected', el.dataset.value === type));
+    renderLayoutConfigFields(type, {});
+}
+
+function renderLayoutConfigFields(type, existingConfig) {
+    const wrap = document.getElementById('layoutConfigFields');
+    const cfg = existingConfig || {};
+    if (type === 'variant-apparel' || type === 'design-attach') {
+        wrap.innerHTML = `
+            ${type === 'variant-apparel' ? `
+            <div class="admin-field">
+                <label>Sizes</label>
+                <div style="display:flex; gap:8px;"><input type="text" id="cfg_newSize" placeholder="Add a size, e.g. Large"><button type="button" class="admin-btn small secondary" onclick="addSizeChip()">+ Add</button></div>
+                <div class="chip-list" id="cfg_sizes_chips"></div>
+            </div>` : ''}
+            <div class="admin-field"><label>DTF default placement (top / left / width / height, %)</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="cfg_dtf_top" placeholder="top" value="${cfg.dtf_default_placement?.top || ''}">
+                    <input type="text" id="cfg_dtf_left" placeholder="left" value="${cfg.dtf_default_placement?.left || ''}">
+                    <input type="text" id="cfg_dtf_width" placeholder="width" value="${cfg.dtf_default_placement?.width || ''}">
+                    <input type="text" id="cfg_dtf_height" placeholder="height" value="${cfg.dtf_default_placement?.height || ''}">
+                </div>
+            </div>
+            <div class="admin-field"><label>DTF center-chest scale / y-offset</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="number" step="0.01" id="cfg_center_scale" placeholder="scale" value="${cfg.dtf_center_chest?.scale ?? ''}">
+                    <input type="number" id="cfg_center_y" placeholder="y offset" value="${cfg.dtf_center_chest?.y ?? ''}">
+                </div>
+            </div>
+        `;
+        window._cfgSizes = (cfg.sizes || []).slice();
+        renderSizeChips();
+    } else if (type === 'gallery') {
+        wrap.innerHTML = `<div class="admin-field"><label>Max thumbnails</label><input type="number" id="cfg_max_thumbnails" value="${cfg.max_thumbnails || 4}"></div>`;
+    } else {
+        wrap.innerHTML = '';
+    }
+}
+
+function addSizeChip() {
+    const input = document.getElementById('cfg_newSize');
+    const val = input.value.trim();
+    if (!val) return;
+    window._cfgSizes = window._cfgSizes || [];
+    if (!window._cfgSizes.includes(val)) window._cfgSizes.push(val);
+    input.value = '';
+    renderSizeChips();
+}
+function removeSizeChip(size) {
+    window._cfgSizes = (window._cfgSizes || []).filter(s => s !== size);
+    renderSizeChips();
+}
+function renderSizeChips() {
+    const el = document.getElementById('cfg_sizes_chips');
+    if (!el) return;
+    el.innerHTML = (window._cfgSizes || []).map(s => `<span class="chip">${escapeHtml(s)}<button type="button" onclick='removeSizeChip(${JSON.stringify(s)})'>✕</button></span>`).join('');
+}
+
+function autoSlug() {
+    if (document.getElementById('cat_originalId').value) return; // don't re-slug on edit
+    const label = document.getElementById('cat_label').value;
+    document.getElementById('cat_id').value = label.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function openCategoryModal(id) {
+    document.getElementById('categoryModalError').innerHTML = '';
+    document.getElementById('categoryForm').reset();
+    document.getElementById('cat_originalId').value = '';
+    populateCategoryDropdowns();
+
+    if (id) {
+        const c = categories.find(x => x.id === id);
+        document.getElementById('categoryModalTitle').textContent = 'Edit Category';
+        document.getElementById('cat_originalId').value = c.id;
+        document.getElementById('cat_label').value = c.label;
+        document.getElementById('cat_id').value = c.id;
+        document.getElementById('cat_filter_group').value = c.filter_group || '';
+        document.getElementById('cat_parent_id').value = c.parent_id || '';
+        document.getElementById('cat_size_chart_url').value = c.size_chart_image_url || '';
+        document.getElementById('cat_active').checked = c.active;
+        selectLayoutType(c.card_layout_type);
+        renderLayoutConfigFields(c.card_layout_type, c.config || {});
+    } else {
+        document.getElementById('categoryModalTitle').textContent = 'Add Category';
+        selectLayoutType('simple');
+    }
+    document.getElementById('categoryModalOverlay').classList.add('open');
+}
+function closeCategoryModal() { document.getElementById('categoryModalOverlay').classList.remove('open'); }
+
+async function uploadCategorySizeChart(evt) {
+    const file = evt.target.files[0];
+    if (!file) return;
+    const url = await uploadToStorage(file);
+    document.getElementById('cat_size_chart_url').value = url;
+}
+
+function buildCategoryConfigFromForm() {
+    if (selectedLayoutType === 'variant-apparel' || selectedLayoutType === 'design-attach') {
+        const config = {
+            dtf_default_placement: {
+                top: document.getElementById('cfg_dtf_top').value || null,
+                left: document.getElementById('cfg_dtf_left').value || null,
+                width: document.getElementById('cfg_dtf_width').value || null,
+                height: document.getElementById('cfg_dtf_height').value || null,
+            },
+            dtf_center_chest: {
+                scale: parseFloat(document.getElementById('cfg_center_scale').value) || null,
+                y: parseFloat(document.getElementById('cfg_center_y').value) || null,
+            },
+        };
+        if (selectedLayoutType === 'variant-apparel') config.sizes = window._cfgSizes || [];
+        return config;
+    }
+    if (selectedLayoutType === 'gallery') {
+        return { max_thumbnails: parseInt(document.getElementById('cfg_max_thumbnails').value, 10) || 4 };
+    }
+    return {};
+}
+
+async function saveCategory(evt) {
+    evt.preventDefault();
+    const originalId = document.getElementById('cat_originalId').value;
+    const payload = {
+        label: document.getElementById('cat_label').value,
+        id: document.getElementById('cat_id').value,
+        filter_group: document.getElementById('cat_filter_group').value,
+        parent_id: document.getElementById('cat_parent_id').value || null,
+        card_layout_type: selectedLayoutType,
+        size_chart_image_url: document.getElementById('cat_size_chart_url').value,
+        active: document.getElementById('cat_active').checked,
+        config: buildCategoryConfigFromForm(),
+    };
+    try {
+        if (originalId) {
+            payload.id = originalId; // id/slug isn't editable after creation
+            await adminApi('/api/admin-categories', { action: 'update', ...payload });
+        } else {
+            await adminApi('/api/admin-categories', { action: 'create', ...payload });
+        }
+        closeCategoryModal();
+        await loadCategories();
+    } catch (err) {
+        document.getElementById('categoryModalError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+async function deleteCategory(id) {
+    if (!confirm('Delete this category? This only works if no products reference it.')) return;
+    try {
+        await adminApi('/api/admin-categories', { action: 'delete', id });
+        await loadCategories();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+// ===================== PRODUCTS =====================
+
+let productSearchDebounce;
+function debouncedLoadProducts() {
+    clearTimeout(productSearchDebounce);
+    productSearchDebounce = setTimeout(loadProducts, 300);
+}
+
+async function loadProducts() {
+    const category_id = document.getElementById('productFilterCategory').value;
+    const search = document.getElementById('productFilterSearch').value;
+    const { products } = await adminApi('/api/admin-products', { action: 'list', category_id: category_id || undefined, search: search || undefined });
+    productsCache = products;
+    renderProductsTable();
+}
+
+function renderProductsTable() {
+    const body = document.getElementById('productsTableBody');
+    if (productsCache.length === 0) { body.innerHTML = '<tr><td colspan="8" class="empty-state">No products found.</td></tr>'; return; }
+    body.innerHTML = productsCache.map(p => {
+        const stockLabel = p.product_variants && p.product_variants.length > 0
+            ? `${p.product_variants.length} variant(s)`
+            : (p.stock === null ? 'Unlimited' : p.stock);
+        const syncBadge = p.stripe_sync_status === 'error'
+            ? `<span class="badge error" title="${escapeHtml(p.stripe_sync_error || '')}">Sync failed</span> <button class="admin-btn small secondary" onclick='retrySync(${JSON.stringify(p.id)})'>Retry</button>`
+            : `<span class="badge ok">Synced</span>`;
+        return `
+        <tr>
+            <td><img class="admin-thumb" src="${p.images && p.images[0] || ''}" onerror="this.style.opacity=0"></td>
+            <td>${escapeHtml(p.name)}</td>
+            <td>${escapeHtml(p.category_id)}</td>
+            <td>$${(p.price_cents / 100).toFixed(2)}</td>
+            <td>${stockLabel}</td>
+            <td>${p.published ? 'Yes' : 'No'}</td>
+            <td>${syncBadge}</td>
+            <td>
+                <button class="admin-btn small secondary" onclick='openProductModal(${JSON.stringify(p.id)})'>Edit</button>
+                <button class="admin-btn small danger" onclick='deleteProduct(${JSON.stringify(p.id)})'>Archive</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function retrySync(id) {
+    try {
+        await adminApi('/api/admin-products', { action: 'retry_stripe_sync', id });
+        await loadProducts();
+    } catch (err) { alert(err.message); }
+}
+
+async function deleteProduct(id) {
+    if (!confirm('Archive this product? It will be unpublished from the storefront and archived in Stripe.')) return;
+    try {
+        await adminApi('/api/admin-products', { action: 'delete', id });
+        await loadProducts();
+    } catch (err) { alert(err.message); }
+}
+
+let currentProductImages = [];
+
+function onProductCategoryChange() {
+    const catId = document.getElementById('prod_category_id').value;
+    const category = categories.find(c => c.id === catId);
+    if (!category) return;
+
+    document.getElementById('prod_subcat_field').style.display = catId === 'dtf' ? 'block' : 'none';
+    document.getElementById('prod_dtf_fields').style.display = (category.card_layout_type === 'variant-apparel' || category.card_layout_type === 'design-attach') ? 'block' : 'none';
+    document.getElementById('prod_stock_field').style.display = category.card_layout_type === 'variant-apparel' ? 'none' : 'block';
+    document.getElementById('prod_variants_field').style.display = category.card_layout_type === 'variant-apparel' ? 'block' : 'none';
+
+    if (category.card_layout_type === 'variant-apparel' && Object.keys(currentVariantColors).length === 0) {
+        renderVariantMatrix(category.config?.sizes || []);
+    }
+}
+
+function addVariantColorRow() {
+    const colorInput = document.getElementById('newVariantColor');
+    const color = colorInput.value.trim();
+    if (!color) return;
+    const fileInput = document.getElementById('newVariantColorImg');
+    const file = fileInput.files[0];
+
+    const category = categories.find(c => c.id === document.getElementById('prod_category_id').value);
+    const sizes = category?.config?.sizes || [];
+
+    const addRow = (imageUrl) => {
+        currentVariantColors[color] = { imageUrl: imageUrl || null, stockBySize: {} };
+        sizes.forEach(s => { currentVariantColors[color].stockBySize[s] = 0; });
+        colorInput.value = '';
+        fileInput.value = '';
+        renderVariantMatrix(sizes);
+    };
+
+    if (file) { uploadToStorage(file).then(addRow); } else { addRow(null); }
+}
+
+function removeVariantColor(color) {
+    delete currentVariantColors[color];
+    const category = categories.find(c => c.id === document.getElementById('prod_category_id').value);
+    renderVariantMatrix(category?.config?.sizes || []);
+}
+
+function renderVariantMatrix(sizes) {
+    const wrap = document.getElementById('variantMatrixWrap');
+    const colors = Object.keys(currentVariantColors);
+    if (colors.length === 0 || sizes.length === 0) {
+        wrap.innerHTML = '<p style="color:var(--text-muted); font-size:0.8rem;">Add at least one color above.</p>';
+        return;
+    }
+    wrap.innerHTML = `
+        <table class="variant-matrix-table">
+            <thead><tr><th>Color</th>${sizes.map(s => `<th>${escapeHtml(s)}</th>`).join('')}<th></th></tr></thead>
+            <tbody>
+                ${colors.map(color => `
+                    <tr>
+                        <td>${escapeHtml(color)}</td>
+                        ${sizes.map(s => `<td><input type="number" min="0" value="${currentVariantColors[color].stockBySize[s] || 0}" onchange="currentVariantColors[${JSON.stringify(color)}].stockBySize[${JSON.stringify(s)}] = parseInt(this.value,10)||0"></td>`).join('')}
+                        <td><button type="button" class="admin-btn small danger" onclick='removeVariantColor(${JSON.stringify(color)})'>✕</button></td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function renderImageStrip() {
+    const strip = document.getElementById('prod_images_strip');
+    strip.innerHTML = currentProductImages.map((url, i) => `
+        <div class="img-slot"><img src="${url}"><button type="button" onclick="removeProductImage(${i})">✕</button></div>
+    `).join('');
+}
+function removeProductImage(i) { currentProductImages.splice(i, 1); renderImageStrip(); }
+
+async function uploadProductImages(evt) {
+    const files = Array.from(evt.target.files);
+    for (const file of files) {
+        const url = await uploadToStorage(file);
+        currentProductImages.push(url);
+    }
+    renderImageStrip();
+    evt.target.value = '';
+}
+
+async function uploadToStorage(file) {
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '')}`;
+    const { error } = await supabaseClient.storage.from('product-images').upload(path, file);
+    if (error) throw error;
+    const { data } = supabaseClient.storage.from('product-images').getPublicUrl(path);
+    return data.publicUrl;
+}
+
+function openProductModal(id) {
+    document.getElementById('productModalError').innerHTML = '';
+    document.getElementById('productForm').reset();
+    document.getElementById('prod_id').value = '';
+    currentProductImages = [];
+    currentVariantColors = {};
+    populateCategoryDropdowns();
+
+    if (id) {
+        const p = productsCache.find(x => x.id === id);
+        document.getElementById('productModalTitle').textContent = 'Edit Product';
+        document.getElementById('prod_id').value = p.id;
+        document.getElementById('prod_name').value = p.name;
+        document.getElementById('prod_description').value = p.description || '';
+        document.getElementById('prod_category_id').value = p.category_id;
+        document.getElementById('prod_sub_category_id').value = p.sub_category_id || '';
+        document.getElementById('prod_price').value = (p.price_cents / 100).toFixed(2);
+        document.getElementById('prod_published').checked = p.published;
+        document.getElementById('prod_stock').value = p.stock ?? '';
+        document.getElementById('prod_extra_metadata').value = p.extra_metadata && Object.keys(p.extra_metadata).length ? JSON.stringify(p.extra_metadata, null, 2) : '';
+        if (p.dtf_placement) {
+            document.getElementById('prod_dtf_top').value = p.dtf_placement.top || '';
+            document.getElementById('prod_dtf_left').value = p.dtf_placement.left || '';
+            document.getElementById('prod_dtf_width').value = p.dtf_placement.width || '';
+            document.getElementById('prod_dtf_height').value = p.dtf_placement.height || '';
+        }
+        currentProductImages = (p.images || []).slice();
+
+        (p.product_variants || []).forEach(v => {
+            if (!currentVariantColors[v.color]) currentVariantColors[v.color] = { imageUrl: v.color_image_url, stockBySize: {} };
+            currentVariantColors[v.color].stockBySize[v.size] = v.stock;
+        });
+
+        onProductCategoryChange();
+        const category = categories.find(c => c.id === p.category_id);
+        renderVariantMatrix(category?.config?.sizes || []);
+    } else {
+        document.getElementById('productModalTitle').textContent = 'Add Product';
+        if (categories.length > 0) { document.getElementById('prod_category_id').value = categories[0].id; onProductCategoryChange(); }
+    }
+    renderImageStrip();
+    document.getElementById('productModalOverlay').classList.add('open');
+}
+function closeProductModal() { document.getElementById('productModalOverlay').classList.remove('open'); }
+
+function buildVariantsPayload() {
+    const rows = [];
+    for (const [color, data] of Object.entries(currentVariantColors)) {
+        for (const [size, stock] of Object.entries(data.stockBySize)) {
+            rows.push({ size, color, color_image_url: data.imageUrl, stock });
+        }
+    }
+    return rows;
+}
+
+async function saveProduct(evt) {
+    evt.preventDefault();
+    const id = document.getElementById('prod_id').value;
+    const category = categories.find(c => c.id === document.getElementById('prod_category_id').value);
+
+    const payload = {
+        name: document.getElementById('prod_name').value,
+        description: document.getElementById('prod_description').value,
+        category_id: document.getElementById('prod_category_id').value,
+        sub_category_id: document.getElementById('prod_sub_category_id').value || null,
+        price_dollars: document.getElementById('prod_price').value,
+        images: currentProductImages,
+        published: document.getElementById('prod_published').checked,
+    };
+
+    const extraMetaRaw = document.getElementById('prod_extra_metadata').value.trim();
+    if (extraMetaRaw) {
+        try {
+            payload.extra_metadata = JSON.parse(extraMetaRaw);
+        } catch (err) {
+            document.getElementById('productModalError').innerHTML = `<div class="admin-error-banner">Advanced metadata isn't valid JSON: ${escapeHtml(err.message)}</div>`;
+            return;
+        }
+    } else {
+        payload.extra_metadata = {};
+    }
+
+    if (category.card_layout_type === 'variant-apparel' || category.card_layout_type === 'design-attach') {
+        payload.dtf_placement = {
+            top: document.getElementById('prod_dtf_top').value || null,
+            left: document.getElementById('prod_dtf_left').value || null,
+            width: document.getElementById('prod_dtf_width').value || null,
+            height: document.getElementById('prod_dtf_height').value || null,
+        };
+    }
+    if (category.card_layout_type === 'variant-apparel') {
+        payload.variants = buildVariantsPayload();
+    } else {
+        const stockVal = document.getElementById('prod_stock').value;
+        payload.stock = stockVal === '' ? null : parseInt(stockVal, 10);
+    }
+
+    try {
+        let result;
+        if (id) {
+            result = await adminApi('/api/admin-products', { action: 'update', id, ...payload });
+        } else {
+            result = await adminApi('/api/admin-products', { action: 'create', ...payload });
+        }
+        if (result.sync && !result.sync.ok) {
+            document.getElementById('prod_sync_status').innerHTML = `<div class="admin-error-banner">Saved, but Stripe sync failed: ${escapeHtml(result.sync.error)}. Checkout for this product may be affected until you retry from the product list.</div>`;
+        } else {
+            closeProductModal();
+        }
+        await loadProducts();
+    } catch (err) {
+        document.getElementById('productModalError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+function escapeHtml(str) {
+    return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>

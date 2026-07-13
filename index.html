@@ -1442,6 +1442,7 @@
                     </div>
 
                     <div class="perks-panel" id="adminToolsPanel" style="display:none;">
+                        <a href="/admin.html" target="_blank" class="hover-target" style="display:inline-block; margin-bottom:16px; color:var(--accent-pink); font-family:var(--font-mono); font-size:0.85rem; font-weight:700; text-decoration:none;">Open Full Admin Panel (Categories &amp; Products) →</a>
                         <div class="perks-panel-title">Admin Tools — Restock</div>
                         <div class="settings-field-hint" style="margin-bottom:10px;">
                             Setting a variant from 0 to a positive number notifies everyone who wishlisted it. Adjusting an already-in-stock number stays silent. Lowest-stock items are listed first.
@@ -1659,19 +1660,8 @@
         <div class="shop-controls reveal">
             <h2 class="section-header">Featured Collection</h2>
             <button class="size-chart-btn hover-target" onclick="openLightbox('images/SizeChart.jpg')">📏 Size Chart</button>
-            <div class="filter-bar">
-                <div class="dropdown hover-target" tabindex="0">
-    <button class="filter-btn dropdown-toggle active hover-target" data-filter="dtf" id="defaultFilter">DTF Transfers</button>
-    <div class="dropdown-content">
-        <button class="filter-btn active hover-target" data-filter="dtf">All DTF Transfers</button>
-        <button class="filter-btn hover-target" data-filter="dtf-pocket">Pocket DTF's</button>
-        <button class="filter-btn hover-target" data-filter="dtf-kids">Kid's DTF's</button>
-    </div>
-</div>
-                <button class="filter-btn hover-target" data-filter="thread">Thread Choice</button>
-                <button class="filter-btn hover-target" data-filter="loaded-binders">Loaded Binders</button>
-                <button class="filter-btn hover-target" data-filter="corporate">Graphic Tote Bags</button>
-
+            <div class="filter-bar" id="mainFilterBar">
+                <!-- Populated by renderFilterBar() from /api/categories -- see initShopEngine() -->
                 <input type="text" id="mainDtfSearch" class="dtf-search-input hover-target" placeholder="🔍 Search DTF Designs...">
             </div>
         </div>
@@ -2086,67 +2076,176 @@ Thank you for supporting my small business and understanding the handmade nature
         window.dtfRegistry = []; // Global memory for all available DTF products
         window.attachedDtfs = {}; // Maps { productId : {dtfData} }
         
-        const dtfPlacements = {
-            // T-Shirt (1316x1195 - Standard vertical bias)
-            'thread-tshirt': { top: '28%', width: '18%', height: '40%', left: '41%' },
-            
-            // Hoodie (Wider image, drop top to clear drawstrings)
-            'thread-hoodie': { top: '30%', width: '18%', height: '35%', left: '41%' }, 
-            
-            // Crewneck (1402x1122 - Widest image, has more top/bottom empty space)
-            'thread-crewneck': { top: '30%', width: '18%', height: '38%', left: '41%' },
-            
-            // Tanktop (1254x1254 - Perfect square, fills height)
-            'thread-tanktop': { top: '32%', width: '16%', height: '35%', left: '42%' },
+        // Category config (sizes, DTF placement/calibration, layout type) now comes from
+        // /api/categories -- populated into window.categoriesById by initShopEngine() below,
+        // before any card is rendered. Replaces the old hardcoded dtfPlacements/variantConfig
+        // objects; per-product color images now come from each product's own `variants` array
+        // (see api/products.js) instead of one shared color map per category.
+        window.categoriesById = {};
+        // productId -> { colorName: imageUrl }, built alongside window.productInventory in
+        // initShopEngine(). Replaces variantConfig[category].colors -- each product can now
+        // have its own photo per color instead of every product in a category sharing one map.
+        window.productVariantColorImages = {};
 
-            'corporate': { top: '48%', width: '40%', height: '40%', left: '30%' }
-        };
+        // --- CARD LAYOUT RENDERERS -- one per categories.card_layout_type. New categories
+        // never need a new branch here: picking an existing layout type in admin.html is
+        // enough. Each returns { imageZoneHTML, variantHTML, stockCount } for the shared
+        // stock-badge/checkout-button builder below to finish off.
+        function dtfOverlayStyle(category, product) {
+            const placement = category.config && category.config.dtf_default_placement;
+            if (!(placement || product.metadata.dtf_top)) return '';
+            const top = product.metadata.dtf_top || (placement && placement.top) || '35%';
+            const left = product.metadata.dtf_left || (placement && placement.left) || '40%';
+            const width = product.metadata.dtf_width || (placement && placement.width) || '20%';
+            const height = product.metadata.dtf_height || (placement && placement.height) || '40%';
+            return `top: ${top}; left: ${left}; width: ${width}; height: ${height};`;
+        }
 
-        // --- 4. DYNAMIC STRIPE INVENTORY & VARIANT ENGINE ---
-        const variantConfig = {
-            'thread-tshirt': {
-                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL', '3X', '4X', 'YXS', 'YS', 'YM', 'YL', 'YXL'],
-                colors: {
-                    'Black': 'images/IMG_8033.JPEG', 'White': 'images/IMG_8034.JPEG', 'Gray': 'images/GreyTShirt.png', 
-                    'RoyalBlue': 'images/RoyalBlueT.png', 'LightBlue': 'images/LightBlueT.png', 'NavyBlue': 'images/NavyBlueShirt.png', 
-                    'Violet': 'images/VioletT.png', 'Purple': 'images/PurpleT.png', 'Sand': 'images/SandT.png', 
-                    'HotPink': 'images/HotPinkT.png', 'LightPink': 'images/LightPink.png', 'IrishGreen': 'images/IrishGreenT.png', 
-                    'SageGreen': 'images/SageGreenT.JPEG', 'Orange': 'images/OrangeT.png', 'Yellow': 'images/YellowT.png', 
-                    'Red': 'images/RedT.png', 'ForestGreen': 'images/ForestGreen.png', 'BurntOrange': 'images/BurntOrange.png'
-                }
-            },
-            'thread-hoodie': {
-                sizes: ['Small', 'Medium', 'Large', 'XL', 'XXL', '3X', '4X', 'YXS', 'YS', 'YM', 'YL', 'YXL'],
-                colors: {
-                    'Black': 'images/BlackHoodie.png', 'Navy': 'images/NavyHoodie.png', 'Pink': 'images/PinkHoodie.png', 
-                    'Red': 'images/RedHoodie.png', 'White': 'images/WhiteHoodie.png', 'Sport Grey': 'images/SportGreyHoodie.png', 
-                    'Sand': 'images/SandHoodie.png', 'Charcoal': 'images/CharcoalHoodie.png', 'Purple': 'images/PurpleHoodie.png', 
-                    'ForestGreen': 'images/ForestGreenHoodie.png', 'Orange': 'images/OrangeHoodie.png', 'Maroon': 'images/MaroonHoodie.png', 
-                    'Mint Green': 'images/MintGreenHoodie.png'
-                }
-            },
-            'thread-crewneck': {
-                sizes: ['Small', 'Medium', 'Large', 'XL', '3X', '4X', 'YXS', 'YS', 'YM', 'YL', 'YXL'],
+        function attachDesignButtonHTML(product, category) {
+            return `
+                <button class="attach-btn hover-target" id="attach-btn-${product.id}" onclick="openDtfSelector('${product.id}', '${category.id}')">+ Attach Design</button>
+                <div id="attached-dtf-label-${product.id}" style="display:none; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); margin-bottom: 20px; text-align: center; background: rgba(255,0,127,0.05); border: 1px solid var(--accent-pink); padding: 8px; border-radius: 4px;">
+                    ATTACHED: <span id="dtf-name-${product.id}" style="color:var(--text-pure); font-weight: 700;"></span>
+                    <button class="hover-target" style="background:none;border:none;color:#ef4444;margin-left:10px;cursor:pointer;font-weight:900;" onclick="removeDtf('${product.id}')">✕</button>
+                </div>`;
+        }
 
-                colors: {
-                 'Black': 'images/BlackCrewNeck.png', 'White': 'images/WhiteCrewNeck.png', 'Gray': 'images/AthleticGreyCrewNeck.png', 
-                 'LightPink': 'images/LightPinkCrewNeck.png', 'Sand': 'images/SandCrewNeck.png', 'Red': 'images/RedCrewNeck.png', 
-                 'RoyalBlue': 'images/RoyalBlueCrewNeck.png', 'ForestGreen': 'images/ForestGreenCrewNeck.JPEG', 
-                 'KellyGreen': 'images/KellyGreen.png', 'NavyBlue': 'images/NavyBlueCrewNeck.png', 'Violet': 'images/VioletCrewNeck.png', 
-                 'HotPink': 'images/HotPink.png', 'Yellow': 'images/YellowCrewNeck.png', 'Purple': 'images/PurpleCrewNeck.png', 'SageGreen': 'images/SageGreenCrewNeck.png', 'Orange': 'images/OrangeCrewNeck.png'
-                }
-            },
-            'thread-tanktop': {
-                sizes: ['Small', 'Medium', 'Large', '3X', '4X', 'YXS', 'YS', 'YM', 'YL', 'YXL'],
+        function renderVariantApparelCard(product, category) {
+            const sizes = (category.config && category.config.sizes) || [];
+            const variants = product.variants || [];
 
-                colors: {
-                    'Black': 'images/BlackTanktop.png', 'White': 'images/WhiteTankTop.png', 'Grey': 'images/GreyTankTop.png', 
-                    'HotPink': 'images/HotPinkTankTop.png', 'TahitiBlue': 'images/TahitiBlueTankTop.png', 
-                    'MilitaryGreen': 'images/MilitaryGreenTankTop.png', 'Indigo': 'images/IndigoTankTop.png', 
-                    'Red': 'images/RedTankTop.png', 'RoyalBlue': 'images/RoyalBlue.png'
+            // A product with its own configured product_variants uses those (own colors, own
+            // per-color photo, real tracked stock). A product with NONE configured (never had
+            // per-size/color stock set up in Stripe -- "untracked," any combo always addable to
+            // cart) falls back to the category's full color list, exactly like the site always
+            // showed before this migration -- otherwise it'd show an empty color dropdown.
+            const usingCategoryFallback = variants.length === 0;
+            const categoryColors = (category.config && category.config.colors) || {};
+            const colors = usingCategoryFallback ? Object.keys(categoryColors) : [...new Set(variants.map(v => v.color))];
+
+            window.productVariantColorImages[product.id] = {};
+            if (usingCategoryFallback) {
+                colors.forEach(color => { window.productVariantColorImages[product.id][color] = categoryColors[color]; });
+            } else {
+                variants.forEach(v => { window.productVariantColorImages[product.id][v.color] = v.colorImageUrl; });
+            }
+            const defaultImage = window.productVariantColorImages[product.id][colors[0]] || '';
+
+            const overlayStyle = dtfOverlayStyle(category, product);
+            const imageZoneHTML = `
+                <div class="product-image-zone hover-target lazy-bg" id="img-zone-${product.id}" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="openVariantLightbox(this)">
+                    <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
+                </div>`;
+
+            // Per-category size chart (falls back to the one global button in the shop toolbar
+            // if a category hasn't set its own -- see admin.html's Categories tab).
+            const sizeChartHTML = category.size_chart_image_url
+                ? `<button type="button" class="attach-btn hover-target" style="margin-bottom:10px;" onclick="openLightbox('${category.size_chart_image_url}')">📏 Size Chart</button>`
+                : '';
+
+            const variantHTML = `
+                ${attachDesignButtonHTML(product, category)}
+                ${sizeChartHTML}
+                <div class="variant-grid">
+                    <select class="variant-select item-size hover-target" data-product-id="${product.id}">
+                        ${sizes.map(size => `<option value="${size}">${size}</option>`).join('')}
+                    </select>
+                    <select class="variant-select item-color hover-target" data-category="${category.id}" data-target="img-zone-${product.id}" data-product-id="${product.id}">
+                        ${colors.map(color => `<option value="${color}">${color}</option>`).join('')}
+                    </select>
+                </div>`;
+
+            const defaultSize = sizes[0];
+            const defaultColor = colors[0];
+            const stockKey = `stock_${defaultSize}_${defaultColor}`;
+            const stockCount = product.metadata && product.metadata[stockKey] !== undefined ? parseInt(product.metadata[stockKey]) : null;
+
+            return { imageZoneHTML, variantHTML, stockCount, stockCountIsVariant: true };
+        }
+
+        function renderGalleryCard(product, category) {
+            const defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
+            const maxThumbs = (category.config && category.config.max_thumbnails) || 4;
+
+            let thumbnailsHTML = '';
+            if (defaultImage) {
+                thumbnailsHTML += `<img src="${defaultImage}" alt="Main View" class="hover-target" onclick="this.parentElement.previousElementSibling.src=this.src">`;
+            }
+            for (let i = 1; i <= maxThumbs; i++) {
+                const extraImg = product.metadata ? product.metadata[`thumb${i}`] : null;
+                if (extraImg) {
+                    thumbnailsHTML += `<img src="${extraImg}" alt="Alternate View" class="hover-target" onclick="this.parentElement.previousElementSibling.src=this.src">`;
                 }
             }
+            const imageZoneHTML = `
+                <div class="binder-gallery">
+                    <img src="${defaultImage || 'placeholder.jpg'}" loading="lazy" class="main-binder-img hover-target" alt="${product.name}" onclick="openLightbox(this.src)">
+                    <div class="binder-thumbnails">${thumbnailsHTML}</div>
+                </div>`;
+
+            const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
+            return { imageZoneHTML, variantHTML: '', stockCount };
+        }
+
+        function renderDesignAttachCard(product, category) {
+            const defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
+            const overlayStyle = dtfOverlayStyle(category, product);
+            const imageZoneHTML = `
+                <div class="product-image-zone hover-target lazy-bg" id="img-zone-${product.id}" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">
+                    <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
+                </div>`;
+            const variantHTML = attachDesignButtonHTML(product, category);
+            const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
+            return { imageZoneHTML, variantHTML, stockCount };
+        }
+
+        function renderSimpleCard(product) {
+            const defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
+            const imageZoneHTML = `<div class="product-image-zone hover-target lazy-bg" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
+            const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
+            return { imageZoneHTML, variantHTML: '', stockCount };
+        }
+
+        const CARD_LAYOUT_RENDERERS = {
+            'variant-apparel': renderVariantApparelCard,
+            'gallery': renderGalleryCard,
+            'design-attach': renderDesignAttachCard,
+            'simple': renderSimpleCard,
         };
+
+        // Shared stock-badge/checkout-button HTML -- identical logic previously duplicated
+        // between the variant and non-variant render branches.
+        function buildStockAndCheckoutHTML(product, hasVariants, stockCount) {
+            let stockHTML = '', checkoutButtonHTML = '';
+            if (stockCount !== null) {
+                if (stockCount <= 0) {
+                    stockHTML = `<div class="stock-badge sold-out" id="stock-badge-${product.id}">STATUS: OUT OF STOCK</div>`;
+                    checkoutButtonHTML = `<span id="btn-zone-${product.id}" style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
+                } else {
+                    const info = stockBadgeInfo(stockCount);
+                    stockHTML = `<div class="${info.className}" id="stock-badge-${product.id}">${info.text}</div>`;
+                    checkoutButtonHTML = `
+                        <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
+                            data-name="${product.name}"
+                            data-price="${product.price}"
+                            data-price-id="${product.priceId}"
+                            data-has-variants="${hasVariants}">
+                            Add to Cart
+                        </button>`;
+                }
+            } else {
+                stockHTML = hasVariants ? `<div class="stock-badge" id="stock-badge-${product.id}" style="display:none;"></div>` : '';
+                checkoutButtonHTML = `
+                    <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
+                        data-name="${product.name}"
+                        data-price="${product.price}"
+                        data-price-id="${product.priceId}"
+                        data-has-variants="${hasVariants}">
+                        Add to Cart
+                    </button>`;
+            }
+            return { stockHTML, checkoutButtonHTML };
+        }
 
         // Batched: one query for every product on the page, rather than one query per card.
         // --- TOAST / CELEBRATION SYSTEM ---
@@ -2463,7 +2562,10 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         const shopGrid = document.getElementById('mainShopGrid');
-        const filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
+        // Filter buttons are now rendered dynamically from /api/categories (see renderFilterBar
+        // and initShopEngine below), so this is a live lookup rather than a one-time query --
+        // the buttons don't exist yet at script-parse time like the old hardcoded HTML did.
+        function getFilterBtns() { return document.querySelectorAll('.filter-btn[data-filter]'); }
 
         // Initialize Shop Engine
         async function initShopEngine() {
@@ -2480,209 +2582,57 @@ Thank you for supporting my small business and understanding the handmade nature
             `).join('');
             
             try {
-                const response = await fetch('/api/products');
-                const products = await response.json();
-                
+                const [productsResponse, categoriesResponse] = await Promise.all([
+                    fetch('/api/products'),
+                    fetch('/api/categories'),
+                ]);
+                const products = await productsResponse.json();
+                const categoryList = await categoriesResponse.json();
+
+                window.categoriesById = {};
+                categoryList.forEach(c => { window.categoriesById[c.id] = c; });
+
                 // Sorts products by your custom Stripe metadata (1, 2, 3...)
                 products.sort((a, b) => {
     const orderA = a.metadata && a.metadata.sort_order ? parseInt(a.metadata.sort_order) : 99;
     const orderB = b.metadata && b.metadata.sort_order ? parseInt(b.metadata.sort_order) : 99;
     return orderA - orderB;
 });
-                
-                shopGrid.innerHTML = ''; 
-                window.productInventory = {}; 
+
+                shopGrid.innerHTML = '';
+                window.productInventory = {};
                 window.dtfRegistry = []; // Reset local memory
+
+                const firstFilterBtnId = renderFilterBar(categoryList);
 
                 products.forEach(product => {
                     const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
-                    const category = product.metadata ? product.metadata.category : 'dtf';
-           
-                    let cardCategory = category;
-if (category === 'dtf') {
-    const dtfName = product.name.toLowerCase();
-    if (product.metadata && product.metadata.sub_category) {
-        cardCategory = product.metadata.sub_category;
-    } else if (dtfName.includes('pocket')) {
-        cardCategory = 'dtf-pocket';
-    } else if (dtfName.includes('kid') || dtfName.includes('youth')) {
-        cardCategory = 'dtf-kids';
-    }
-}
-                    
+                    const categoryId = product.metadata ? product.metadata.category : 'dtf';
+                    const category = window.categoriesById[categoryId] || { id: categoryId, card_layout_type: 'simple', config: {} };
+
+                    // The effective display/filter category is the product's own sub_category
+                    // when set (e.g. a DTF item filed under dtf-pocket/dtf-kids) -- this is now
+                    // always explicit on the product row (see api/products.js), so no more
+                    // name-sniffing here.
+                    const cardCategory = (product.metadata && product.metadata.sub_category) || categoryId;
+
                     window.productInventory[product.id] = product.metadata || {};
                     window.productMeta = window.productMeta || {};
                     window.productMeta[product.id] = { name: product.name, price: product.price, priceId: product.priceId };
 
                     // Load all DTF transfers into visualizer memory bank silently
-                    if(category === 'dtf') window.dtfRegistry.push(product);
-                    
-                    let variantHTML = '';
-                    let defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
-                    let imageZoneHTML = '';
+                    if(categoryId === 'dtf') window.dtfRegistry.push(product);
 
-                    let stockHTML = '';
-                    let checkoutButtonHTML = '';
-
-                    if (hasVariants && variantConfig[category]) {
-                        const sizes = variantConfig[category].sizes;
-                        const colors = Object.keys(variantConfig[category].colors);
-                        
-                        defaultImage = variantConfig[category].colors[colors[0]] || '';
-                        
-                        // DTF Overlay Logic Calculation (Upgraded for Metadata Overrides)
-                        let overlayStyle = "";
-                        if (dtfPlacements[category] || product.metadata.dtf_top) {
-                            const top = product.metadata.dtf_top || dtfPlacements[category]?.top || '35%';
-                            const left = product.metadata.dtf_left || dtfPlacements[category]?.left || '40%';
-                            const width = product.metadata.dtf_width || dtfPlacements[category]?.width || '20%';
-                            const height = product.metadata.dtf_height || dtfPlacements[category]?.height || '40%';
-                            
-                            overlayStyle = `top: ${top}; left: ${left}; width: ${width}; height: ${height};`;
-                        }
-
-                        // FIX: Converted background-image inline style to data-bg attribute for Lazy Loading
-                        imageZoneHTML = `
-                            <div class="product-image-zone hover-target lazy-bg" id="img-zone-${product.id}" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="openVariantLightbox(this)">
-                                <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
-                            </div>
-                        `;
-
-                        variantHTML = `
-                            <button class="attach-btn hover-target" id="attach-btn-${product.id}" onclick="openDtfSelector('${product.id}', '${category}')">+ Attach Design</button>
-                            <div id="attached-dtf-label-${product.id}" style="display:none; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); margin-bottom: 20px; text-align: center; background: rgba(255,0,127,0.05); border: 1px solid var(--accent-pink); padding: 8px; border-radius: 4px;">
-                                ATTACHED: <span id="dtf-name-${product.id}" style="color:var(--text-pure); font-weight: 700;"></span> 
-                                <button class="hover-target" style="background:none;border:none;color:#ef4444;margin-left:10px;cursor:pointer;font-weight:900;" onclick="removeDtf('${product.id}')">✕</button>
-                            </div>
-                            
-                            <div class="variant-grid">
-                                <select class="variant-select item-size hover-target" data-product-id="${product.id}">
-                                    ${sizes.map(size => `<option value="${size}">${size}</option>`).join('')}
-                                </select>
-                                <select class="variant-select item-color hover-target" data-category="${category}" data-target="img-zone-${product.id}" data-product-id="${product.id}">
-                                    ${colors.map(color => `<option value="${color}">${color}</option>`).join('')}
-                                </select>
-                            </div>
-                        `;
-
-                        const defaultSize = sizes[0];
-                        const defaultColor = colors[0];
-                        const stockKey = `stock_${defaultSize}_${defaultColor}`;
-                        const stockCount = product.metadata && product.metadata[stockKey] !== undefined ? parseInt(product.metadata[stockKey]) : null;
-
-                        if (stockCount !== null) {
-                            if (stockCount <= 0) {
-                                stockHTML = `<div class="stock-badge sold-out" id="stock-badge-${product.id}">STATUS: OUT OF STOCK</div>`;
-                                checkoutButtonHTML = `<span id="btn-zone-${product.id}" style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
-                            } else {
-                                { const info = stockBadgeInfo(stockCount); stockHTML = `<div class="${info.className}" id="stock-badge-${product.id}">${info.text}</div>`; }
-                                checkoutButtonHTML = `
-                                    <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
-                                        data-name="${product.name}" 
-                                        data-price="${product.price}" 
-                                        data-price-id="${product.priceId}" 
-                                        data-has-variants="${hasVariants}">
-                                        Add to Cart
-                                    </button>
-                                `;
-                            }
-                        } else {
-                            stockHTML = `<div class="stock-badge" id="stock-badge-${product.id}" style="display:none;"></div>`;
-                            checkoutButtonHTML = `
-                                <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
-                                    data-name="${product.name}" 
-                                    data-price="${product.price}" 
-                                    data-price-id="${product.priceId}" 
-                                    data-has-variants="${hasVariants}">
-                                    Add to Cart
-                                </button>
-                            `;
-                        }
-                    } else {
-                        if (category === 'loaded-binders') {
-                             let thumbnailsHTML = '';
-                             if (defaultImage) {
-                                 thumbnailsHTML += `<img src="${defaultImage}" alt="Main View" class="hover-target" onclick="this.parentElement.previousElementSibling.src=this.src">`;
-                             }
-                             for (let i = 1; i <= 4; i++) {
-                                 let extraImg = product.metadata ? product.metadata[`thumb${i}`] : null;
-                                 if (extraImg) {
-                                     thumbnailsHTML += `<img src="${extraImg}" alt="Alternate View" class="hover-target" onclick="this.parentElement.previousElementSibling.src=this.src">`;
-                                 }
-                             }
-                             imageZoneHTML = `
-                                <div class="binder-gallery">
-                                    <img src="${defaultImage || 'placeholder.jpg'}" loading="lazy" class="main-binder-img hover-target" alt="${product.name}" onclick="openLightbox(this.src)">
-                                    <div class="binder-thumbnails">
-                                        ${thumbnailsHTML}
-                                    </div>
-                                </div>
-                            `;
-                        } else if (category === 'corporate') {
-                            let overlayStyle = "";
-                            if (dtfPlacements[category] || product.metadata.dtf_top) {
-                                const top = product.metadata.dtf_top || dtfPlacements[category]?.top || '35%';
-                                const left = product.metadata.dtf_left || dtfPlacements[category]?.left || '40%';
-                                const width = product.metadata.dtf_width || dtfPlacements[category]?.width || '20%';
-                                const height = product.metadata.dtf_height || dtfPlacements[category]?.height || '40%';
-                                overlayStyle = `top: ${top}; left: ${left}; width: ${width}; height: ${height};`;
-                            }
-
-                            // FIX: Converted background-image inline style to data-bg attribute for Lazy Loading
-                            imageZoneHTML = `
-                                <div class="product-image-zone hover-target lazy-bg" id="img-zone-${product.id}" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">
-                                    <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
-                                </div>
-                            `;
- 
-                            variantHTML = `
-                                <button class="attach-btn hover-target" id="attach-btn-${product.id}" onclick="openDtfSelector('${product.id}', '${category}')">+ Attach Design</button>
-                                <div id="attached-dtf-label-${product.id}" style="display:none; font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent-pink); margin-bottom: 20px; text-align: center; background: rgba(255,0,127,0.05); border: 1px solid var(--accent-pink); padding: 8px; border-radius: 4px;">
-                                    ATTACHED: <span id="dtf-name-${product.id}" style="color:var(--text-pure); font-weight: 700;"></span> 
-                                    <button class="hover-target" style="background:none;border:none;color:#ef4444;margin-left:10px;cursor:pointer;font-weight:900;" onclick="removeDtf('${product.id}')">✕</button>
-                                </div>
-                            `;
-                        } else {
-                            // FIX: Converted background-image inline style to data-bg attribute for Lazy Loading
-                            imageZoneHTML = `<div class="product-image-zone hover-target lazy-bg" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
-                        }
-
-                        const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
-                        if (stockCount !== null) {
-                            if (stockCount <= 0) {
-                                stockHTML = `<div class="stock-badge sold-out" id="stock-badge-${product.id}">STATUS: OUT OF STOCK</div>`;
-                                checkoutButtonHTML = `<span id="btn-zone-${product.id}" style="color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.9rem; font-weight: 800; letter-spacing: 0.15em;">SOLD OUT</span>`;
-                            } else {
-                                { const info = stockBadgeInfo(stockCount); stockHTML = `<div class="${info.className}" id="stock-badge-${product.id}">${info.text}</div>`; }
-                                checkoutButtonHTML = `
-                                    <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}" 
-                                        data-name="${product.name}" 
-                                        data-price="${product.price}" 
-                                        data-price-id="${product.priceId}" 
-                                        data-has-variants="${hasVariants}">
-                                        Add to Cart
-                                    </button>
-                                `;
-                            }
-                        } else {
-                            checkoutButtonHTML = `
-                                <button class="stripe-btn add-cart-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
-                                    data-name="${product.name}" 
-                                    data-price="${product.price}" 
-                                    data-price-id="${product.priceId}" 
-                                    data-has-variants="${hasVariants}">
-                                    Add to Cart
-                                </button>
-                            `;
-                        }
-                    }
+                    const renderer = CARD_LAYOUT_RENDERERS[category.card_layout_type] || renderSimpleCard;
+                    const { imageZoneHTML, variantHTML, stockCount } = renderer(product, category);
+                    const { stockHTML, checkoutButtonHTML } = buildStockAndCheckoutHTML(product, hasVariants, stockCount);
 
                     const isInWishlist = window.wishlist && window.wishlist.some(w => w.productId === product.id);
                     const heartClass = isInWishlist ? 'wishlist-heart hover-target active' : 'wishlist-heart hover-target';
 
                     const cardHTML = `
                         <div class="product-card reveal active" data-category="${cardCategory}" data-product-id="${product.id}">
-                            
+
                             <button class="${heartClass}" data-heart-id="${product.id}" onclick="addCurrentConfigToWishlist('${product.id}', this, ${hasVariants})">
                                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                             </button>
@@ -2702,7 +2652,7 @@ if (category === 'dtf') {
                             </div>
                         </div>
                     `;
-                    
+
                      shopGrid.insertAdjacentHTML('beforeend', cardHTML);
                 });
 
@@ -2740,7 +2690,8 @@ if (category === 'dtf') {
                 })();
 
                 attachDynamicListeners();
-                applyFilter('dtf', document.getElementById('defaultFilter')); 
+                const firstFilterBtn = firstFilterBtnId ? document.getElementById(firstFilterBtnId) : null;
+                if (firstFilterBtn) applyFilter(firstFilterBtn.getAttribute('data-filter'), firstFilterBtn);
                 
                 // --- NEW: LAZY LOAD ENGINE FOR BACKGROUND IMAGES ---
                 // This tracks when the card is close to entering the screen and triggers the image download.
@@ -2900,43 +2851,27 @@ if (category === 'dtf') {
             overlay.style.backgroundImage = `url('${dtfImg}')`;
             overlay.style.opacity = '1';
             
+            // Calibration now comes from the category's own config (set in admin.html) instead
+            // of a hardcoded per-category-name matrix -- fallbackVals is the only thing that
+            // stays a genuine hardcoded safety net, for any category missing calibration data.
+            const categoryConfig = (window.categoriesById[category] && window.categoriesById[category].config) || {};
+
             if (designType === 'pocket') {
                 overlay.style.transformOrigin = 'top center';
-                
+
                 // THE SENSOR: Read the raw image file to determine its shape
                 const img = new Image();
                 img.onload = function() {
                     const ratio = img.naturalWidth / img.naturalHeight;
-                    
+
                     let shape = 'square'; // Default fallback
                     if (ratio < 0.85) shape = 'tall';
                     else if (ratio > 1.2) shape = 'wide';
 
-                    // THE GOLDEN MATRIX: Your exact calibration values
-                    const matrix = {
-                        'tall': {
-                            'thread-hoodie':   { s: 0.60, x: 94,  y: -23 },
-                            'thread-crewneck': { s: 0.50, x: 110, y: -23 },
-                            'thread-tshirt':   { s: 0.55, x: 110, y: -47 },
-                            'thread-tanktop':  { s: 0.50, x: 110, y: -32 }
-                        },
-                        'wide': {
-                            'thread-hoodie':   { s: 0.55, x: 100, y: -31 },
-                            'thread-crewneck': { s: 0.55, x: 100, y: -35 },
-                            'thread-tshirt':   { s: 0.55, x: 100, y: -55 },
-                            'thread-tanktop':  { s: 0.55, x: 89,  y: -45 }
-                        },
-                        'square': {
-                            'thread-hoodie':   { s: 0.65, x: 93,  y: -24 },
-                            'thread-crewneck': { s: 0.60, x: 85,  y: -28 },
-                            'thread-tshirt':   { s: 0.65, x: 85,  y: -46 },
-                            'thread-tanktop':  { s: 0.60, x: 85,  y: -43 }
-                        }
-                    };
-
-                    // Fetch the correct numbers, with a generic fallback just in case
                     const fallbackVals = { s: 0.60, x: 100, y: -30 };
-                    const targetVals = matrix[shape][category] || fallbackVals;
+                    const pocketMatrix = categoryConfig.dtf_pocket_matrix || {};
+                    const shapeVals = pocketMatrix[shape];
+                    const targetVals = shapeVals ? { s: shapeVals.s, x: shapeVals.x, y: shapeVals.y } : fallbackVals;
 
                     // THE MATH: Matrix Value + Custom Stripe Overrides
                     const finalScale = targetVals.s * customScale;
@@ -2947,28 +2882,18 @@ if (category === 'dtf') {
 
                     fireSparkBurst(overlay);
                 };
-                
+
                 img.src = dtfImg; // This triggers the sensor to run
-           } 
+           }
             else {
                 // CENTER CHEST (Bypasses the sensor entirely)
                 overlay.style.transformOrigin = 'top center';
-                
-                if (category === 'corporate') {
-                    // TOTE BAGS: Bigger scale (1.1 up from 0.8) and lowered (+15% Y)
-                    const finalScale = 1.1 * customScale; 
-                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-20 + nudgeY}%)`; 
-                } else if (category === 'thread-tshirt') {
-                    // T-SHIRTS: Raised slightly higher (-35% Y up from -20%)
-                    const finalScale = 1.35 * customScale; 
-                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-35 + nudgeY}%)`; 
-                } else {
-                    // HOODIES & CREWNECKS: Default center chest math
-                    const finalScale = 1.35 * customScale; 
-                    overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${-20 + nudgeY}%)`; 
-                }
 
-              fireSparkBurst(overlay);          
+                const centerChest = categoryConfig.dtf_center_chest || { scale: 1.35, y: -20 };
+                const finalScale = centerChest.scale * customScale;
+                overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${centerChest.y + nudgeY}%)`;
+
+              fireSparkBurst(overlay);
             }
 
             document.getElementById(`attach-btn-${targetId}`).style.display = 'none';
@@ -3163,11 +3088,11 @@ if (category === 'dtf') {
                     const productId = e.target.getAttribute('data-product-id');
                     
                     if (e.target.classList.contains('item-color')) {
-                        const category = e.target.getAttribute('data-category');
                         const targetZoneId = e.target.getAttribute('data-target');
                         const selectedColor = e.target.value;
-                        const newImage = variantConfig[category].colors[selectedColor];
-                        
+                        const colorMap = window.productVariantColorImages[productId] || {};
+                        const newImage = colorMap[selectedColor];
+
                         const imageZone = document.getElementById(targetZoneId);
                         if (newImage && imageZone) {
                             imageZone.style.backgroundImage = `url('${newImage}')`;
@@ -3194,7 +3119,7 @@ if (category === 'dtf') {
         // Filter Logic
         function applyFilter(filterValue, activeBtn) {
             if(!activeBtn) return;
-            filterBtns.forEach(b => b.classList.remove('active'));
+            getFilterBtns().forEach(b => b.classList.remove('active'));
             activeBtn.classList.add('active');
 
             // Toggle Search Bar Visibility
@@ -3227,9 +3152,61 @@ if (category === 'dtf') {
             }, 300);
         }
 
-        filterBtns.forEach(btn => {
-            btn.addEventListener('click', () => applyFilter(btn.getAttribute('data-filter'), btn));
+        // Event delegation (rather than one listener per button) since the filter buttons are
+        // now built dynamically by renderFilterBar() -- this works no matter when/how often
+        // they're re-rendered.
+        document.getElementById('mainFilterBar').addEventListener('click', (e) => {
+            const btn = e.target.closest('.filter-btn[data-filter]');
+            if (btn) applyFilter(btn.getAttribute('data-filter'), btn);
         });
+
+        // Builds the filter bar from /api/categories -- replaces the old hardcoded buttons.
+        // Categories that share a filter_group collapse into one button; a category that both
+        // IS its filter_group's id (e.g. 'dtf') AND has children with that same filter_group
+        // (e.g. 'dtf-pocket'/'dtf-kids') renders as a dropdown, same structure as the old
+        // hand-written DTF dropdown. Everything else renders as a single flat button.
+        function renderFilterBar(categoryList) {
+            const groups = {}; // filter_group -> { parent: category|null, children: [category] }
+            categoryList.forEach(cat => {
+                const group = cat.filter_group || cat.id;
+                if (!groups[group]) groups[group] = { parent: null, children: [] };
+                if (cat.id === group) groups[group].parent = cat;
+                else groups[group].children.push(cat);
+            });
+
+            let firstButtonId = null;
+            let html = '';
+            Object.keys(groups).sort((a, b) => {
+                const orderA = (groups[a].parent && groups[a].parent.sort_order) ?? 99;
+                const orderB = (groups[b].parent && groups[b].parent.sort_order) ?? 99;
+                return orderA - orderB;
+            }).forEach((group, i) => {
+                const { parent, children } = groups[group];
+                const idAttr = i === 0 ? ' id="defaultFilter"' : '';
+                if (i === 0) firstButtonId = 'defaultFilter';
+
+                if (parent && children.length > 0) {
+                    html += `
+                        <div class="dropdown hover-target" tabindex="0">
+                            <button class="filter-btn dropdown-toggle active hover-target" data-filter="${parent.id}"${idAttr}>${escapeHtmlAttr(parent.label)}</button>
+                            <div class="dropdown-content">
+                                <button class="filter-btn active hover-target" data-filter="${parent.id}">All ${escapeHtmlAttr(parent.label)}</button>
+                                ${children.map(c => `<button class="filter-btn hover-target" data-filter="${c.id}">${escapeHtmlAttr(c.label)}</button>`).join('')}
+                            </div>
+                        </div>`;
+                } else {
+                    const label = parent ? parent.label : (group.charAt(0).toUpperCase() + group.slice(1));
+                    html += `<button class="filter-btn hover-target" data-filter="${group}"${idAttr}>${escapeHtmlAttr(label)}</button>`;
+                }
+            });
+
+            document.getElementById('mainFilterBar').insertAdjacentHTML('afterbegin', html);
+            return firstButtonId;
+        }
+
+        function escapeHtmlAttr(str) {
+            return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
 
         // --- FIX: DTF Transfers dropdown not closing on mobile ---
         // The dropdown is purely CSS-driven: :hover opens/closes it for mouse users, and
