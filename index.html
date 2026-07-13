@@ -405,6 +405,19 @@
             .review-card-avatar, .review-card-avatar-placeholder { width: 76px; height: 76px; }
             .review-card-avatar-placeholder { font-size: 1.8rem; }
             .review-card-avatar-badge { width: 30px; height: 30px; border-radius: 8px; }
+
+            /* Header rehaul: on mobile the star rating sits inline next to the name/date and
+               there's enough width for that to work. On desktop, three cards per row leaves each
+               header only ~200px wide -- avatar + inline stars left almost nothing for the name,
+               which is why "BreeMarie633" was clipping to "Bree...". Wrapping the header and
+               forcing the stars onto their own full-width line (flex-basis:100%) gives the name
+               the entire remaining row next to the avatar, so it can display in full. This only
+               fires at this breakpoint -- the mobile single-line layout is untouched. */
+            .review-card-header { flex-wrap: wrap; row-gap: 4px; min-height: 120px; overflow: hidden; }
+            .review-card-author { white-space: normal; overflow: visible; text-overflow: clip; }
+            .review-card-stars {
+                flex-basis: 100%; margin-left: 0; display: block; text-align: right;
+            }
         }
 
         /* --- LEADERBOARD --- */
