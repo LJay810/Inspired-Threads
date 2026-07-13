@@ -3173,13 +3173,19 @@ Thank you for supporting my small business and understanding the handmade nature
                 else groups[group].children.push(cat);
             });
 
+            // Sort key is the LOWEST sort_order among everyone in the group (parent + children),
+            // not just the parent's -- a group like 'thread' has no self-referencing parent
+            // category at all (just 4 flat sibling categories sharing filter_group:'thread'),
+            // so keying off parent.sort_order alone left it falling back to 99 and sorting last.
+            function groupSortOrder(group) {
+                const members = [groups[group].parent, ...groups[group].children].filter(Boolean);
+                const orders = members.map(m => (m.sort_order != null ? m.sort_order : 99));
+                return orders.length > 0 ? Math.min(...orders) : 99;
+            }
+
             let firstButtonId = null;
             let html = '';
-            Object.keys(groups).sort((a, b) => {
-                const orderA = (groups[a].parent && groups[a].parent.sort_order) ?? 99;
-                const orderB = (groups[b].parent && groups[b].parent.sort_order) ?? 99;
-                return orderA - orderB;
-            }).forEach((group, i) => {
+            Object.keys(groups).sort((a, b) => groupSortOrder(a) - groupSortOrder(b)).forEach((group, i) => {
                 const { parent, children } = groups[group];
                 const idAttr = i === 0 ? ' id="defaultFilter"' : '';
                 if (i === 0) firstButtonId = 'defaultFilter';
