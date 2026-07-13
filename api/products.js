@@ -5,11 +5,10 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // Catalog now lives in Supabase (categories/products/product_variants), not Stripe -- Stripe is
-// only invisible payment plumbing (see lib/stripe-sync.js). This endpoint reassembles the exact
-// same response shape the storefront (index.html's initShopEngine) has always consumed --
-// {id, name, description, images[], metadata{}, price, priceId} with a flat metadata map
-// carrying category/hasVariants/sub_category/sort_order/dtf_top-left-width-height/thumb1-4/
-// stock(_<Size>_<Color>) -- so nothing downstream needs to change for this cutover alone.
+// only invisible payment plumbing (see lib/stripe-sync.js). Also serves category config (was
+// its own api/categories.js endpoint, folded in here to stay under Vercel Hobby's 12-serverless-
+// function cap) -- replaces the hardcoded variantConfig/dtfPlacements/filter-bar structures that
+// used to live in index.html. Response shape: { products: [...], categories: [...] }.
 export default async function handler(req, res) {
     if (req.method !== 'GET') {
         return res.status(405).json({ error: 'Method Not Allowed' });
@@ -18,9 +17,11 @@ export default async function handler(req, res) {
     try {
         const { data: categories, error: catErr } = await supabaseAdmin
             .from('categories')
-            .select('id, card_layout_type');
+            .select('id, label, parent_id, filter_group, card_layout_type, sort_order, size_chart_image_url, config, active')
+            .order('sort_order', { ascending: true });
         if (catErr) throw catErr;
         const categoriesById = Object.fromEntries((categories || []).map(c => [c.id, c]));
+        const activeCategories = (categories || []).filter(c => c.active);
 
         const { data: products, error: prodErr } = await supabaseAdmin
             .from('products')
@@ -101,7 +102,7 @@ export default async function handler(req, res) {
             })
         );
 
-        res.status(200).json(formattedProducts);
+        res.status(200).json({ products: formattedProducts, categories: activeCategories });
     } catch (error) {
         console.error('Products API error:', error.message);
         res.status(500).json({ error: error.message });

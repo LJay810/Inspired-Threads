@@ -1661,7 +1661,7 @@
             <h2 class="section-header">Featured Collection</h2>
             <button class="size-chart-btn hover-target" onclick="openLightbox('images/SizeChart.jpg')">📏 Size Chart</button>
             <div class="filter-bar" id="mainFilterBar">
-                <!-- Populated by renderFilterBar() from /api/categories -- see initShopEngine() -->
+                <!-- Populated by renderFilterBar() using category config from /api/products -- see initShopEngine() -->
                 <input type="text" id="mainDtfSearch" class="dtf-search-input hover-target" placeholder="🔍 Search DTF Designs...">
             </div>
         </div>
@@ -2582,12 +2582,11 @@ Thank you for supporting my small business and understanding the handmade nature
             `).join('');
             
             try {
-                const [productsResponse, categoriesResponse] = await Promise.all([
-                    fetch('/api/products'),
-                    fetch('/api/categories'),
-                ]);
-                const products = await productsResponse.json();
-                const categoryList = await categoriesResponse.json();
+                // /api/products now returns both products AND category config in one response
+                // (folded together to stay under Vercel Hobby's 12-serverless-function cap --
+                // was briefly two separate endpoints during development).
+                const response = await fetch('/api/products');
+                const { products, categories: categoryList } = await response.json();
 
                 window.categoriesById = {};
                 categoryList.forEach(c => { window.categoriesById[c.id] = c; });
