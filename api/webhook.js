@@ -4,7 +4,7 @@ const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
 const { xpForOrder, tierForXp, evaluateOrderBadges, isAnniversaryDay, ANNIVERSARY_XP_MULTIPLIER } = require('../lib/loyalty');
-const { notifyRestock } = require('../lib/notify');
+const { notifyRestock, notifyPackingAlert } = require('../lib/notify');
 const { unpackCartItemMetadata } = require('../lib/cart-metadata');
 const { mirrorStockToCatalog } = require('../lib/catalog-stock');
 
@@ -92,6 +92,34 @@ export default async function handler(req, res) {
             .from('purchases')
             .upsert(purchaseRows, { onConflict: 'user_id,product_id,session_id', ignoreDuplicates: true });
           if (purchaseErr) throw purchaseErr;
+        }
+      }
+
+      // PACKING ALERT: tells whoever's fulfilling orders when something physical needs to be
+      // tucked in that isn't a normal line item -- a spin-wheel prize (see checkout.js) or the
+      // loyalty sticker-pack perk. Both are stamped as plain session metadata rather than real
+      // Stripe line items (there's no fulfillment system in this codebase to automate either
+      // one), so without this email they'd only ever be visible by manually opening the order
+      // in the Stripe Dashboard and reading its metadata.
+      if ((metadata.Include_Spin_Prize || metadata.Include_Sticker_Pack) && metadata.supabase_user_id && supabaseAdmin) {
+        try {
+          const items = [];
+          if (metadata.Include_Spin_Prize) items.push(metadata.Include_Spin_Prize);
+          if (metadata.Include_Sticker_Pack === 'Yes') items.push('Sticker Pack');
+
+          const { data: packProfile } = await supabaseAdmin.from('profiles').select('username').eq('id', metadata.supabase_user_id).single();
+          const { data: packUserData } = await supabaseAdmin.auth.admin.getUserById(metadata.supabase_user_id);
+          const packEmail = packUserData && packUserData.user && packUserData.user.email;
+
+          await notifyPackingAlert({
+            username: (packProfile && packProfile.username) || 'Customer',
+            email: packEmail,
+            sessionId: session.id,
+            items,
+          });
+        } catch (err) {
+          // Never let a notification failure take down order processing itself.
+          console.error('Packing alert email failed:', err.message);
         }
       }
 
