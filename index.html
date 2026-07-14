@@ -3403,9 +3403,20 @@ Thank you for supporting my small business and understanding the handmade nature
 
             setTimeout(() => {
                 productCards.forEach(card => {
-                    if (card.getAttribute('data-category').includes(filterValue)) {
+                    const cardCategory = card.getAttribute('data-category');
+                    // Exact match by default -- a parent filter (e.g. "dtf") no longer pulls in
+                    // its sub-categories (dtf-pocket/dtf-kids) just because they share a text
+                    // prefix, so "Adult DTF's" only ever shows plain DTF items, isolated from
+                    // Kid's/Pocket's, which stay reachable only via their own dedicated buttons.
+                    // "thread" is the one deliberate exception: it isn't a real category itself
+                    // (no card ever has data-category="thread"), it's a shared filter_group
+                    // label across the 4 sibling apparel categories, so it needs prefix matching
+                    // to catch thread-tshirt/thread-hoodie/etc. at all.
+                    const matches = cardCategory === filterValue
+                        || (filterValue === 'thread' && cardCategory.startsWith('thread-'));
+                    if (matches) {
                         card.classList.remove('hidden-filter');
-                        void card.offsetWidth; 
+                        void card.offsetWidth;
                         card.style.opacity = '1';
                         card.style.transform = 'scale(1)';
                     } else {
