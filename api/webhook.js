@@ -249,6 +249,16 @@ export default async function handler(req, res) {
           if (releaseErr) throw releaseErr;
         }
       }
+
+      // Same idea for a reserved-but-unused spin-wheel prize.
+      if (metadata.spin_prize_used === 'true' && metadata.supabase_user_id && supabaseAdmin) {
+        const spinReleaseMarker = `spin_prize_released_${session.id}`;
+        const claimed = await kv.set(spinReleaseMarker, '1', { nx: true, ex: 86400 });
+        if (claimed) {
+          const { error: releaseErr } = await supabaseAdmin.rpc('release_spin_prize', { p_user_id: metadata.supabase_user_id });
+          if (releaseErr) throw releaseErr;
+        }
+      }
     }
 
     // COMMIT: only mark the whole event as processed after every step above succeeded.

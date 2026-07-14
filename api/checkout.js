@@ -173,7 +173,7 @@ export default async function handler(req, res) {
             try {
                 const { data: profile } = await supabaseAdmin
                     .from('profiles')
-                    .select('xp, referred_by, referral_signup_discount_used, referral_reward_pending, order_count')
+                    .select('xp, referred_by, referral_signup_discount_used, referral_reward_pending, order_count, spin_prize_type, spin_prize_pct, spin_prize_used')
                     .eq('id', supabaseUserId)
                     .single();
                 if (profile) {
@@ -240,6 +240,50 @@ export default async function handler(req, res) {
             }
         }
         if (referralDiscountType) sessionMetadata['referral_discount_type'] = referralDiscountType;
+
+        // SPIN-WHEEL PRIZE: two different kinds, handled differently.
+        //   - Percent-off: competes for Stripe's single discounts-per-session slot, same as the
+        //     referral/tier discounts above -- an earned relationship reward (referral) still
+        //     outranks a lucky spin, and it's only worth "spending" if it actually beats the
+        //     tier standing discount already queued.
+        //   - Physical prize (pop socket / custom pen / mystery gift): doesn't touch pricing or
+        //     that discount slot at all -- just flags the order for whoever packs it, same idea
+        //     as Include_Sticker_Pack below, so it applies independently of whatever discount
+        //     (if any) is also on this order.
+        // Same reserve-now/release-on-expiry pattern as the referral signup discount above,
+        // reused for both kinds via reserve_spin_prize/release_spin_prize.
+        const SPIN_PRIZE_LABELS = { pop_socket: 'Free Pop Socket', custom_pen: 'Free Custom Pen', mystery_gift: 'Free Mystery Gift' };
+        let spinPrizeClaimed = false;
+        if (referralProfile && supabaseAdmin && referralProfile.spin_prize_type && !referralProfile.spin_prize_used) {
+            if (referralProfile.spin_prize_type === 'percent') {
+                if (!referralDiscountType && referralProfile.spin_prize_pct > discountPct) {
+                    try {
+                        const { data: reserved } = await supabaseAdmin.rpc('reserve_spin_prize', {
+                            p_user_id: supabaseUserId,
+                        });
+                        if (reserved) {
+                            discountPct = referralProfile.spin_prize_pct;
+                            spinPrizeClaimed = true;
+                        }
+                    } catch (err) {
+                        console.warn('Spin prize reservation failed, proceeding without it:', err.message);
+                    }
+                }
+            } else {
+                try {
+                    const { data: reserved } = await supabaseAdmin.rpc('reserve_spin_prize', {
+                        p_user_id: supabaseUserId,
+                    });
+                    if (reserved) {
+                        spinPrizeClaimed = true;
+                        sessionMetadata['Include_Spin_Prize'] = SPIN_PRIZE_LABELS[referralProfile.spin_prize_type] || referralProfile.spin_prize_type;
+                    }
+                } catch (err) {
+                    console.warn('Spin prize reservation failed, proceeding without it:', err.message);
+                }
+            }
+        }
+        if (spinPrizeClaimed) sessionMetadata['spin_prize_used'] = 'true';
 
         // Stripe Checkout can't combine a pre-applied `discounts` coupon with customer-entered
         // `allow_promotion_codes` on the same session -- so whenever an automatic discount
@@ -331,6 +375,11 @@ export default async function handler(req, res) {
                 ? 'release_referral_reward'
                 : 'release_referee_discount';
             await supabaseAdmin.rpc(rpcName, { p_user_id: supabaseUserId });
+        }
+
+        // And for a reserved-but-unused spin-wheel prize.
+        if (!sessionCreated && sessionMetadata['spin_prize_used'] === 'true' && supabaseAdmin) {
+            await supabaseAdmin.rpc('release_spin_prize', { p_user_id: supabaseUserId });
         }
 
         res.status(500).json({ error: error.message });

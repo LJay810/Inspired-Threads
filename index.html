@@ -19,6 +19,7 @@
 
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <link rel="icon" type="image/png" href="images/inspiredthreadsLogoIcon2.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -967,6 +968,15 @@
             text-transform: uppercase; letter-spacing: 0.12em; margin: 16px 0 4px; transition: var(--transition-snappy);
         }
         .size-chart-btn:hover { background: rgba(255, 0, 127, 0.18); color: #fff; box-shadow: 0 0 20px rgba(255, 0, 127, 0.3); }
+        .trust-badge {
+            display: none; align-items: center; gap: 6px; align-self: flex-start;
+            background: rgba(255, 0, 127, 0.06); border: 1px solid var(--accent-pink); color: var(--text-pure);
+            padding: 8px 20px; border-radius: 30px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700;
+            letter-spacing: 0.06em; margin: 0 0 16px; transition: var(--transition-snappy); cursor: none;
+        }
+        .trust-badge:hover { background: rgba(255, 0, 127, 0.18); box-shadow: 0 0 20px rgba(255, 0, 127, 0.3); }
+        .trust-badge .trust-star { color: var(--accent-pink); }
+        .trust-badge .trust-count { color: var(--text-muted); font-weight: 500; }
         .filter-bar { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px; align-items: center; }
 
         .filter-btn { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); color: var(--text-muted); padding: 10px 24px; border-radius: 30px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; transition: var(--transition-snappy); }
@@ -1029,6 +1039,63 @@
         }
         .wishlist-heart:hover { transform: translateZ(30px) scale(1.1); border-color: var(--accent-pink); color: var(--text-pure); }
         .wishlist-heart.active { color: var(--accent-pink); border-color: var(--accent-pink); background: rgba(255,0,127,0.1); }
+
+        /* "Save this look" -- bottom-right of the visualizer image zone (apparel cards only) */
+        .dtf-save-btn {
+            position: absolute; bottom: 15px; right: 15px; z-index: 20;
+            background: rgba(15,15,15,0.7); border: 1px solid var(--border-subtle); border-radius: 50%;
+            width: 38px; height: 38px; display: flex; justify-content: center; align-items: center;
+            color: var(--text-muted); backdrop-filter: blur(5px); transition: var(--transition-snappy);
+        }
+        .dtf-save-btn:hover { border-color: var(--accent-pink); color: var(--text-pure); box-shadow: 0 0 15px rgba(255, 0, 127, 0.3); }
+        .dtf-save-btn:disabled { opacity: 0.5; }
+
+        /* --- SPIN & WIN WHEEL --- */
+        .spin-teaser-btn {
+            display: block; width: 100%; margin-top: 14px; background: rgba(255,0,127,0.08);
+            border: 1px solid var(--accent-pink); color: var(--accent-pink); padding: 12px;
+            border-radius: 10px; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.08em; transition: var(--transition-snappy);
+        }
+        .spin-teaser-btn:hover { background: rgba(255,0,127,0.18); box-shadow: 0 0 20px rgba(255,0,127,0.3); }
+        /* clamp() rather than a fixed px size -- shrinks to fit narrow phone screens (the modal
+           itself is width:90% with its own padding) while capping at 260px on anything roomier,
+           and stays perfectly circular since width/height always match. */
+        .spin-wheel-wrap { position: relative; width: clamp(190px, 60vw, 260px); height: clamp(190px, 60vw, 260px); margin: 10px auto 0; }
+        .spin-wheel-pointer {
+            position: absolute; top: -12px; left: 50%; transform: translateX(-50%); z-index: 10;
+            width: 0; height: 0; border-left: 13px solid transparent; border-right: 13px solid transparent;
+            border-top: 20px solid var(--accent-pink); filter: drop-shadow(0 0 6px rgba(255, 0, 127, 0.7));
+        }
+        .spin-wheel {
+            width: 100%; height: 100%; border-radius: 50%; position: relative; overflow: hidden;
+            border: 4px solid var(--accent-pink); box-shadow: 0 0 40px rgba(255, 0, 127, 0.35), inset 0 0 30px rgba(0,0,0,0.6);
+            background: conic-gradient(
+                #17070f 0deg 60deg,
+                #2a0f1c 60deg 120deg,
+                #17070f 120deg 180deg,
+                #2a0f1c 180deg 240deg,
+                #17070f 240deg 300deg,
+                #2a0f1c 300deg 360deg
+            );
+            transition: transform 4s cubic-bezier(0.15, 0.65, 0.25, 1);
+        }
+        .spin-wheel-label {
+            position: absolute; top: 50%; left: 50%; width: 50%; height: 0; transform-origin: 0% 50%;
+        }
+        .spin-wheel-label span {
+            position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+            font-family: var(--font-mono); font-weight: 900; color: var(--accent-pink); font-size: 0.8rem;
+            text-shadow: 0 0 8px rgba(255, 0, 127, 0.6); white-space: nowrap;
+        }
+        .spin-wheel-hub {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5;
+            width: 52px; height: 52px; border-radius: 50%; background: var(--bg-card); border: 3px solid var(--accent-pink);
+            display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+        }
+        .spin-wheel-result { text-align: center; margin-top: 16px; font-family: var(--font-mono); color: var(--text-pure); min-height: 1.2em; }
+        .spin-wheel-result.win { color: var(--accent-pink); font-weight: 800; font-size: 1.05rem; }
 
         /* --- BINDER SPECIFIC UI --- */
         .binder-gallery { display: flex; flex-direction: column; height: 330px; background: #151515; border-bottom: 1px solid var(--border-subtle); }
@@ -1427,6 +1494,7 @@
                             🎂 Birthday treat! Code <strong id="birthdayCouponCode"></strong> —
                             <span id="birthdayCouponPct"></span>% off, expires <span id="birthdayCouponExpires"></span>
                         </div>
+                        <button type="button" class="spin-teaser-btn hover-target" id="spinTeaserBtn" onclick="openSpinWheel()">🎡 Spin & Win</button>
                     </div>
 
                     <div class="perks-panel">
@@ -1439,6 +1507,11 @@
                             <button class="hover-target" onclick="copyReferralLink()" type="button">Copy Link</button>
                         </div>
                         <div class="settings-field-hint" id="referralStats" style="margin-top:10px;"></div>
+                    </div>
+
+                    <div class="perks-panel">
+                        <div class="perks-panel-title">My Orders</div>
+                        <div class="admin-tools-scroll" id="myOrdersList" style="max-height:280px;"></div>
                     </div>
 
                     <div class="perks-panel" id="adminToolsPanel" style="display:none;">
@@ -1611,6 +1684,30 @@
         </div>
     </div>
 
+    <div class="tiktok-overlay" id="spinWheelOverlay" onclick="closeSpinWheel(event)">
+        <div class="tiktok-modal" style="max-width: 420px;" onclick="event.stopPropagation()">
+            <button class="close-tiktok hover-target" onclick="closeSpinWheel()">✕</button>
+            <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">Spin &amp; Win</h2>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;" id="spinWheelSubtext">One free spin per account — good luck!</p>
+
+            <div class="spin-wheel-wrap">
+                <div class="spin-wheel-pointer"></div>
+                <div class="spin-wheel" id="spinWheelEl">
+                    <div class="spin-wheel-label" style="transform: rotate(30deg);"><span>5%</span></div>
+                    <div class="spin-wheel-label" style="transform: rotate(90deg);"><span>Socket</span></div>
+                    <div class="spin-wheel-label" style="transform: rotate(150deg);"><span>10%</span></div>
+                    <div class="spin-wheel-label" style="transform: rotate(210deg);"><span>Pen</span></div>
+                    <div class="spin-wheel-label" style="transform: rotate(270deg);"><span>15%</span></div>
+                    <div class="spin-wheel-label" style="transform: rotate(330deg);"><span>Gift</span></div>
+                </div>
+                <div class="spin-wheel-hub" id="spinWheelHub">🎁</div>
+            </div>
+
+            <button class="checkout-btn magnetic-btn hover-target" id="spinWheelBtn" onclick="spinTheWheel()" style="margin-top: 22px;">Spin Now</button>
+            <p class="spin-wheel-result" id="spinWheelResult"></p>
+        </div>
+    </div>
+
     <div class="toast-container" id="toastContainer"></div>
 
     <div class="tiktok-overlay" id="paymentStatusOverlay">
@@ -1659,6 +1756,7 @@
     <section id="shop" class="page-section">
         <div class="shop-controls reveal">
             <h2 class="section-header">Featured Collection</h2>
+            <div class="trust-badge hover-target" id="trustBadge" onclick="scrollToSection('reviews')"></div>
             <button class="size-chart-btn hover-target" onclick="openLightbox('images/SizeChart.jpg')">📏 Size Chart</button>
             <div class="filter-bar" id="mainFilterBar">
                 <!-- Populated by renderFilterBar() using category config from /api/products -- see initShopEngine() -->
@@ -2135,6 +2233,9 @@ Thank you for supporting my small business and understanding the handmade nature
             const imageZoneHTML = `
                 <div class="product-image-zone hover-target lazy-bg" id="img-zone-${product.id}" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="openVariantLightbox(this)">
                     <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
+                    <button type="button" class="dtf-save-btn hover-target" id="save-btn-${product.id}" onclick="saveDtfMockup('${product.id}', event)" title="Save this look">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
                 </div>`;
 
             // Per-category size chart (falls back to the one global button in the shop toolbar
@@ -2359,6 +2460,26 @@ Thank you for supporting my small business and understanding the handmade nature
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
+        }
+
+        // Small trust-signal pill next to "Featured Collection" -- computed from the same
+        // site_reviews table/RLS the review wall already reads publicly, just aggregated
+        // client-side instead of listing individual reviews. Stays hidden (not "0 reviews")
+        // until there's at least one approved review worth showing off.
+        async function loadTrustBadge() {
+            const badge = document.getElementById('trustBadge');
+            if (!badge || !supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient.from('site_reviews').select('rating').eq('status', 'approved');
+                if (error) throw error;
+                if (!data || data.length === 0) return;
+
+                const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
+                badge.innerHTML = `<span class="trust-star">★</span> ${avg.toFixed(1)} <span class="trust-count">(${data.length} review${data.length === 1 ? '' : 's'})</span>`;
+                badge.style.display = 'inline-flex';
+            } catch (err) {
+                console.warn('Could not load trust badge:', err.message);
+            }
         }
 
         async function loadApprovedReviews() {
@@ -2916,6 +3037,50 @@ Thank you for supporting my small business and understanding the handmade nature
             // Swap the Label back to the Button
             document.getElementById(`attach-btn-${productId}`).style.display = 'block';
             document.getElementById(`attached-dtf-label-${productId}`).style.display = 'none';
+        }
+
+        // "Save this look" -- captures whatever's currently rendered in the image zone (the
+        // garment photo plus any attached DTF overlay) as a real PNG the customer can keep or
+        // share, using html2canvas rather than hand-replicating the overlay's CSS transform math
+        // in a plain <canvas> -- more reliable across every category's placement/scale settings
+        // since it just captures whatever the browser already rendered correctly on screen.
+        async function saveDtfMockup(productId, event) {
+            if (event) event.stopPropagation(); // don't also trigger the lightbox click behind it
+            const zone = document.getElementById(`img-zone-${productId}`);
+            const btn = document.getElementById(`save-btn-${productId}`);
+            if (!zone || typeof html2canvas !== 'function') return;
+
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '⏳';
+            btn.disabled = true;
+
+            try {
+                const canvas = await html2canvas(zone, { useCORS: true, backgroundColor: '#f5f5f5', scale: 2 });
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                if (!blob) throw new Error('Could not generate image.');
+
+                const file = new File([blob], 'my-inspired-threads-look.png', { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file], title: 'My Inspired Threads design' });
+                    } catch (shareErr) {
+                        // AbortError just means they closed the share sheet -- not a real failure.
+                        if (shareErr.name !== 'AbortError') throw shareErr;
+                    }
+                } else {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'my-inspired-threads-look.png';
+                    link.click();
+                    URL.revokeObjectURL(link.href);
+                }
+            } catch (err) {
+                console.error('Could not save mockup image:', err);
+                showToast('<strong>Could not save image.</strong> Try a regular screenshot instead.');
+            } finally {
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
         }
 
         // --- NEW: MASTER WISHLIST SYNC FUNCTION ---
@@ -3479,6 +3644,144 @@ Thank you for supporting my small business and understanding the handmade nature
             statsEl.textContent = stats;
         }
 
+        // Reads via a Supabase RPC (get_my_purchases, see sql/order_history.sql) rather than a
+        // Vercel API route -- it's a SECURITY DEFINER function scoped to auth.uid() internally,
+        // so this is safe to call directly from the browser and costs zero serverless functions.
+        async function loadMyOrders() {
+            const container = document.getElementById('myOrdersList');
+            if (!container || !supabaseClient) return;
+            try {
+                const { data: orders, error } = await supabaseClient.rpc('get_my_purchases');
+                if (error) throw error;
+
+                if (!orders || orders.length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-muted); font-size:0.8rem;">No orders yet -- once you check out, they\'ll show up here.</p>';
+                    return;
+                }
+
+                container.innerHTML = orders.map(o => `
+                    <div class="admin-restock-row" style="cursor:default;">
+                        <div class="admin-restock-label" style="display:flex; align-items:center; gap:10px;">
+                            ${o.product_image ? `<img src="${o.product_image}" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:4px;flex-shrink:0;">` : ''}
+                            <div>
+                                <div class="admin-restock-product">${escapeHtml(o.product_name)}</div>
+                                <div class="admin-restock-variant">${new Date(o.purchased_at).toLocaleDateString()}</div>
+                            </div>
+                        </div>
+                        ${o.price_cents != null ? `<div class="admin-restock-current">$${(o.price_cents / 100).toFixed(2)}</div>` : ''}
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = '<p style="color:var(--text-muted); font-size:0.8rem;">Could not load your orders right now.</p>';
+                console.warn('Could not load orders:', err.message);
+            }
+        }
+
+        // Clockwise order matching the label rotations in the #spinWheelEl markup -- must stay
+        // in sync with the possible outcomes in sql/spin_wheel.sql's claim_spin_prize().
+        const SPIN_WHEEL_SEGMENTS = [
+            { type: 'percent', pct: 5 },
+            { type: 'pop_socket' },
+            { type: 'percent', pct: 10 },
+            { type: 'custom_pen' },
+            { type: 'percent', pct: 15 },
+            { type: 'mystery_gift' },
+        ];
+        const SPIN_PRIZE_DISPLAY = { pop_socket: 'a Free Pop Socket', custom_pen: 'a Free Custom Pen', mystery_gift: 'a Free Mystery Gift' };
+
+        function spinPrizeDisplayText(prizeType, prizePct) {
+            return prizeType === 'percent' ? `${prizePct}% off` : (SPIN_PRIZE_DISPLAY[prizeType] || prizeType);
+        }
+
+        function findSpinSegmentIndex(prizeType, prizePct) {
+            return SPIN_WHEEL_SEGMENTS.findIndex(s => prizeType === 'percent' ? (s.type === 'percent' && s.pct === prizePct) : s.type === prizeType);
+        }
+
+        // Reflects whether this account has already spun -- called on login (see refreshAuthUI)
+        // so the teaser button never promises a spin that isn't actually available anymore.
+        function updateSpinTeaser(prizeType, prizePct, alreadyClaimed, alreadyUsed) {
+            const btn = document.getElementById('spinTeaserBtn');
+            if (!btn) return;
+            if (!alreadyClaimed) {
+                btn.textContent = '🎡 Spin & Win';
+                btn.disabled = false;
+                return;
+            }
+            const prizeText = spinPrizeDisplayText(prizeType, prizePct);
+            btn.textContent = !alreadyUsed ? `🎁 You won ${prizeText} -- tap to view` : `✓ ${prizeText} already used`;
+            btn.disabled = false; // still openable either way, just shows the matching state inside
+        }
+
+        function openSpinWheel() {
+            document.getElementById('spinWheelOverlay').classList.add('active');
+        }
+
+        function closeSpinWheel(e) {
+            if (e && e.target !== document.getElementById('spinWheelOverlay')) return;
+            document.getElementById('spinWheelOverlay').classList.remove('active');
+        }
+
+        // The wheel's landing position is purely cosmetic -- claim_spin_prize() (a Supabase RPC,
+        // see sql/spin_wheel.sql) decides the real outcome server-side BEFORE the wheel ever
+        // animates, so there's nothing here for a shopper to manipulate client-side.
+        async function spinTheWheel() {
+            const btn = document.getElementById('spinWheelBtn');
+            const resultEl = document.getElementById('spinWheelResult');
+            const wheelEl = document.getElementById('spinWheelEl');
+            if (btn.disabled) return; // already spinning or already landed this session
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                resultEl.className = 'spin-wheel-result';
+                resultEl.textContent = 'Please log in first to spin.';
+                return;
+            }
+
+            btn.disabled = true;
+            resultEl.className = 'spin-wheel-result';
+            resultEl.textContent = 'Spinning…';
+
+            try {
+                const { data, error } = await supabaseClient.rpc('claim_spin_prize');
+                if (error) throw error;
+                const result = Array.isArray(data) ? data[0] : data;
+                const wonType = result.prize_type;
+                const wonPct = result.prize_pct;
+                const alreadySpun = result.already_spun;
+
+                const index = findSpinSegmentIndex(wonType, wonPct);
+                const segmentDeg = 360 / SPIN_WHEEL_SEGMENTS.length;
+                const extraSpins = 5;
+                // Lands the CENTER of the winning segment under the fixed top pointer.
+                const targetAngle = 360 * extraSpins + (360 - (Math.max(index, 0) * segmentDeg + segmentDeg / 2));
+                wheelEl.style.transform = `rotate(${targetAngle}deg)`;
+
+                setTimeout(() => {
+                    const prizeText = spinPrizeDisplayText(wonType, wonPct);
+                    const redeemNote = wonType === 'percent'
+                        ? "It'll automatically apply at checkout."
+                        : "We'll include it with your next order!";
+                    resultEl.className = 'spin-wheel-result win';
+                    resultEl.textContent = alreadySpun
+                        ? `You already won ${prizeText}! ${redeemNote}`
+                        : `🎉 You won ${prizeText}! ${redeemNote}`;
+                    btn.textContent = 'Already Spun';
+                    const hub = document.getElementById('spinWheelHub');
+                    if (hub && typeof fireSparkBurst === 'function') fireSparkBurst(hub);
+                    // The RPC only tells us the prize + whether they'd spun before, not whether
+                    // it's been redeemed at checkout -- that's refreshed for real on next login
+                    // (refreshAuthUI reads spin_prize_used directly). Safe to assume "not used"
+                    // here for the immediate post-spin label.
+                    updateSpinTeaser(wonType, wonPct, true, false);
+                }, 4200);
+            } catch (err) {
+                resultEl.className = 'spin-wheel-result';
+                resultEl.textContent = 'Could not spin right now -- try again in a moment.';
+                btn.disabled = false;
+                console.error('Spin wheel failed:', err.message);
+            }
+        }
+
         function copyReferralLink() {
             const input = document.getElementById('referralLinkDisplay');
             input.select();
@@ -4034,7 +4337,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     );
                     const fetchProfile = supabaseClient
                         .from('profiles')
-                        .select('username, xp, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin, avatar_url, selected_badge')
+                        .select('username, xp, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin, avatar_url, selected_badge, spin_claimed_at, spin_prize_type, spin_prize_pct, spin_prize_used')
                         .eq('id', session.user.id)
                         .single();
 
@@ -4101,6 +4404,8 @@ Thank you for supporting my small business and understanding the handmade nature
                         localStorage.removeItem('pendingReferralCode');
 
                         renderReferralPanel(referralCode, profile.referral_reward_pending || 0, profile.referral_count || 0);
+                        loadMyOrders();
+                        updateSpinTeaser(profile.spin_prize_type, profile.spin_prize_pct, !!profile.spin_claimed_at, !!profile.spin_prize_used);
 
                         window.currentUserIsAdmin = !!profile.is_admin;
                         document.getElementById('adminToolsPanel').style.display = window.currentUserIsAdmin ? 'block' : 'none';
@@ -4902,8 +5207,9 @@ Thank you for supporting my small business and understanding the handmade nature
 
             updateCartUI(); 
             updateWishlistUI();
-            initShopEngine(); 
+            initShopEngine();
             loadApprovedReviews();
+            loadTrustBadge();
             loadLeaderboard();
         };
     </script>
