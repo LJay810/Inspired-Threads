@@ -3139,7 +3139,19 @@ Thank you for supporting my small business and understanding the handmade nature
                         const finalLeft = originX + S * (tX - baseWidth / 2);
                         const finalTop = originY + S * tY;
 
-                        ctx.drawImage(dtfImg, finalLeft, finalTop, finalWidth, finalHeight);
+                        // The overlay's own CSS is ALSO "background-size:contain" -- the design
+                        // image keeps its own aspect ratio and only partially fills this box on
+                        // screen (letterboxed/pillarboxed, centered), rather than being stretched
+                        // to exactly match finalWidth x finalHeight. Stretching here (the
+                        // previous version of this code) is exactly what made designs come out
+                        // oversized/distorted vs. the live preview -- most DTF images aren't the
+                        // same aspect ratio as their placement box.
+                        const dtfFitScale = Math.min(finalWidth / dtfImg.naturalWidth, finalHeight / dtfImg.naturalHeight);
+                        const dtfDrawW = dtfImg.naturalWidth * dtfFitScale;
+                        const dtfDrawH = dtfImg.naturalHeight * dtfFitScale;
+                        const dtfDrawX = finalLeft + (finalWidth - dtfDrawW) / 2;
+                        const dtfDrawY = finalTop + (finalHeight - dtfDrawH) / 2;
+                        ctx.drawImage(dtfImg, dtfDrawX, dtfDrawY, dtfDrawW, dtfDrawH);
                     }
                 }
 
