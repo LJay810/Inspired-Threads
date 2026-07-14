@@ -19,7 +19,6 @@
 
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <link rel="icon" type="image/png" href="images/inspiredthreadsLogoIcon2.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3039,23 +3038,111 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById(`attached-dtf-label-${productId}`).style.display = 'none';
         }
 
-        // "Save this look" -- captures whatever's currently rendered in the image zone (the
-        // garment photo plus any attached DTF overlay) as a real PNG the customer can keep or
-        // share, using html2canvas rather than hand-replicating the overlay's CSS transform math
-        // in a plain <canvas> -- more reliable across every category's placement/scale settings
-        // since it just captures whatever the browser already rendered correctly on screen.
+        function loadImageForCanvas(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous'; // needed to read pixels back out via canvas.toBlob() for hosted images; harmless no-op for same-origin /images/* files
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+                img.src = src;
+            });
+        }
+
+        function extractCssUrl(cssValue) {
+            const match = /url\(["']?([^"')]+)["']?\)/.exec(cssValue || '');
+            return match ? match[1] : null;
+        }
+
+        // "Save this look" -- draws the garment photo + any attached DTF design directly onto a
+        // <canvas>, from the original full-resolution image files, using the EXACT same
+        // placement math applyDtfToTarget() already applies on screen (same base top/left/width/
+        // height box, same scale()/translate()/transform-origin:top-center reasoning) -- rather
+        // than asking a generic "screenshot the DOM" library to reverse-engineer it, which is
+        // what previously produced an oversized, blurry result: html2canvas doesn't reliably
+        // handle combined CSS scale()+translate() transforms, and it rasterizes an already-small
+        // on-screen snapshot instead of the original source image.
         async function saveDtfMockup(productId, event) {
             if (event) event.stopPropagation(); // don't also trigger the lightbox click behind it
             const zone = document.getElementById(`img-zone-${productId}`);
+            const overlay = document.getElementById(`dtf-overlay-${productId}`);
             const btn = document.getElementById(`save-btn-${productId}`);
-            if (!zone || typeof html2canvas !== 'function') return;
+            if (!zone) return;
 
             const originalHTML = btn.innerHTML;
             btn.innerHTML = '⏳';
             btn.disabled = true;
 
             try {
-                const canvas = await html2canvas(zone, { useCORS: true, backgroundColor: '#f5f5f5', scale: 2 });
+                const RENDER_SCALE = 2; // output resolution multiplier -- safe to raise further since this draws from full-res source files, not a screen snapshot
+                const zoneW = zone.clientWidth;
+                const zoneH = zone.clientHeight;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = zoneW * RENDER_SCALE;
+                canvas.height = zoneH * RENDER_SCALE;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.scale(RENDER_SCALE, RENDER_SCALE);
+
+                // Matches the image-zone's own background-color, so untextured edges (from
+                // "contain" fitting) look identical to the on-screen version.
+                ctx.fillStyle = '#f5f5f5';
+                ctx.fillRect(0, 0, zoneW, zoneH);
+
+                // Garment photo -- replicates "background-size:contain; background-position:center".
+                const garmentSrc = extractCssUrl(zone.style.backgroundImage);
+                if (garmentSrc) {
+                    const garmentImg = await loadImageForCanvas(garmentSrc);
+                    const fitScale = Math.min(zoneW / garmentImg.naturalWidth, zoneH / garmentImg.naturalHeight);
+                    const drawW = garmentImg.naturalWidth * fitScale;
+                    const drawH = garmentImg.naturalHeight * fitScale;
+                    ctx.drawImage(garmentImg, (zoneW - drawW) / 2, (zoneH - drawH) / 2, drawW, drawH);
+                }
+
+                // DTF overlay, only if one's actually attached (opacity is only ever set to '1'
+                // inline by applyDtfToTarget() once a design is chosen).
+                if (overlay && overlay.style.opacity === '1') {
+                    const dtfSrc = extractCssUrl(overlay.style.backgroundImage);
+                    if (dtfSrc) {
+                        const dtfImg = await loadImageForCanvas(dtfSrc);
+
+                        // The overlay's un-transformed base box, in zone pixel coordinates --
+                        // set as top/left/width/height percentages by dtfOverlayStyle().
+                        const baseLeft = (parseFloat(overlay.style.left) || 0) / 100 * zoneW;
+                        const baseTop = (parseFloat(overlay.style.top) || 0) / 100 * zoneH;
+                        const baseWidth = (parseFloat(overlay.style.width) || 0) / 100 * zoneW;
+                        const baseHeight = (parseFloat(overlay.style.height) || 0) / 100 * zoneH;
+
+                        // Parses the exact "scale(S) translate(X%, Y%)" applyDtfToTarget() wrote
+                        // to overlay.style.transform -- reading the live value rather than
+                        // recomputing the pocket/center-chest calibration math a second time, so
+                        // this can never drift out of sync with what's actually on screen.
+                        const transformStr = overlay.style.transform || '';
+                        const scaleMatch = /scale\(([-\d.]+)\)/.exec(transformStr);
+                        const translateMatch = /translate\(([-\d.]+)%,\s*([-\d.]+)%\)/.exec(transformStr);
+                        const S = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+                        const tXPct = translateMatch ? parseFloat(translateMatch[1]) : 0;
+                        const tYPct = translateMatch ? parseFloat(translateMatch[2]) : 0;
+
+                        // transform-origin: top center -- the origin sits at the horizontal
+                        // center, vertical top of the overlay's OWN base box. translate()'s
+                        // percentages resolve against the overlay's own width/height (per the
+                        // CSS transforms spec), not the container's.
+                        const originX = baseLeft + baseWidth / 2;
+                        const originY = baseTop;
+                        const tX = (tXPct / 100) * baseWidth;
+                        const tY = (tYPct / 100) * baseHeight;
+
+                        const finalWidth = baseWidth * S;
+                        const finalHeight = baseHeight * S;
+                        const finalLeft = originX + S * (tX - baseWidth / 2);
+                        const finalTop = originY + S * tY;
+
+                        ctx.drawImage(dtfImg, finalLeft, finalTop, finalWidth, finalHeight);
+                    }
+                }
+
                 const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
                 if (!blob) throw new Error('Could not generate image.');
 
