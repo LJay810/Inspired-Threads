@@ -178,7 +178,15 @@
             <div class="admin-field"><label>Description</label><textarea id="prod_description"></textarea></div>
             <div class="admin-field"><label>Category</label><select id="prod_category_id" required onchange="onProductCategoryChange()"></select></div>
             <div class="admin-field" id="prod_subcat_field" style="display:none;"><label>Sub-category (e.g. DTF pocket/kids)</label><select id="prod_sub_category_id"><option value="">None</option></select></div>
-            <div class="admin-field"><label>Price (USD)</label><input type="number" id="prod_price" step="0.01" min="0.01" required></div>
+            <div class="admin-field">
+                <label>Price (USD)</label>
+                <input type="number" id="prod_price" step="0.01" min="0.01" required>
+                <div class="chip-list" id="prod_price_presets" style="display:none;">
+                    <button type="button" class="admin-btn small secondary" onclick="document.getElementById('prod_price').value='1.00'">De-Stash ($1.00)</button>
+                    <button type="button" class="admin-btn small secondary" onclick="document.getElementById('prod_price').value='1.50'">Sale ($1.50)</button>
+                    <button type="button" class="admin-btn small secondary" onclick="document.getElementById('prod_price').value='2.00'">New ($2.00)</button>
+                </div>
+            </div>
             <div class="admin-field"><label>Sort order (lower numbers show first in the shop; leave blank to show last)</label><input type="number" id="prod_sort_order" placeholder="e.g. 5"></div>
             <div class="admin-field"><label><input type="checkbox" id="prod_published" checked style="width:auto;"> Published</label></div>
 
@@ -553,6 +561,7 @@ function onProductCategoryChange() {
     if (!category) return;
 
     document.getElementById('prod_subcat_field').style.display = catId === 'dtf' ? 'block' : 'none';
+    document.getElementById('prod_price_presets').style.display = catId === 'dtf' ? 'flex' : 'none';
     document.getElementById('prod_dtf_fields').style.display = (category.card_layout_type === 'variant-apparel' || category.card_layout_type === 'design-attach') ? 'block' : 'none';
     document.getElementById('prod_stock_field').style.display = category.card_layout_type === 'variant-apparel' ? 'none' : 'block';
     document.getElementById('prod_variants_field').style.display = category.card_layout_type === 'variant-apparel' ? 'block' : 'none';
