@@ -3811,8 +3811,46 @@ Thank you for supporting my small business and understanding the handmade nature
             btn.disabled = false; // still openable either way, just shows the matching state inside
         }
 
+        // Locks (or resets) the modal to match what's already known BEFORE it becomes visible --
+        // critical after a page refresh, since the modal is static HTML that would otherwise
+        // always start in its default "never spun" state regardless of the account's real
+        // history. Nothing here can be bypassed to get a second real spin: the RPC itself is
+        // permanently one-shot per account server-side, this is purely about the button/wheel
+        // honestly reflecting that instead of inviting a pointless re-click.
         function openSpinWheel() {
             document.getElementById('spinWheelOverlay').classList.add('active');
+
+            const btn = document.getElementById('spinWheelBtn');
+            const resultEl = document.getElementById('spinWheelResult');
+            const wheelEl = document.getElementById('spinWheelEl');
+
+            if (window._spinStatus && window._spinStatus.claimed) {
+                const index = findSpinSegmentIndex(window._spinStatus.type, window._spinStatus.pct);
+                if (index >= 0) {
+                    const segmentDeg = 360 / SPIN_WHEEL_SEGMENTS.length;
+                    wheelEl.style.transition = 'none';
+                    wheelEl.style.transform = `rotate(${360 - (index * segmentDeg + segmentDeg / 2)}deg)`;
+                    void wheelEl.offsetHeight; // force the jump-to-position to apply before re-enabling the transition
+                    wheelEl.style.transition = '';
+                }
+                const prizeText = spinPrizeDisplayText(window._spinStatus.type, window._spinStatus.pct);
+                const redeemNote = window._spinStatus.type === 'percent'
+                    ? "It'll automatically apply at checkout."
+                    : "We'll include it with your next order!";
+                resultEl.className = 'spin-wheel-result win';
+                resultEl.textContent = `You already won ${prizeText}! ${redeemNote}`;
+                btn.textContent = 'Already Spun';
+                btn.disabled = true;
+            } else {
+                wheelEl.style.transition = 'none';
+                wheelEl.style.transform = 'rotate(0deg)';
+                void wheelEl.offsetHeight;
+                wheelEl.style.transition = '';
+                resultEl.className = 'spin-wheel-result';
+                resultEl.textContent = '';
+                btn.textContent = 'Spin Now';
+                btn.disabled = false;
+            }
         }
 
         function closeSpinWheel(e) {
@@ -3871,6 +3909,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     // it's been redeemed at checkout -- that's refreshed for real on next login
                     // (refreshAuthUI reads spin_prize_used directly). Safe to assume "not used"
                     // here for the immediate post-spin label.
+                    window._spinStatus = { claimed: true, type: wonType, pct: wonPct };
                     updateSpinTeaser(wonType, wonPct, true, false);
                 }, 4200);
             } catch (err) {
@@ -4504,6 +4543,12 @@ Thank you for supporting my small business and understanding the handmade nature
 
                         renderReferralPanel(referralCode, profile.referral_reward_pending || 0, profile.referral_count || 0);
                         loadMyOrders();
+                        // Tracked globally (not just used to update the teaser button text) so
+                        // openSpinWheel() can lock the modal immediately on open -- without this,
+                        // a page refresh reset the modal's DOM to its default enabled state and
+                        // let you click "Spin Now" again, even though the server-side result
+                        // never actually changes (it always returns your real, permanent prize).
+                        window._spinStatus = { claimed: !!profile.spin_claimed_at, type: profile.spin_prize_type, pct: profile.spin_prize_pct };
                         updateSpinTeaser(profile.spin_prize_type, profile.spin_prize_pct, !!profile.spin_claimed_at, !!profile.spin_prize_used);
 
                         window.currentUserIsAdmin = !!profile.is_admin;
