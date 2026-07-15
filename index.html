@@ -4485,11 +4485,11 @@ Thank you for supporting my small business and understanding the handmade nature
             }
         }
 
-        // Paint the badge grid once immediately with defaults (all locked, 0 XP) so it's
+        // Paint the badge grid once immediately with defaults (all locked, $0 spent) so it's
         // never blank -- if the live Supabase fetch below succeeds it just repaints with
         // real numbers. Protects against the grid staying empty on a slow/flaky mobile
         // connection where the profile fetch doesn't finish before the modal is opened.
-        renderTierAndBadges(0, []);
+        renderTierAndBadges(0, null, []);
 
         async function refreshAuthUI(session) {
             const navBtn = document.getElementById('accountNavBtn');
