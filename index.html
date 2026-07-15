@@ -990,6 +990,12 @@
     box-sizing: border-box; 
 }
         .dtf-item-name { font-size: 0.7rem; font-family: var(--font-mono); color: var(--text-pure); margin-bottom: 5px; }
+        .dtf-item-card.hidden-filter { display: none !important; }
+
+        /* Same pill-button language as the main shop's filter bar (.filter-btn below), just
+           sized down a touch to sit comfortably in the 700px modal alongside 3-4 buttons. */
+        .dtf-modal-filter-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 auto 18px; }
+        .dtf-modal-filter-bar .filter-btn { padding: 8px 18px; font-size: 0.68rem; }
 
 
         /* --- SHOP CATEGORY FILTERS --- */
@@ -1710,10 +1716,16 @@
         <div class="tiktok-modal" style="max-width: 700px; width: 95%;" onclick="event.stopPropagation()"> 
             <button class="close-tiktok hover-target" onclick="closeDtfSelector()">✕</button>
             <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">Select Design</h2>
-            <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 25px;">Select a DTF transfer to attach and visualize it on this garment.</p>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Select a DTF transfer to attach and visualize it on this garment.</p>
+            <div class="dtf-modal-filter-bar" id="dtfModalFilterBar">
+                <button class="filter-btn active hover-target" data-dtf-filter="dtf">Adult's</button>
+                <button class="filter-btn hover-target" data-dtf-filter="dtf-kids">Kid's</button>
+                <button class="filter-btn hover-target" data-dtf-filter="dtf-pocket">Pocket's</button>
+            </div>
             <input type="text" id="modalDtfSearch" class="dtf-search-input hover-target" style="margin: 0 auto 20px auto; display: block;" placeholder="🔍 Search DTF Designs...">
             <div class="dtf-grid-container" id="dtfSelectorGrid">
                 </div>
+            <p id="dtfModalFilterEmptyMsg" style="display:none; text-align:center; color:var(--text-muted); font-family: var(--font-mono); font-size: 0.8rem; padding: 10px 0 0;">No designs in this category yet -- try one of the other tabs above.</p>
         </div>
     </div>
 
@@ -2912,7 +2924,16 @@ Thank you for supporting my small business and understanding the handmade nature
        function openDtfSelector(productId, category) {
             window.currentVisualizerTarget = productId;
             const grid = document.getElementById('dtfSelectorGrid');
-            
+
+            // Clear the search box every time the modal opens -- it lives outside
+            // dtfSelectorGrid, so it'd otherwise still hold whatever was typed last time,
+            // out of sync with the freshly rebuilt grid below. The category filter itself gets
+            // (re)applied further down, once the new cards actually exist to filter.
+            const modalSearchInput = document.getElementById('modalDtfSearch');
+            if (modalSearchInput) modalSearchInput.value = '';
+            const emptyCategoryMsg = document.getElementById('dtfModalFilterEmptyMsg');
+            if (emptyCategoryMsg) emptyCategoryMsg.style.display = 'none';
+
             if(window.dtfRegistry.length === 0) {
                 grid.innerHTML = '<p style="color:var(--text-muted); font-family: var(--font-mono);">No DTF prints currently available.</p>';
             } else {
@@ -2945,9 +2966,14 @@ Thank you for supporting my small business and understanding the handmade nature
                     
                     // FIX: Escape both single AND double quotes to prevent HTML corruption
                     const safeName = dtf.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    
+
+                    // Adult's / Kid's / Pocket's -- same sub_category field the main shop grid
+                    // already files DTF items under (dtf-kids / dtf-pocket), defaulting to
+                    // plain 'dtf' (Adult's) when unset. Drives the filter bar below.
+                    const dtfSubCategory = (dtf.metadata && dtf.metadata.sub_category) || 'dtf';
+
                     gridHTML += `
-                        <div class="dtf-item-card hover-target" onclick="applyDtfToTarget('${dtf.id}', '${safeName}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}', ${customScale}, ${nudgeX}, ${nudgeY})">
+                        <div class="dtf-item-card hover-target" data-category="${dtfSubCategory}" onclick="applyDtfToTarget('${dtf.id}', '${safeName}', '${imgUrl}', '${dtf.price}', '${dtf.priceId}', '${designType}', ${customScale}, ${nudgeX}, ${nudgeY})">
                             <!-- FIX: Removed loading="lazy" so modal images load instantly -->
                             <img src="${imgUrl}" class="dtf-item-img" decoding="async" alt="DTF Graphic">
                             <span class="dtf-item-name">${dtf.name}</span>
@@ -2959,8 +2985,14 @@ Thank you for supporting my small business and understanding the handmade nature
                 // FIX: If every DTF in the registry was filtered out for being sold out,
                 // gridHTML would otherwise render as a blank box with no explanation.
                 grid.innerHTML = gridHTML || '<p style="color:var(--text-muted); font-family: var(--font-mono);">All DTF designs are currently sold out.</p>';
+
+                // Defaults to Adult's every time the modal opens -- applied here, after the
+                // cards above actually exist, rather than up top where dtfSelectorGrid was
+                // still holding whatever was rendered last time this modal was open.
+                const adultFilterBtn = document.querySelector('#dtfModalFilterBar .filter-btn[data-dtf-filter="dtf"]');
+                if (adultFilterBtn) applyDtfModalFilter('dtf', adultFilterBtn);
             }
-            
+
             document.getElementById('dtfOverlayModal').classList.add('active');
             if(isDesktop) attachHoverTargets(); 
         }
@@ -5403,6 +5435,38 @@ Thank you for supporting my small business and understanding the handmade nature
                 if(title.includes(term)) card.classList.remove('hidden-search');
                 else card.classList.add('hidden-search');
             });
+        });
+
+        // Adult's / Kid's / Pocket's filter for the DTF attach grid -- same active-pill +
+        // hidden-filter pattern as the main shop's category filter bar (applyFilter above),
+        // just scoped to .dtf-item-card instead of .product-card. Composes independently with
+        // the search box above it: a card only shows when it matches BOTH (hidden-search and
+        // hidden-filter each hide on their own, same as the main shop grid).
+        function applyDtfModalFilter(filterValue, activeBtn) {
+            document.querySelectorAll('#dtfModalFilterBar .filter-btn').forEach(b => b.classList.remove('active'));
+            activeBtn.classList.add('active');
+            window._dtfModalActiveFilter = filterValue;
+
+            const allCards = document.querySelectorAll('.dtf-item-card');
+            let anyMatch = false;
+            allCards.forEach(card => {
+                const matches = filterValue === 'all' || card.getAttribute('data-category') === filterValue;
+                card.classList.toggle('hidden-filter', !matches);
+                if (matches) anyMatch = true;
+            });
+
+            // Distinct from the registry-wide "No DTF prints" / "All sold out" messages baked
+            // into dtfSelectorGrid's own HTML -- this covers the narrower case where the
+            // registry isn't empty, but this ONE category (e.g. Adult's) currently has zero
+            // designs in it. Without this, switching to an empty category just looks like a
+            // blank, broken grid instead of explaining itself.
+            const emptyMsg = document.getElementById('dtfModalFilterEmptyMsg');
+            if (emptyMsg) emptyMsg.style.display = (allCards.length > 0 && !anyMatch) ? 'block' : 'none';
+        }
+
+        document.getElementById('dtfModalFilterBar').addEventListener('click', (e) => {
+            const btn = e.target.closest('.filter-btn[data-dtf-filter]');
+            if (btn) applyDtfModalFilter(btn.getAttribute('data-dtf-filter'), btn);
         });
 
         // --- NEW: BFCache Checkout Button Reset ---
