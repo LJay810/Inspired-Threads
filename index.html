@@ -4162,6 +4162,16 @@ Thank you for supporting my small business and understanding the handmade nature
                         <label class="settings-field-label" style="margin:0;">Tier Spend ($)</label>
                         <input type="number" min="0" step="0.01" id="adminEditTierSpend" value="${parseFloat(user.tier_spend || 0).toFixed(2)}">
                     </div>
+                    <div class="admin-user-edit-row">
+                        <label class="settings-field-label" style="margin:0;">Tier Floor</label>
+                        <select id="adminEditGrandfatheredTier">
+                            <option value="">— None (use real spend) —</option>
+                            ${TIERS.slice().reverse().map(t => `<option value="${t.name}" ${user.grandfathered_tier === t.name ? 'selected' : ''}>${t.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="settings-field-hint" style="margin:-4px 0 10px;">
+                        Only ever raises what this shopper displays as -- it can't push them below what their real Tier Spend already earns. Set to "None" to let real spend alone decide.
+                    </div>
                     <div class="admin-badge-checks" id="adminEditBadges">${badgeChecks}</div>
                     <div class="admin-is-admin-row">
                         <label style="display:flex; align-items:center; gap:6px; cursor:none !important;">
@@ -4190,6 +4200,7 @@ Thank you for supporting my small business and understanding the handmade nature
             const badges = Array.from(document.querySelectorAll('#adminEditBadges input:checked')).map(cb => cb.value);
             const isAdmin = document.getElementById('adminEditIsAdmin').checked;
             const hideFromLeaderboard = document.getElementById('adminEditHideFromLeaderboard').checked;
+            const grandfatheredTier = document.getElementById('adminEditGrandfatheredTier').value;
 
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) { statusEl.textContent = 'Not logged in'; return; }
@@ -4202,7 +4213,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${session.access_token}`,
                     },
-                    body: JSON.stringify({ action: 'update', userId, total_spent: totalSpent, tier_spend: tierSpend, badges, is_admin: isAdmin, hide_from_leaderboard: hideFromLeaderboard }),
+                    body: JSON.stringify({ action: 'update', userId, total_spent: totalSpent, tier_spend: tierSpend, badges, is_admin: isAdmin, hide_from_leaderboard: hideFromLeaderboard, grandfathered_tier: grandfatheredTier }),
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Save failed.');

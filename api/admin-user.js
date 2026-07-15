@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const { requireAdmin } = require('../lib/require-admin');
+const { TIERS } = require('../lib/loyalty');
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -66,7 +67,7 @@ export default async function handler(req, res) {
         }
 
         if (action === 'update') {
-            const { userId, total_spent, tier_spend, badges, is_admin, hide_from_leaderboard } = req.body;
+            const { userId, total_spent, tier_spend, badges, is_admin, hide_from_leaderboard, grandfathered_tier } = req.body;
             if (!userId) return res.status(400).json({ error: 'Missing userId.' });
 
             const updateFields = {};
@@ -93,6 +94,17 @@ export default async function handler(req, res) {
             }
             if (hide_from_leaderboard !== undefined) {
                 updateFields.hide_from_leaderboard = !!hide_from_leaderboard;
+            }
+            if (grandfathered_tier !== undefined) {
+                // '' / null clears the floor entirely (tier then comes purely from tier_spend).
+                // Otherwise must be a real tier name -- this is a FLOOR (see effectiveTierName
+                // in lib/loyalty.js), so it can only raise what a profile displays as, never
+                // lower it below what their real tier_spend already earns.
+                const floorName = grandfathered_tier || null;
+                if (floorName !== null && !TIERS.some(t => t.name === floorName)) {
+                    return res.status(400).json({ error: `Invalid grandfathered_tier value. Must be one of: ${TIERS.map(t => t.name).join(', ')}, or empty to clear.` });
+                }
+                updateFields.grandfathered_tier = floorName;
             }
             if (Object.keys(updateFields).length === 0) {
                 return res.status(400).json({ error: 'Nothing to update.' });
