@@ -2670,7 +2670,7 @@ Thank you for supporting my small business and understanding the handmade nature
                                     <span class="leaderboard-name">${escapeHtml(e.username || 'Customer')}</span>
                                     ${badgeHtml}
                                 </div>
-                                <div class="leaderboard-tier">${tierName} Tier</div>
+                                <div class="leaderboard-tier">${tierName === 'Crew Member' ? tierName : tierName + ' Tier'}</div>
                             </div>
                             <div class="leaderboard-xp">$${(e.total_spent || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span>spent</span></div>
                         </div>
@@ -4169,6 +4169,12 @@ Thank you for supporting my small business and understanding the handmade nature
                             Grant admin panel access (restock tools + this lookup panel)
                         </label>
                     </div>
+                    <div class="admin-is-admin-row">
+                        <label style="display:flex; align-items:center; gap:6px; cursor:none !important;">
+                            <input type="checkbox" id="adminEditHideFromLeaderboard" ${user.hide_from_leaderboard ? 'checked' : ''}>
+                            Hide from public leaderboard (e.g. admin/family test accounts)
+                        </label>
+                    </div>
                     <div class="birthday-field-row" style="margin-top:12px;">
                         <button class="hover-target" type="button" onclick="saveUserEdits('${userId}')">Save Changes</button>
                         <span class="admin-restock-status" id="adminEditStatus"></span>
@@ -4183,6 +4189,7 @@ Thank you for supporting my small business and understanding the handmade nature
             const tierSpend = document.getElementById('adminEditTierSpend').value;
             const badges = Array.from(document.querySelectorAll('#adminEditBadges input:checked')).map(cb => cb.value);
             const isAdmin = document.getElementById('adminEditIsAdmin').checked;
+            const hideFromLeaderboard = document.getElementById('adminEditHideFromLeaderboard').checked;
 
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) { statusEl.textContent = 'Not logged in'; return; }
@@ -4195,7 +4202,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${session.access_token}`,
                     },
-                    body: JSON.stringify({ action: 'update', userId, total_spent: totalSpent, tier_spend: tierSpend, badges, is_admin: isAdmin }),
+                    body: JSON.stringify({ action: 'update', userId, total_spent: totalSpent, tier_spend: tierSpend, badges, is_admin: isAdmin, hide_from_leaderboard: hideFromLeaderboard }),
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Save failed.');

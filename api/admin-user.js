@@ -47,7 +47,7 @@ export default async function handler(req, res) {
             const ids = idsWithEmail.map(m => m.id);
             const { data: fullProfiles, error: profErr } = await supabaseAdmin
                 .from('profiles')
-                .select('id, username, badges, order_count, total_spent, tier_spend, grandfathered_tier, referral_count, is_admin')
+                .select('id, username, badges, order_count, total_spent, tier_spend, grandfathered_tier, referral_count, is_admin, hide_from_leaderboard')
                 .in('id', ids);
             if (profErr) throw profErr;
 
@@ -66,7 +66,7 @@ export default async function handler(req, res) {
         }
 
         if (action === 'update') {
-            const { userId, total_spent, tier_spend, badges, is_admin } = req.body;
+            const { userId, total_spent, tier_spend, badges, is_admin, hide_from_leaderboard } = req.body;
             if (!userId) return res.status(400).json({ error: 'Missing userId.' });
 
             const updateFields = {};
@@ -90,6 +90,9 @@ export default async function handler(req, res) {
             }
             if (is_admin !== undefined) {
                 updateFields.is_admin = !!is_admin;
+            }
+            if (hide_from_leaderboard !== undefined) {
+                updateFields.hide_from_leaderboard = !!hide_from_leaderboard;
             }
             if (Object.keys(updateFields).length === 0) {
                 return res.status(400).json({ error: 'Nothing to update.' });
