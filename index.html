@@ -1814,7 +1814,7 @@
     <section id="leaderboard" class="page-section">
         <h2 class="section-header reveal">Leaderboard</h2>
         <p class="reveal text-glass-bg" style="color: var(--text-muted); max-width: 640px; margin: 0 auto 40px; text-align: center; font-size: 0.95rem;">
-            Top customers by XP. Set a profile picture and pick a badge to show off in your Account Settings.
+            Our top customers, ranked by loyalty tier. Set a profile picture and pick a badge to show off in your Account Settings.
         </p>
         <div class="leaderboard-list" id="leaderboardList">
             <div class="leaderboard-entry">
@@ -2672,7 +2672,6 @@ Thank you for supporting my small business and understanding the handmade nature
                                 </div>
                                 <div class="leaderboard-tier">${tierName === 'Crew Member' ? tierName : tierName + ' Tier'}</div>
                             </div>
-                            <div class="leaderboard-xp">$${(e.total_spent || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span>spent</span></div>
                         </div>
                     `;
                 }).join('');
@@ -5065,8 +5064,8 @@ Thank you for supporting my small business and understanding the handmade nature
 
             const fulfillmentMethod = document.querySelector('input[name="fulfillment"]:checked').value;
 
-            // Logged-in shoppers earn XP for this order -- the webhook credits it to this id
-            // once payment completes. Guests/logged-out checkouts simply earn nothing.
+            // Logged-in shoppers earn loyalty spend for this order -- the webhook credits it to
+            // this id once payment completes. Guests/logged-out checkouts simply earn nothing.
             let supabaseUserId = null;
             if (supabaseClient) {
                 const { data: { session } } = await supabaseClient.auth.getSession();
@@ -5074,7 +5073,7 @@ Thank you for supporting my small business and understanding the handmade nature
             }
 
             // Snapshot so the post-payment success page can show what was actually earned
-            // (XP gained, new badges) by diffing against this later -- taken here, right
+            // (spend gained, new badges) by diffing against this later -- taken here, right
             // before checkout, not on page load, so it reflects their state at the moment
             // this specific order started.
             if (supabaseUserId) {
