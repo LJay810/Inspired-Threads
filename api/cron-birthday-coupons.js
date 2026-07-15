@@ -1,6 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
-const { effectiveTierName, perksForTier } = require('../lib/loyalty');
+const { effectiveTierName, perksForTier, isAnniversaryDay } = require('../lib/loyalty');
 
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -85,9 +85,53 @@ export default async function handler(req, res) {
             issuedCount++;
         }
 
-        res.status(200).json({ message: `Issued ${issuedCount} birthday coupon(s).` });
+        // ANNUAL TIER RESET ---------------------------------------------------
+        // Piggybacks this same daily cron slot rather than getting its own serverless
+        // function -- this project was already at Vercel Hobby's 12-function cap.
+        // Rolling 12-month tier qualification: once a year, on the exact day matching a
+        // shopper's signup (see isAnniversaryDay in lib/loyalty.js), their tier_spend resets
+        // to 0 and they requalify for their current tier through fresh spend -- lifetime
+        // stats (total_spent, order_count, badges) are untouched, so nobody loses an
+        // achievement they already earned. Also clears grandfathered_tier at the same
+        // moment: that column is a one-cycle safety net from the XP->dollars migration, not a
+        // standing exemption -- after someone's first reset under the new system, they're
+        // judged purely on real tier_spend.
+        //
+        // Signup date lives on the auth user, not the profile row -- pull every account's
+        // created_at in one paginated pass rather than a per-profile lookup.
+        const createdAtById = new Map();
+        for (let page = 1; page <= 5; page++) {
+            const { data: userPage, error: usersErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+            if (usersErr) throw usersErr;
+            for (const u of userPage.users || []) createdAtById.set(u.id, u.created_at);
+            if (!userPage.users || userPage.users.length < 1000) break;
+        }
+
+        const { data: allProfiles, error: allProfilesErr } = await supabaseAdmin
+            .from('profiles')
+            .select('id, tier_spend, grandfathered_tier');
+        if (allProfilesErr) throw allProfilesErr;
+
+        let resetCount = 0;
+        for (const profile of allProfiles || []) {
+            const createdAt = createdAtById.get(profile.id);
+            if (!createdAt || !isAnniversaryDay(createdAt)) continue;
+            if (!(profile.tier_spend > 0) && !profile.grandfathered_tier) continue; // nothing to reset
+
+            const { error: resetErr } = await supabaseAdmin
+                .from('profiles')
+                .update({ tier_spend: 0, grandfathered_tier: null })
+                .eq('id', profile.id);
+            if (resetErr) throw resetErr;
+
+            resetCount++;
+        }
+
+        res.status(200).json({
+            message: `Issued ${issuedCount} birthday coupon(s). Reset ${resetCount} profile(s) for annual tier requalification.`,
+        });
     } catch (error) {
-        console.error('Birthday cron error:', error);
+        console.error('Birthday/tier-reset cron error:', error);
         res.status(500).json({ error: error.message });
     }
 }
