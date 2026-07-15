@@ -13,17 +13,26 @@ alter table public.profiles
   -- Lifetime spend, never reset. Drives badges (big_spender, etc.) and a lifetime leaderboard.
   add column if not exists total_spent numeric(10,2) not null default 0,
   -- Spend toward the CURRENT tier -- resets to 0 once a year on the user's own signup
-  -- anniversary (see api/cron-tier-reset.js). This, not total_spent, is what tierForSpend
-  -- in lib/loyalty.js is actually called with.
+  -- anniversary (see the annual-reset block in api/cron-birthday-coupons.js). This, not
+  -- total_spent, is what tierForSpend in lib/loyalty.js is actually called with.
   add column if not exists tier_spend numeric(10,2) not null default 0,
   -- One-time migration safety net: the tier name a profile displayed under the OLD xp-based
   -- thresholds at the moment this migration ran (see the backfill at the bottom of this file).
   -- effectiveTierName() in lib/loyalty.js treats this as a FLOOR on top of the real
   -- tier_spend-derived tier, so nobody was visibly demoted by the XP->dollars switch itself.
-  -- Cleared automatically by cron-tier-reset.js the next time that user's annual reset fires,
-  -- so it's a one-cycle safety net, not a standing exemption.
+  -- Cleared automatically by the annual-reset block in api/cron-birthday-coupons.js the next
+  -- time that user's annual reset fires, so it's a one-cycle safety net, not a standing
+  -- exemption.
   add column if not exists grandfathered_tier text,
   add column if not exists order_count integer not null default 0,
+  -- Excludes this profile from get_leaderboard's results (e.g. admin/family test accounts
+  -- manually maxed out for testing, that shouldn't show up competing publicly). Deliberately
+  -- a real, source-controlled column with an "Admin Tools" checkbox (see openUserEditPanel in
+  -- index.html) rather than hardcoded IDs baked into the get_leaderboard function body --
+  -- that's exactly how the *previous* version of this exclusion silently vanished when
+  -- get_leaderboard had to be reconstructed from scratch during the XP->dollars migration
+  -- (it was never in source control to begin with).
+  add column if not exists hide_from_leaderboard boolean not null default false,
   add column if not exists birthday date,
   add column if not exists birthday_code text,
   add column if not exists birthday_code_expires timestamptz,
@@ -122,6 +131,8 @@ $$;
 -- the leaderboard reflects all-time standing, not just the current qualification period --
 -- the tier shown per row is looked up client-side from tier_spend + grandfathered_tier via
 -- effectiveTierName(), same as everywhere else on the page.
+-- Excludes hide_from_leaderboard profiles (see the column comment above) -- e.g. admin/family
+-- test accounts.
 -- The pre-existing version of this function (never in source control -- see the note at the
 -- top of this section) returned a different column set, so it has to be dropped by its old
 -- signature first, same reasoning as award_loyalty above.
@@ -142,6 +153,7 @@ set search_path = public
 as $$
   select username, avatar_url, selected_badge, total_spent, tier_spend, grandfathered_tier
   from public.profiles
+  where not hide_from_leaderboard
   order by total_spent desc
   limit p_limit;
 $$;
@@ -214,8 +226,9 @@ where grandfathered_tier is null
   and xp >= 100;
 
 -- 6. Row Level Security ---------------------------------------------------
--- These RPCs run as SECURITY DEFINER and are only ever called by webhook.js,
--- cron-birthday-coupons.js, and cron-tier-reset.js using the Supabase SERVICE ROLE key, which
+-- These RPCs run as SECURITY DEFINER and are only ever called by webhook.js and
+-- cron-birthday-coupons.js (which also handles the annual tier reset) using the Supabase
+-- SERVICE ROLE key, which
 -- bypasses RLS entirely -- so no new policies are required for them to work.
 --
 -- The browser writes directly to a few of the shopper's own fields (see index.html):
