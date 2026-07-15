@@ -242,31 +242,51 @@ export default async function handler(req, res) {
         if (referralDiscountType) sessionMetadata['referral_discount_type'] = referralDiscountType;
 
         // SPIN-WHEEL PRIZE: two different kinds, handled differently.
-        //   - Percent-off: competes for Stripe's single discounts-per-session slot, same as the
-        //     referral/tier discounts above -- an earned relationship reward (referral) still
-        //     outranks a lucky spin, and it's only worth "spending" if it actually beats the
-        //     tier standing discount already queued.
-        //   - Physical prize (pop socket / custom pen / mystery gift): doesn't touch pricing or
-        //     that discount slot at all -- just flags the order for whoever packs it, same idea
-        //     as Include_Free_Gift below, so it applies independently of whatever discount
-        //     (if any) is also on this order.
+        //   - Percent-off ('percent'): LEGACY ONLY as of the six-physical-prize wheel redesign
+        //     -- claim_spin_prize() (see sql/spin_wheel.sql) no longer hands these out to new
+        //     spins, but anyone who already won one under the old odds keeps a fully-working
+        //     prize, so this branch stays. Competes for Stripe's single discounts-per-session
+        //     slot, same as the referral/tier discounts above. Compared by actual dollar value
+        //     on THIS cart rather than raw percent-vs-percent -- the old raw comparison meant a
+        //     Gold member's 5%-off prize could never beat their own already-5% standing
+        //     discount (5 > 5 is false), silently making the "win" worthless for exactly the
+        //     members most likely to have it. That redundancy is the whole reason the wheel no
+        //     longer offers percent-off prizes at all; this fix just makes the comparison honest
+        //     for whoever's still holding one from before.
+        //   - Physical prize (all six current prizes, plus legacy 'mystery_gift'): doesn't touch
+        //     pricing or that discount slot at all -- just flags the order for whoever packs it,
+        //     same idea as Include_Free_Gift below, so it applies independently of whatever
+        //     discount (if any) is also on this order.
         // Same reserve-now/release-on-expiry pattern as the referral signup discount above,
         // reused for both kinds via reserve_spin_prize/release_spin_prize.
-        const SPIN_PRIZE_LABELS = { pop_socket: 'Free Pop Socket', custom_pen: 'Free Custom Pen', mystery_gift: 'Free Mystery Gift' };
+        const SPIN_PRIZE_LABELS = {
+            pop_socket: 'Mystery Pop-Socket',
+            custom_pen: 'Mystery Custom Pen',
+            mystery_gift: 'Free Mystery Gift', // legacy -- no longer a roll outcome, still redeemable
+            mystery_keychain: 'Mystery Keychain',
+            mystery_sticky_notes: 'Mystery Sticky Notes',
+            mystery_cup_wraps: '3x Mystery Cup-Wraps',
+            mystery_tshirt: 'Mystery T-Shirt',
+        };
         let spinPrizeClaimed = false;
         if (referralProfile && supabaseAdmin && referralProfile.spin_prize_type && !referralProfile.spin_prize_used) {
             if (referralProfile.spin_prize_type === 'percent') {
-                if (!referralDiscountType && referralProfile.spin_prize_pct > discountPct) {
-                    try {
-                        const { data: reserved } = await supabaseAdmin.rpc('reserve_spin_prize', {
-                            p_user_id: supabaseUserId,
-                        });
-                        if (reserved) {
-                            discountPct = referralProfile.spin_prize_pct;
-                            spinPrizeClaimed = true;
+                if (!referralDiscountType) {
+                    const subtotalDollars = subtotalCents / 100;
+                    const standingValueDollars = subtotalDollars * (discountPct / 100);
+                    const spinValueDollars = subtotalDollars * (referralProfile.spin_prize_pct / 100);
+                    if (spinValueDollars > standingValueDollars) {
+                        try {
+                            const { data: reserved } = await supabaseAdmin.rpc('reserve_spin_prize', {
+                                p_user_id: supabaseUserId,
+                            });
+                            if (reserved) {
+                                discountPct = referralProfile.spin_prize_pct;
+                                spinPrizeClaimed = true;
+                            }
+                        } catch (err) {
+                            console.warn('Spin prize reservation failed, proceeding without it:', err.message);
                         }
-                    } catch (err) {
-                        console.warn('Spin prize reservation failed, proceeding without it:', err.message);
                     }
                 }
             } else {

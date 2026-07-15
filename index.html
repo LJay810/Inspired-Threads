@@ -1738,12 +1738,12 @@
             <div class="spin-wheel-wrap">
                 <div class="spin-wheel-pointer"></div>
                 <div class="spin-wheel" id="spinWheelEl">
-                    <div class="spin-wheel-label" style="transform: rotate(300deg);"><span>5%</span></div>
+                    <div class="spin-wheel-label" style="transform: rotate(300deg);"><span>Keychain</span></div>
                     <div class="spin-wheel-label" style="transform: rotate(0deg);"><span>Pop-Socket</span></div>
-                    <div class="spin-wheel-label" style="transform: rotate(60deg);"><span>10%</span></div>
+                    <div class="spin-wheel-label" style="transform: rotate(60deg);"><span>Sticky Notes</span></div>
                     <div class="spin-wheel-label" style="transform: rotate(120deg);"><span>Custom-Pen</span></div>
-                    <div class="spin-wheel-label" style="transform: rotate(180deg);"><span>15%</span></div>
-                    <div class="spin-wheel-label" style="transform: rotate(240deg);"><span>Mystery Gift</span></div>
+                    <div class="spin-wheel-label" style="transform: rotate(180deg);"><span>3x Cup-Wraps</span></div>
+                    <div class="spin-wheel-label" style="transform: rotate(240deg);"><span>T-Shirt</span></div>
                 </div>
                 <div class="spin-wheel-hub" id="spinWheelHub">🎁</div>
             </div>
@@ -3885,15 +3885,29 @@ Thank you for supporting my small business and understanding the handmade nature
 
         // Clockwise order matching the label rotations in the #spinWheelEl markup -- must stay
         // in sync with the possible outcomes in sql/spin_wheel.sql's claim_spin_prize().
+        // 'percent' (any pct) and 'mystery_gift' are deliberately absent -- the wheel no longer
+        // hands those out to new spins (see sql/spin_wheel.sql for why), so they have no wedge.
+        // Legacy winners of either are still handled below (spinPrizeDisplayText/
+        // SPIN_PRIZE_DISPLAY keep working for them, findSpinSegmentIndex's -1 guard in
+        // spinTheWheel/openSpinWheel keeps the wheel from misleadingly landing on a wedge that
+        // isn't what they actually won).
         const SPIN_WHEEL_SEGMENTS = [
-            { type: 'percent', pct: 5 },
+            { type: 'mystery_keychain' },
             { type: 'pop_socket' },
-            { type: 'percent', pct: 10 },
+            { type: 'mystery_sticky_notes' },
             { type: 'custom_pen' },
-            { type: 'percent', pct: 15 },
-            { type: 'mystery_gift' },
+            { type: 'mystery_cup_wraps' },
+            { type: 'mystery_tshirt' },
         ];
-        const SPIN_PRIZE_DISPLAY = { pop_socket: 'a Free Pop Socket', custom_pen: 'a Free Custom Pen', mystery_gift: 'a Free Mystery Gift' };
+        const SPIN_PRIZE_DISPLAY = {
+            pop_socket: 'a Mystery Pop-Socket',
+            custom_pen: 'a Mystery Custom Pen',
+            mystery_gift: 'a Free Mystery Gift', // legacy -- no longer a roll outcome, still redeemable
+            mystery_keychain: 'a Mystery Keychain',
+            mystery_sticky_notes: 'Mystery Sticky Notes',
+            mystery_cup_wraps: '3x Mystery Cup-Wraps',
+            mystery_tshirt: 'a Mystery T-Shirt',
+        };
 
         function spinPrizeDisplayText(prizeType, prizePct) {
             return prizeType === 'percent' ? `${prizePct}% off` : (SPIN_PRIZE_DISPLAY[prizeType] || prizeType);
@@ -3996,9 +4010,15 @@ Thank you for supporting my small business and understanding the handmade nature
                 const index = findSpinSegmentIndex(wonType, wonPct);
                 const segmentDeg = 360 / SPIN_WHEEL_SEGMENTS.length;
                 const extraSpins = 5;
-                // Lands the CENTER of the winning segment under the fixed top pointer.
-                const targetAngle = 360 * extraSpins + (360 - (Math.max(index, 0) * segmentDeg + segmentDeg / 2));
-                wheelEl.style.transform = `rotate(${targetAngle}deg)`;
+                if (index >= 0) {
+                    // Lands the CENTER of the winning segment under the fixed top pointer.
+                    const targetAngle = 360 * extraSpins + (360 - (index * segmentDeg + segmentDeg / 2));
+                    wheelEl.style.transform = `rotate(${targetAngle}deg)`;
+                }
+                // else: a legacy 'percent'/'mystery_gift' winner (see SPIN_WHEEL_SEGMENTS above)
+                // has no matching wedge anymore -- leave the wheel at rest rather than landing it
+                // on a segment that isn't what they actually won. Same reasoning openSpinWheel()
+                // already applies for the "already claimed" jump-to-position case above.
 
                 setTimeout(() => {
                     const prizeText = spinPrizeDisplayText(wonType, wonPct);
