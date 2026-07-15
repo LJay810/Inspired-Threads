@@ -3,7 +3,7 @@ import { Redis } from '@upstash/redis';
 const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
-const { xpForOrder, tierForXp, evaluateOrderBadges, isAnniversaryDay, ANNIVERSARY_XP_MULTIPLIER } = require('../lib/loyalty');
+const { effectiveTierName, evaluateOrderBadges, isAnniversaryDay } = require('../lib/loyalty');
 const { notifyRestock, notifyPackingAlert } = require('../lib/notify');
 const { unpackCartItemMetadata } = require('../lib/cart-metadata');
 const { mirrorStockToCatalog } = require('../lib/catalog-stock');
@@ -43,6 +43,21 @@ export default async function handler(req, res) {
   const alreadyProcessed = await kv.get(eventKey);
   if (alreadyProcessed) {
     return res.status(200).json({ received: true, note: 'Duplicate event already processed' });
+  }
+
+  // REFUND CLAWBACK: handled entirely separately from everything below, before the
+  // item_count guard -- a Charge's metadata isn't guaranteed to carry the same fields
+  // checkout.js stamped onto the Checkout Session, so this looks up the shopper directly via
+  // the charge's payment_intent instead of trusting inherited metadata.
+  if (event.type === 'charge.refunded') {
+    try {
+      await handleChargeRefunded(event.data.object, kv, supabaseAdmin);
+      await kv.set(eventKey, '1', { ex: 86400 });
+    } catch (err) {
+      console.error('Refund webhook processing failed, will retry on redelivery:', err);
+      return res.status(500).json({ error: 'Processing failed, awaiting Stripe retry' });
+    }
+    return res.status(200).json({ received: true });
   }
 
   const session = event.data.object;
@@ -97,15 +112,15 @@ export default async function handler(req, res) {
 
       // PACKING ALERT: tells whoever's fulfilling orders when something physical needs to be
       // tucked in that isn't a normal line item -- a spin-wheel prize (see checkout.js) or the
-      // loyalty sticker-pack perk. Both are stamped as plain session metadata rather than real
+      // loyalty free-gift perk. Both are stamped as plain session metadata rather than real
       // Stripe line items (there's no fulfillment system in this codebase to automate either
       // one), so without this email they'd only ever be visible by manually opening the order
       // in the Stripe Dashboard and reading its metadata.
-      if ((metadata.Include_Spin_Prize || metadata.Include_Sticker_Pack) && metadata.supabase_user_id && supabaseAdmin) {
+      if ((metadata.Include_Spin_Prize || metadata.Include_Free_Gift) && metadata.supabase_user_id && supabaseAdmin) {
         try {
           const items = [];
           if (metadata.Include_Spin_Prize) items.push(metadata.Include_Spin_Prize);
-          if (metadata.Include_Sticker_Pack === 'Yes') items.push('Sticker Pack');
+          if (metadata.Include_Free_Gift === 'Yes') items.push('Free Gift');
 
           const { data: packProfile } = await supabaseAdmin.from('profiles').select('username').eq('id', metadata.supabase_user_id).single();
           const { data: packUserData } = await supabaseAdmin.auth.admin.getUserById(metadata.supabase_user_id);
@@ -123,7 +138,7 @@ export default async function handler(req, res) {
         }
       }
 
-      // LOYALTY: award XP/tier/badges to logged-in shoppers. This is an INCREMENT against
+      // LOYALTY: award spend/tier/badges to logged-in shoppers. This is an INCREMENT against
       // Supabase (not a re-copy), so — same reasoning as the expired-session release below —
       // it is NOT naturally idempotent and needs its own one-time claim independent of the
       // whole-event eventKey, in case Stripe redelivers this event after a failure elsewhere
@@ -140,36 +155,31 @@ export default async function handler(req, res) {
             orderUnits += itemData ? (parseInt(itemData.qty, 10) || 0) : 0;
           }
 
-          // Anniversary perk: double XP, only on the exact day matching signup, only once a
-          // real year has passed -- see isAnniversaryDay in lib/loyalty.js for why this used
-          // to (wrongly) fire as an accidental welcome bonus on every brand-new account.
-          // A lookup failure here should never block the (still-valid) base XP award.
-          let xpMultiplier = 1;
+          // 'anniversary' badge only: only on the exact day matching signup, only once a real
+          // year has passed -- see isAnniversaryDay in lib/loyalty.js. A lookup failure here
+          // should never block the (still-valid) spend award below.
           let isAnniversaryYear = false;
           try {
             const { data: userData } = await supabaseAdmin.auth.admin.getUserById(supabaseUserId);
             const createdAt = userData && userData.user && userData.user.created_at;
             if (createdAt && isAnniversaryDay(createdAt)) {
-              xpMultiplier = ANNIVERSARY_XP_MULTIPLIER;
               isAnniversaryYear = true;
             }
           } catch (err) {
-            console.warn('Could not check anniversary bonus, awarding standard XP:', err.message);
+            console.warn('Could not check anniversary badge, continuing without it:', err.message);
           }
 
           const amountSpent = (session.amount_total || 0) / 100;
-          const orderXp = xpForOrder(amountSpent, xpMultiplier);
 
           const { data: awarded, error: rpcErr } = await supabaseAdmin.rpc('award_loyalty', {
             p_user_id: supabaseUserId,
-            p_xp_delta: orderXp,
             p_spent_delta: amountSpent,
             p_order_items: orderUnits,
           });
           if (rpcErr) throw rpcErr;
 
           const totals = Array.isArray(awarded) ? awarded[0] : awarded;
-          const tierName = tierForXp(totals.xp);
+          const tierName = effectiveTierName(totals.tier_spend, totals.grandfathered_tier);
           const newBadges = evaluateOrderBadges({
             orderCount: totals.order_count,
             totalSpent: totals.total_spent,
@@ -300,4 +310,35 @@ export default async function handler(req, res) {
   }
 
   res.status(200).json({ received: true });
+}
+
+// REFUND CLAWBACK: reverses the total_spent/tier_spend an order granted when it's refunded,
+// in whole or in part. Deliberately does NOT touch order_count or already-granted badges --
+// a refund shouldn't retroactively strip a badge a customer already saw unlock (e.g. a
+// partial refund on their first order shouldn't take back "First Order").
+async function handleChargeRefunded(charge, kv, supabaseAdmin) {
+  if (!supabaseAdmin || !charge.payment_intent) return;
+
+  const sessions = await stripe.checkout.sessions.list({ payment_intent: charge.payment_intent, limit: 1 });
+  const checkoutSession = sessions.data[0];
+  const supabaseUserId = checkoutSession && checkoutSession.metadata && checkoutSession.metadata.supabase_user_id;
+  if (!supabaseUserId) return; // guest checkout or no linked account -- nothing to claw back
+
+  // Each individual Stripe Refund object has its own stable id, so claim per-refund (same
+  // one-time-claim idiom used everywhere else in this file) rather than per-charge -- a
+  // second, later partial refund on the same charge must still get its own claim.
+  for (const refund of (charge.refunds && charge.refunds.data) || []) {
+    const refundedDollars = (refund.amount || 0) / 100;
+    if (refundedDollars <= 0) continue;
+
+    const refundMarker = `loyalty_refund_reversed_${refund.id}`;
+    const claimed = await kv.set(refundMarker, '1', { nx: true, ex: 86400 * 400 });
+    if (!claimed) continue;
+
+    const { error } = await supabaseAdmin.rpc('reverse_loyalty_spend', {
+      p_user_id: supabaseUserId,
+      p_spend_delta: refundedDollars,
+    });
+    if (error) throw error;
+  }
 }

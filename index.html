@@ -1474,13 +1474,13 @@
             <div id="authLoggedInView" style="display:none; position: relative;">
                 <div id="authLoggedInMain">
                     <div class="profile-tier-row">
-                        <span class="profile-tier-name" id="profileTierName">Bronze</span>
-                        <span class="profile-xp-label" id="profileXpLabel">0 XP</span>
+                        <span class="profile-tier-name" id="profileTierName">Crew Member</span>
+                        <span class="profile-xp-label" id="profileXpLabel">$0 spent</span>
                     </div>
                     <div class="xp-bar-track">
                         <div class="xp-bar-fill" id="xpBarFill" style="width:0%;"></div>
                     </div>
-                    <div class="xp-to-next" id="xpToNextLabel">100 XP to Silver</div>
+                    <div class="xp-to-next" id="xpToNextLabel">$100 to Bronze</div>
 
                     <div class="badge-grid-scroll">
                         <div class="badge-grid" id="badgeGrid"></div>
@@ -2374,25 +2374,25 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         // --- NUMBER COUNT-UP ---
-        function animateNumber(el, from, to, duration = 800, suffix = '') {
-            if (from === to) { el.textContent = `${to}${suffix}`; return; }
+        function animateNumber(el, from, to, duration = 800, suffix = '', prefix = '') {
+            if (from === to) { el.textContent = `${prefix}${to}${suffix}`; return; }
             const start = performance.now();
             function tick(now) {
                 const progress = Math.min(1, (now - start) / duration);
                 const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
                 const current = Math.round(from + (to - from) * eased);
-                el.textContent = `${current}${suffix}`;
+                el.textContent = `${prefix}${current}${suffix}`;
                 if (progress < 1) requestAnimationFrame(tick);
             }
             requestAnimationFrame(tick);
         }
 
         // --- POST-CHECKOUT REWARD RECAP ---
-        function buildRewardRecapHtml({ xpGained, newBadgeSlugs, currentXp, nextTier }) {
+        function buildRewardRecapHtml({ spendGained, newBadgeSlugs, tierSpend, nextTier }) {
             let html = `<div class="toast-title">🎉 Order Complete!</div>`;
-            if (xpGained > 0) html += `<div class="toast-body">+${xpGained} XP earned</div>`;
+            if (spendGained > 0) html += `<div class="toast-body">+$${spendGained.toFixed(2)} toward your tier</div>`;
             html += nextTier
-                ? `<div class="toast-sub">${Math.max(0, nextTier.minXp - currentXp)} XP to ${nextTier.name}</div>`
+                ? `<div class="toast-sub">$${Math.max(0, nextTier.minSpend - tierSpend).toFixed(2)} to ${nextTier.name}</div>`
                 : `<div class="toast-sub">Max tier reached!</div>`;
             if (newBadgeSlugs.length > 0) {
                 html += `<div class="toast-badge-row">`;
@@ -2422,29 +2422,30 @@ Thank you for supporting my small business and understanding the handmade nature
                 let profile = null;
                 for (const delayMs of [1500, 2500, 3500]) {
                     await new Promise(r => setTimeout(r, delayMs));
-                    const { data } = await supabaseClient.from('profiles').select('xp, badges').eq('id', session.user.id).single();
+                    const { data } = await supabaseClient.from('profiles').select('total_spent, tier_spend, grandfathered_tier, badges').eq('id', session.user.id).single();
                     profile = data;
-                    if (data && ((data.xp || 0) > (before.xp || 0) || (data.badges || []).length > (before.badges || []).length)) break;
+                    if (data && ((data.total_spent || 0) > (before.total_spent || 0) || (data.badges || []).length > (before.badges || []).length)) break;
                 }
                 if (!profile) return;
 
-                const xpGained = (profile.xp || 0) - (before.xp || 0);
+                const spendGained = (profile.total_spent || 0) - (before.total_spent || 0);
                 const newBadges = (profile.badges || []).filter(b => !(before.badges || []).includes(b));
-                if (xpGained <= 0 && newBadges.length === 0) return; // webhook likely still processing -- nothing to show yet
+                if (spendGained <= 0 && newBadges.length === 0) return; // webhook likely still processing -- nothing to show yet
 
-                const currentTier = TIERS.find(t => profile.xp >= t.minXp);
+                const currentTierName = effectiveTierName(profile.tier_spend || 0, profile.grandfathered_tier);
+                const currentTier = TIERS.find(t => t.name === currentTierName);
                 const currentIndex = TIERS.indexOf(currentTier);
                 const nextTier = currentIndex > 0 ? TIERS[currentIndex - 1] : null;
 
                 showToast(buildRewardRecapHtml({
-                    xpGained: Math.max(0, xpGained),
+                    spendGained: Math.max(0, spendGained),
                     newBadgeSlugs: newBadges,
-                    currentXp: profile.xp || 0,
+                    tierSpend: profile.tier_spend || 0,
                     nextTier,
                 }), { duration: 9000 });
 
                 // Refresh the account panel too, in case they're already looking at it.
-                renderTierAndBadges(profile.xp || 0, profile.badges || []);
+                renderTierAndBadges(profile.tier_spend || 0, profile.grandfathered_tier, profile.badges || []);
             } catch (err) {
                 console.warn('Could not show reward recap:', err.message);
             }
@@ -2652,7 +2653,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
                 listEl.innerHTML = entries.map((e, i) => {
                     const rank = i + 1;
-                    const tier = TIERS.find(t => e.xp >= t.minXp);
+                    const tierName = effectiveTierName(e.tier_spend || 0, e.grandfathered_tier);
                     const badge = e.selected_badge ? BADGES.find(b => b.slug === e.selected_badge) : null;
                     const avatarHtml = e.avatar_url
                         ? `<img src="${e.avatar_url}" alt="${escapeHtml(e.username || 'Customer')}'s profile picture" class="leaderboard-avatar">`
@@ -2669,9 +2670,9 @@ Thank you for supporting my small business and understanding the handmade nature
                                     <span class="leaderboard-name">${escapeHtml(e.username || 'Customer')}</span>
                                     ${badgeHtml}
                                 </div>
-                                <div class="leaderboard-tier">${tier ? tier.name : 'Bronze'} Tier</div>
+                                <div class="leaderboard-tier">${tierName} Tier</div>
                             </div>
-                            <div class="leaderboard-xp">${e.xp.toLocaleString()} <span>XP</span></div>
+                            <div class="leaderboard-xp">$${(e.total_spent || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span>spent</span></div>
                         </div>
                     `;
                 }).join('');
@@ -3636,33 +3637,52 @@ Thank you for supporting my small business and understanding the handmade nature
             }
         }
 
+        // Tiers are gated on real lifetime dollars spent -- no XP/points abstraction. Ordered
+        // highest -> lowest so tier lookups can do a simple linear scan.
         const TIERS = [
-            { name: 'VIP',    minXp: 2000 },
-            { name: 'Gold',   minXp: 500 },
-            { name: 'Silver', minXp: 100 },
-            { name: 'Bronze', minXp: 0 },
+            { name: 'VIP',          minSpend: 2000 },
+            { name: 'Gold',         minSpend: 1200 },
+            { name: 'Silver',       minSpend: 500 },
+            { name: 'Bronze',       minSpend: 100 },
+            { name: 'Crew Member',  minSpend: 0 },
         ];
 
         // Display-only mirror of lib/loyalty.js on the backend (this page has no build step,
         // so it can't import that file directly -- if you change perk numbers, change both).
-        // Perks are cumulative: Gold shoppers also have every Silver/Bronze perk, etc.
+        // Perks are cumulative: Gold shoppers also have every Silver/Bronze/Crew Member perk, etc.
         const PERKS = {
-            Bronze: { birthdayDiscountPct: 10, standingDiscountPct: 0, freeShippingMin: null },
-            Silver: { birthdayDiscountPct: 15, standingDiscountPct: 0, freeShippingMin: 75 },
-            Gold:   { birthdayDiscountPct: 20, standingDiscountPct: 5, freeShippingMin: 60 },
-            VIP:    { birthdayDiscountPct: 25, standingDiscountPct: 10, freeShippingMin: null },
+            'Crew Member': { birthdayDiscountPct: 10, standingDiscountPct: 0, freeShippingMin: null },
+            Bronze:        { birthdayDiscountPct: 15, standingDiscountPct: 0, freeShippingMin: null },
+            Silver:        { birthdayDiscountPct: 20, standingDiscountPct: 0, freeShippingMin: 75 },
+            Gold:          { birthdayDiscountPct: 25, standingDiscountPct: 5, freeShippingMin: 60 },
+            VIP:           { birthdayDiscountPct: 30, standingDiscountPct: 10, freeShippingMin: 60 },
         };
 
+        // Lower index = higher tier (TIERS is ordered highest -> lowest). Mirrors
+        // tierRank/effectiveTierName in lib/loyalty.js -- see the comment there for why the
+        // grandfathered_tier floor exists (a one-cycle safety net from the XP->dollars
+        // migration, cleared automatically at each user's next annual reset).
+        function tierRank(tierName) {
+            const idx = TIERS.findIndex(t => t.name === tierName);
+            return idx === -1 ? TIERS.length - 1 : idx;
+        }
+        function effectiveTierName(tierSpend, grandfatheredTier) {
+            const earned = TIERS.find(t => tierSpend >= t.minSpend).name;
+            if (!grandfatheredTier) return earned;
+            return tierRank(grandfatheredTier) < tierRank(earned) ? grandfatheredTier : earned;
+        }
+
         // Perk lines shown for a tier -- plain hardcoded cumulative lists, kept in sync with
-        // the PERKS object above by hand (four tiers, simplest to just write them out).
+        // the PERKS object above by hand.
         const PERK_LINES = {
-            Bronze: ['🎂 Birthday coupon: 10% off', '🎉 Double XP on your account anniversary (after year 1)'],
-            Silver: ['🎂 Birthday coupon: 15% off', '🚚 Free shipping on orders $75+', '🎁 Free sticker pack in every order', '🎉 Double XP on your account anniversary (after year 1)'],
-            Gold:   ['🎂 Birthday coupon: 20% off', '🚚 Free shipping on orders $60+', '💸 5% off every order, automatically', '🎁 Free sticker pack in every order', '🎉 Double XP on your account anniversary (after year 1)'],
-            VIP:    ['🎂 Birthday coupon: 25% off', '🚚 $3.50 off shipping, up to 2x/month', '💸 10% off every order, automatically', '🎁 Free sticker pack in every order', '⚡ Early access to new drops', '🎉 Double XP on your account anniversary (after year 1)'],
+            'Crew Member': ['🎂 Birthday coupon: 10% off'],
+            Bronze:        ['🎂 Birthday coupon: 15% off', '🎁 Free gift in every order'],
+            Silver:        ['🎂 Birthday coupon: 20% off', '🚚 Free shipping on orders $75+', '🎁 Free gift in every order'],
+            Gold:          ['🎂 Birthday coupon: 25% off', '🚚 Free shipping on orders $60+', '💸 5% off every order, automatically', '🎁 Free gift in every order'],
+            VIP:           ['🎂 Birthday coupon: 30% off', '🚚 $3.50 off shipping, up to 2x/month', '💸 10% off every order, automatically', '🎁 Free gift in every order', '⚡ Early access to new drops'],
         };
         function perkLinesForTier(tierName) {
-            return PERK_LINES[tierName] || PERK_LINES.Bronze;
+            return PERK_LINES[tierName] || PERK_LINES['Crew Member'];
         }
 
         const BADGES = [
@@ -3677,7 +3697,7 @@ Thank you for supporting my small business and understanding the handmade nature
             { slug: 'founding_member',  img: 'founding_member.png',  icon: '👑', label: 'Founding Member',
               description: "Reserved for the earliest accounts ever created on Inspired Threads. Can't be earned later -- you had to be here." },
             { slug: 'vip',              img: 'vip.png',              icon: '👑', label: 'VIP',
-              description: 'Reached by climbing all the way to the VIP tier through accumulated XP. The top of the ladder.' },
+              description: 'Reached by climbing all the way to the VIP tier through lifetime spend. The top of the ladder.' },
             { slug: 'referral',         img: 'referral.png',         icon: '🔗', label: 'Referral',
               description: 'Unlocked when someone you referred completes their first purchase.' },
             { slug: 'reviewer',         img: 'reviewer.png',         icon: '📝', label: 'Reviewer',
@@ -4112,7 +4132,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         <div class="admin-user-result-name">${escapeHtml(u.username || '(no username)')}${u.is_admin ? ' 🛡️' : ''}</div>
                         <div class="admin-user-result-email">${escapeHtml(u.email || '')}</div>
                     </div>
-                    <div class="admin-user-result-xp">${u.xp || 0} XP</div>
+                    <div class="admin-user-result-xp">$${parseFloat(u.tier_spend || 0).toFixed(2)} tier spend</div>
                 </div>
             `).join('');
         }
@@ -4135,8 +4155,12 @@ Thank you for supporting my small business and understanding the handmade nature
                         — ${user.order_count || 0} orders, $${parseFloat(user.total_spent || 0).toFixed(2)} spent, ${user.referral_count || 0} referrals
                     </div>
                     <div class="admin-user-edit-row">
-                        <label class="settings-field-label" style="margin:0;">XP</label>
-                        <input type="number" min="0" id="adminEditXp" value="${user.xp || 0}">
+                        <label class="settings-field-label" style="margin:0;">Total Spent ($)</label>
+                        <input type="number" min="0" step="0.01" id="adminEditTotalSpent" value="${parseFloat(user.total_spent || 0).toFixed(2)}">
+                    </div>
+                    <div class="admin-user-edit-row">
+                        <label class="settings-field-label" style="margin:0;">Tier Spend ($)</label>
+                        <input type="number" min="0" step="0.01" id="adminEditTierSpend" value="${parseFloat(user.tier_spend || 0).toFixed(2)}">
                     </div>
                     <div class="admin-badge-checks" id="adminEditBadges">${badgeChecks}</div>
                     <div class="admin-is-admin-row">
@@ -4155,7 +4179,8 @@ Thank you for supporting my small business and understanding the handmade nature
 
         async function saveUserEdits(userId) {
             const statusEl = document.getElementById('adminEditStatus');
-            const xp = document.getElementById('adminEditXp').value;
+            const totalSpent = document.getElementById('adminEditTotalSpent').value;
+            const tierSpend = document.getElementById('adminEditTierSpend').value;
             const badges = Array.from(document.querySelectorAll('#adminEditBadges input:checked')).map(cb => cb.value);
             const isAdmin = document.getElementById('adminEditIsAdmin').checked;
 
@@ -4170,7 +4195,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${session.access_token}`,
                     },
-                    body: JSON.stringify({ action: 'update', userId, xp, badges, is_admin: isAdmin }),
+                    body: JSON.stringify({ action: 'update', userId, total_spent: totalSpent, tier_spend: tierSpend, badges, is_admin: isAdmin }),
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Save failed.');
@@ -4284,25 +4309,29 @@ Thank you for supporting my small business and understanding the handmade nature
             saveProfileFields({ stock_alert_phone: phone.trim() || null });
         }
 
-        function renderTierAndBadges(xp, earnedBadges, birthdayCode, birthdayCodeExpires) {
+        function renderTierAndBadges(tierSpend, grandfatheredTier, earnedBadges, birthdayCode, birthdayCodeExpires) {
             currentEarnedBadges = earnedBadges;
 
-            const currentTier = TIERS.find(t => xp >= t.minXp);
+            const currentTierName = effectiveTierName(tierSpend, grandfatheredTier);
+            const currentTier = TIERS.find(t => t.name === currentTierName);
             const currentIndex = TIERS.indexOf(currentTier);
             const nextTier = currentIndex > 0 ? TIERS[currentIndex - 1] : null;
 
             renderPerks(currentTier.name, birthdayCode, birthdayCodeExpires);
 
             document.getElementById('profileTierName').textContent = currentTier.name;
-            animateNumber(document.getElementById('profileXpLabel'), window._lastRenderedXp || 0, xp, 900, ' XP');
-            window._lastRenderedXp = xp;
+            animateNumber(document.getElementById('profileXpLabel'), window._lastRenderedXp || 0, Math.round(tierSpend), 900, ' spent', '$');
+            window._lastRenderedXp = tierSpend;
 
             if (nextTier) {
-                const rangeStart = currentTier.minXp;
-                const rangeEnd = nextTier.minXp;
-                const pct = Math.min(100, Math.round(((xp - rangeStart) / (rangeEnd - rangeStart)) * 100));
+                // Grandfathered floor: the range starts wherever the tier itself starts, not
+                // from tierSpend, so someone floored above their real spend still sees a
+                // sensible (not negative) bar -- see effectiveTierName in lib/loyalty.js.
+                const rangeStart = currentTier.minSpend;
+                const rangeEnd = nextTier.minSpend;
+                const pct = Math.min(100, Math.max(0, Math.round(((tierSpend - rangeStart) / (rangeEnd - rangeStart)) * 100)));
                 document.getElementById('xpBarFill').style.width = `${pct}%`;
-                document.getElementById('xpToNextLabel').textContent = `${rangeEnd - xp} XP to ${nextTier.name}`;
+                document.getElementById('xpToNextLabel').textContent = `$${Math.max(0, rangeEnd - tierSpend).toFixed(2)} to ${nextTier.name}`;
             } else {
                 document.getElementById('xpBarFill').style.width = '100%';
                 document.getElementById('xpToNextLabel').textContent = 'Max tier reached';
@@ -4486,14 +4515,14 @@ Thank you for supporting my small business and understanding the handmade nature
                     );
                     const fetchProfile = supabaseClient
                         .from('profiles')
-                        .select('username, xp, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin, avatar_url, selected_badge, spin_claimed_at, spin_prize_type, spin_prize_pct, spin_prize_used')
+                        .select('username, tier_spend, grandfathered_tier, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin, avatar_url, selected_badge, spin_claimed_at, spin_prize_type, spin_prize_pct, spin_prize_used')
                         .eq('id', session.user.id)
                         .single();
 
                     const { data: profile } = await Promise.race([fetchProfile, timeout]);
                     if (profile) {
                         if (profile.username) displayName = profile.username;
-                        renderTierAndBadges(profile.xp || 0, profile.badges || [], profile.birthday_code, profile.birthday_code_expires);
+                        renderTierAndBadges(profile.tier_spend || 0, profile.grandfathered_tier, profile.badges || [], profile.birthday_code, profile.birthday_code_expires);
                         document.getElementById('birthdayInput').value = profile.birthday || '';
 
                         if (profile.avatar_url) {
@@ -5032,9 +5061,9 @@ Thank you for supporting my small business and understanding the handmade nature
             // this specific order started.
             if (supabaseUserId) {
                 try {
-                    const { data: preProfile } = await supabaseClient.from('profiles').select('xp, badges').eq('id', supabaseUserId).single();
+                    const { data: preProfile } = await supabaseClient.from('profiles').select('total_spent, badges').eq('id', supabaseUserId).single();
                     if (preProfile) {
-                        localStorage.setItem('preCheckoutSnapshot', JSON.stringify({ xp: preProfile.xp || 0, badges: preProfile.badges || [] }));
+                        localStorage.setItem('preCheckoutSnapshot', JSON.stringify({ total_spent: preProfile.total_spent || 0, badges: preProfile.badges || [] }));
                     }
                 } catch (err) {
                     console.warn('Could not snapshot pre-checkout profile (reward recap will just be skipped):', err.message);

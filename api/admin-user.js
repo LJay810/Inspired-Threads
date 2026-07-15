@@ -47,7 +47,7 @@ export default async function handler(req, res) {
             const ids = idsWithEmail.map(m => m.id);
             const { data: fullProfiles, error: profErr } = await supabaseAdmin
                 .from('profiles')
-                .select('id, username, xp, badges, order_count, total_spent, referral_count, is_admin')
+                .select('id, username, badges, order_count, total_spent, tier_spend, grandfathered_tier, referral_count, is_admin')
                 .in('id', ids);
             if (profErr) throw profErr;
 
@@ -66,16 +66,23 @@ export default async function handler(req, res) {
         }
 
         if (action === 'update') {
-            const { userId, xp, badges, is_admin } = req.body;
+            const { userId, total_spent, tier_spend, badges, is_admin } = req.body;
             if (!userId) return res.status(400).json({ error: 'Missing userId.' });
 
             const updateFields = {};
-            if (xp !== undefined) {
-                const xpNum = parseInt(xp, 10);
-                if (!Number.isInteger(xpNum) || xpNum < 0) {
-                    return res.status(400).json({ error: 'Invalid xp value.' });
+            if (total_spent !== undefined) {
+                const totalSpentNum = parseFloat(total_spent);
+                if (!Number.isFinite(totalSpentNum) || totalSpentNum < 0) {
+                    return res.status(400).json({ error: 'Invalid total_spent value.' });
                 }
-                updateFields.xp = xpNum;
+                updateFields.total_spent = totalSpentNum;
+            }
+            if (tier_spend !== undefined) {
+                const tierSpendNum = parseFloat(tier_spend);
+                if (!Number.isFinite(tierSpendNum) || tierSpendNum < 0) {
+                    return res.status(400).json({ error: 'Invalid tier_spend value.' });
+                }
+                updateFields.tier_spend = tierSpendNum;
             }
             if (badges !== undefined) {
                 if (!Array.isArray(badges)) return res.status(400).json({ error: 'badges must be an array.' });

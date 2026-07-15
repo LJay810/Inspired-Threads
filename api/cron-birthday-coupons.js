@@ -1,6 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
-const { tierForXp, perksForTier } = require('../lib/loyalty');
+const { effectiveTierName, perksForTier } = require('../lib/loyalty');
 
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
         // revisit with a Postgres function if the customer list ever gets huge.
         const { data: profiles, error } = await supabaseAdmin
             .from('profiles')
-            .select('id, xp, birthday, birthday_code_year')
+            .select('id, tier_spend, grandfathered_tier, birthday, birthday_code_year')
             .not('birthday', 'is', null);
         if (error) throw error;
 
@@ -58,7 +58,7 @@ export default async function handler(req, res) {
             const bday = new Date(profile.birthday);
             if (bday.getUTCMonth() + 1 !== todayMonth || bday.getUTCDate() !== todayDay) continue;
 
-            const tierName = tierForXp(profile.xp || 0);
+            const tierName = effectiveTierName(profile.tier_spend || 0, profile.grandfathered_tier);
             const percentOff = perksForTier(tierName).birthdayDiscountPct;
             const coupon = await ensureBirthdayCoupon(percentOff);
 

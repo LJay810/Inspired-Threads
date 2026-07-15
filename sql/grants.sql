@@ -53,7 +53,7 @@ grant select on public.reviews to anon, authenticated;
 -- top of this baseline grant.
 grant select, insert, delete on public.wishlists to authenticated;
 
--- profiles: logged-in shoppers already read/update their own row today (xp, badges,
+-- profiles: logged-in shoppers already read/update their own row today (total_spent, badges,
 -- birthday, referral fields, stock alert prefs, etc) without ever having hit this specific
 -- error -- meaning this table likely already had a working grant from before this file
 -- existed (probably part of however the table was originally bootstrapped). Included here

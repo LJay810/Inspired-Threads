@@ -136,7 +136,7 @@ create table if not exists public.purchases (
 );
 alter table public.purchases enable row level security;
 
--- KNOWN LIMITATION: only logged-in checkouts get recorded here (same as XP -- guest
+-- KNOWN LIMITATION: only logged-in checkouts get recorded here (same as loyalty spend -- guest
 -- checkouts have no supabase_user_id to attach to). A guest who buys something and later
 -- creates an account won't be able to review that product, even with the same email.
 
@@ -208,7 +208,7 @@ create policy "Users can remove from their own wishlist"
 -- ============================================================================
 -- 6. Admin flag -- powers the manual restock tool (Admin Tools panel in Settings)
 -- ============================================================================
--- Unlike xp/badges/birthday_code (whose protection is left as an OPTIONAL commented-out
+-- Unlike total_spent/tier_spend/badges/birthday_code (whose protection is left as an OPTIONAL commented-out
 -- trigger in loyalty_schema.sql), is_admin gets a real, applied trigger -- it grants genuine
 -- backend power (editing any product's inventory), not just cosmetic loyalty stats, so
 -- leaving it merely RLS-row-protected (same as everything else on profiles) isn't enough.

@@ -3,10 +3,10 @@ import { Redis } from '@upstash/redis';
 const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
-const { perksForTier, tierForXp } = require('../lib/loyalty');
+const { perksForTier, effectiveTierName } = require('../lib/loyalty');
 const { packCartItemMetadata } = require('../lib/cart-metadata');
 
-// Service-role client: reads a shopper's own xp (to pick tier perks) AND is now also the
+// Service-role client: reads a shopper's own tier_spend (to pick tier perks) AND is now also the
 // catalog lookup for checkout -- product name/price/stock-tracking come from our own
 // products/categories tables, not from Stripe, since Stripe is invisible payment plumbing now
 // (see lib/stripe-sync.js). Never exposed to the browser.
@@ -164,20 +164,20 @@ export default async function handler(req, res) {
         if (supabaseUserId) sessionMetadata['supabase_user_id'] = supabaseUserId;
 
         // LOYALTY PERKS + REFERRALS: look up the shopper's tier and referral status from one
-        // query (defaults to Bronze/no perks/no referral state for guests, logged-out
+        // query (defaults to Crew Member/no perks/no referral state for guests, logged-out
         // shoppers, or if this lookup fails for any reason -- an outage here should never be
         // able to block checkout).
-        let perks = perksForTier('Bronze');
+        let perks = perksForTier('Crew Member');
         let referralProfile = null;
         if (supabaseUserId && supabaseAdmin) {
             try {
                 const { data: profile } = await supabaseAdmin
                     .from('profiles')
-                    .select('xp, referred_by, referral_signup_discount_used, referral_reward_pending, order_count, spin_prize_type, spin_prize_pct, spin_prize_used')
+                    .select('tier_spend, grandfathered_tier, referred_by, referral_signup_discount_used, referral_reward_pending, order_count, spin_prize_type, spin_prize_pct, spin_prize_used')
                     .eq('id', supabaseUserId)
                     .single();
                 if (profile) {
-                    perks = perksForTier(tierForXp(profile.xp || 0));
+                    perks = perksForTier(effectiveTierName(profile.tier_spend || 0, profile.grandfathered_tier));
                     referralProfile = profile;
                 }
             } catch (err) {
@@ -185,9 +185,9 @@ export default async function handler(req, res) {
             }
         }
 
-        // Physical perk (Silver+): flagged in metadata so whoever packs the order sees it in
+        // Physical perk (Bronze+): flagged in metadata so whoever packs the order sees it in
         // the Stripe Dashboard -- there's no fulfillment system in this codebase to automate it.
-        if (perks.stickerPack) sessionMetadata['Include_Sticker_Pack'] = 'Yes';
+        if (perks.freeGift) sessionMetadata['Include_Free_Gift'] = 'Yes';
 
         const sessionConfig = {
             payment_method_types: ['card'],
@@ -248,7 +248,7 @@ export default async function handler(req, res) {
         //     tier standing discount already queued.
         //   - Physical prize (pop socket / custom pen / mystery gift): doesn't touch pricing or
         //     that discount slot at all -- just flags the order for whoever packs it, same idea
-        //     as Include_Sticker_Pack below, so it applies independently of whatever discount
+        //     as Include_Free_Gift below, so it applies independently of whatever discount
         //     (if any) is also on this order.
         // Same reserve-now/release-on-expiry pattern as the referral signup discount above,
         // reused for both kinds via reserve_spin_prize/release_spin_prize.
