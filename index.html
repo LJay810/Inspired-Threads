@@ -2254,6 +2254,17 @@ Thank you for supporting my small business and understanding the handmade nature
             const categoryColors = (category.config && category.config.colors) || {};
             const colors = usingCategoryFallback ? Object.keys(categoryColors) : [...new Set(variants.map(v => v.color))];
 
+            // Default color selection: prefer Black when a product actually offers it, rather
+            // than whatever happened to come first out of Stripe's metadata/variant order
+            // (often Red, which isn't a meaningful default for a garment). Reordering here
+            // means the <select> below, the default preview image, and the stock lookup all
+            // agree on the same default color.
+            const blackIdx = colors.findIndex(c => c.toLowerCase() === 'black');
+            if (blackIdx > 0) {
+                const [black] = colors.splice(blackIdx, 1);
+                colors.unshift(black);
+            }
+
             window.productVariantColorImages[product.id] = {};
             if (usingCategoryFallback) {
                 colors.forEach(color => { window.productVariantColorImages[product.id][color] = categoryColors[color]; });
