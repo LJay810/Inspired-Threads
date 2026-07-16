@@ -660,9 +660,51 @@ async function uploadProductImages(evt) {
     evt.target.value = '';
 }
 
+// Resizes/re-compresses an image client-side before it ever reaches Supabase Storage -- phone
+// photos routinely come in at 3-8MB, and with 190+ products (plus every variant color photo
+// and category size chart, which all funnel through this same uploadToStorage()) that adds up
+// fast against Supabase's free-tier Storage bandwidth (Cached Egress). Keeps PNG lossless --
+// just re-encoded smaller by virtue of fewer pixels -- since some product/DTF images rely on
+// transparency for the visualizer overlay; re-encodes anything else as JPEG. Skips images
+// that are already small (e.g. already run through TinyPNG), and never returns something
+// bigger than what came in.
+const COMPRESS_MAX_DIMENSION = 1600;
+const COMPRESS_JPEG_QUALITY = 0.85;
+const COMPRESS_SKIP_UNDER_BYTES = 250 * 1024;
+
+function compressImage(file) {
+    return new Promise((resolve) => {
+        if (!file.type.startsWith('image/') || file.size < COMPRESS_SKIP_UNDER_BYTES) { resolve(file); return; }
+
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+
+            const scale = Math.min(1, COMPRESS_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const isPng = file.type === 'image/png';
+            const outputType = isPng ? 'image/png' : 'image/jpeg';
+            canvas.toBlob((blob) => {
+                if (!blob || blob.size >= file.size) { resolve(file); return; } // never make it bigger
+                const ext = isPng ? 'png' : 'jpg';
+                const newName = file.name.replace(/\.[^.]+$/, '') + '.' + ext;
+                resolve(new File([blob], newName, { type: outputType }));
+            }, outputType, isPng ? undefined : COMPRESS_JPEG_QUALITY);
+        };
+        img.onerror = () => resolve(file); // never let a decode failure block the actual upload
+        img.src = objectUrl;
+    });
+}
+
 async function uploadToStorage(file) {
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '')}`;
-    const { error } = await supabaseClient.storage.from('product-images').upload(path, file);
+    const compressed = await compressImage(file);
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${compressed.name.replace(/[^a-zA-Z0-9._-]/g, '')}`;
+    const { error } = await supabaseClient.storage.from('product-images').upload(path, compressed);
     if (error) throw error;
     const { data } = supabaseClient.storage.from('product-images').getPublicUrl(path);
     return data.publicUrl;

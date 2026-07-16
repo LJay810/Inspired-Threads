@@ -2638,13 +2638,54 @@ Thank you for supporting my small business and understanding the handmade nature
             });
         }
 
+        // Resizes/re-compresses an image client-side before it ever reaches Supabase Storage --
+        // phone photos routinely come in at 3-8MB, which adds up fast against Supabase's
+        // free-tier Storage bandwidth (Cached Egress) once real shoppers are uploading review
+        // photos and avatars regularly. Keeps PNG lossless (just re-encoded smaller by virtue
+        // of fewer pixels) and re-encodes anything else as JPEG. Skips images that are already
+        // small, and never returns something bigger than what came in. Same helper duplicated
+        // in admin.html (no build step to share it from) -- see the comment there for the fuller
+        // reasoning.
+        const COMPRESS_JPEG_QUALITY = 0.85;
+        const COMPRESS_SKIP_UNDER_BYTES = 250 * 1024;
+
+        function compressImage(file, maxDimension) {
+            return new Promise((resolve) => {
+                if (!file.type.startsWith('image/') || file.size < COMPRESS_SKIP_UNDER_BYTES) { resolve(file); return; }
+
+                const img = new Image();
+                const objectUrl = URL.createObjectURL(file);
+                img.onload = () => {
+                    URL.revokeObjectURL(objectUrl);
+
+                    const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+                    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    const isPng = file.type === 'image/png';
+                    const outputType = isPng ? 'image/png' : 'image/jpeg';
+                    canvas.toBlob((blob) => {
+                        if (!blob || blob.size >= file.size) { resolve(file); return; } // never make it bigger
+                        const ext = isPng ? 'png' : 'jpg';
+                        const newName = file.name.replace(/\.[^.]+$/, '') + '.' + ext;
+                        resolve(new File([blob], newName, { type: outputType }));
+                    }, outputType, isPng ? undefined : COMPRESS_JPEG_QUALITY);
+                };
+                img.onerror = () => resolve(file); // never let a decode failure block the actual upload
+                img.src = objectUrl;
+            });
+        }
+
         // Uploads straight to Supabase Storage using the shopper's own session -- the RLS
         // policies on the review-photos bucket only let them write into their own folder, so
         // this can't be used to overwrite or impersonate anyone else's upload.
         async function uploadReviewPhoto(file, userId) {
-            const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+            const compressed = await compressImage(file, 1200); // review cards show these at a modest size
+            const ext = (compressed.name.split('.').pop() || 'jpg').toLowerCase();
             const path = `${userId}/${Date.now()}.${ext}`;
-            const { error } = await supabaseClient.storage.from('review-photos').upload(path, file, { upsert: true });
+            const { error } = await supabaseClient.storage.from('review-photos').upload(path, compressed, { upsert: true });
             if (error) throw error;
             const { data } = supabaseClient.storage.from('review-photos').getPublicUrl(path);
             return data.publicUrl;
@@ -4517,9 +4558,10 @@ Thank you for supporting my small business and understanding the handmade nature
 
             statusEl.textContent = 'Uploading…';
             try {
-                const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+                const compressed = await compressImage(file, 500); // avatars only ever render small/circular
+                const ext = (compressed.name.split('.').pop() || 'jpg').toLowerCase();
                 const path = `${session.user.id}/avatar.${ext}`;
-                const { error: uploadErr } = await supabaseClient.storage.from('avatars').upload(path, file, { upsert: true });
+                const { error: uploadErr } = await supabaseClient.storage.from('avatars').upload(path, compressed, { upsert: true });
                 if (uploadErr) throw uploadErr;
 
                 const { data: urlData } = supabaseClient.storage.from('avatars').getPublicUrl(path);
