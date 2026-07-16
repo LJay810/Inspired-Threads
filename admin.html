@@ -516,7 +516,7 @@ function renderProductsTable() {
             : `<button class="admin-btn small" onclick='restoreProduct(${JSON.stringify(p.id)})'>Restore</button>`;
         return `
         <tr>
-            <td><img class="admin-thumb" src="${p.images && p.images[0] || ''}" onerror="this.style.opacity=0"></td>
+            <td><img class="admin-thumb" src="${p.images && p.images[0] || ''}" loading="lazy" onerror="this.style.opacity=0"></td>
             <td>${escapeHtml(p.name)}</td>
             <td>${escapeHtml(p.category_id)}</td>
             <td>$${(p.price_cents / 100).toFixed(2)}</td>
@@ -637,7 +637,7 @@ function renderVariantMatrix(sizes) {
 function renderImageStrip() {
     const strip = document.getElementById('prod_images_strip');
     strip.innerHTML = currentProductImages.map((url, i) => `
-        <div class="img-slot"><img src="${url}"><button type="button" onclick="removeProductImage(${i})">✕</button></div>
+        <div class="img-slot"><img src="${url}" loading="lazy"><button type="button" onclick="removeProductImage(${i})">✕</button></div>
     `).join('');
 }
 function removeProductImage(i) { currentProductImages.splice(i, 1); renderImageStrip(); }
