@@ -2809,7 +2809,8 @@ Thank you for supporting my small business and understanding the handmade nature
                 window.categoriesById = {};
                 categoryList.forEach(c => { window.categoriesById[c.id] = c; });
 
-                // Sorts products by your custom Stripe metadata (1, 2, 3...)
+                // Sorts products by your custom product metadata (sort_order, 1/2/3...) --
+                // shaped to match the old Stripe-metadata contract, but sourced from Supabase now.
                 products.sort((a, b) => {
     const orderA = a.metadata && a.metadata.sort_order ? parseInt(a.metadata.sort_order) : 99;
     const orderB = b.metadata && b.metadata.sort_order ? parseInt(b.metadata.sort_order) : 99;
@@ -2949,7 +2950,7 @@ Thank you for supporting my small business and understanding the handmade nature
             } else {
                 let gridHTML = '';
                 
-                // Creates a short name for Stripe metadata (e.g., 'tshirt', 'hoodie', 'corporate')
+                // Creates a short name for the product metadata keys below (e.g., 'tshirt', 'hoodie', 'corporate')
                 const shortCategory = category.replace('thread-', '');
                 
                  
@@ -2958,7 +2959,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     const stockCount = dtf.metadata && dtf.metadata.stock !== undefined ? parseInt(dtf.metadata.stock) : null;
                     if (stockCount !== null && stockCount <= 0) return; 
                    
-                    // FIX: Provide a safe fallback if the Stripe image is missing
+                    // FIX: Provide a safe fallback if the design's image is missing
                     const imgUrl = dtf.images && dtf.images.length > 0 ? dtf.images[0] : 'images/inspiredthreadsLogoIcon2.png'; 
                     
                     const designType = (dtf.metadata && dtf.metadata.design_type) ? dtf.metadata.design_type : 'center_chest';
@@ -3095,7 +3096,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     const shapeVals = pocketMatrix[shape];
                     const targetVals = shapeVals ? { s: shapeVals.s, x: shapeVals.x, y: shapeVals.y } : fallbackVals;
 
-                    // THE MATH: Matrix Value + Custom Stripe Overrides
+                    // THE MATH: Matrix Value + Custom Per-Product Overrides (from product metadata)
                     const finalScale = targetVals.s * customScale;
                     const finalX = targetVals.x + nudgeX;
                     const finalY = targetVals.y + nudgeY;
@@ -3616,7 +3617,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
         // --- 6b. AUTH (SUPABASE) ---
 
-        // TODO: replace with your actual Supabase project values (Settings -> API).
+        // Live production Supabase project values (not placeholders -- already configured).
         // The anon/public key is safe to expose client-side -- it only works within
         // whatever Row Level Security policies you define in Postgres.
         const SUPABASE_URL = 'https://qdwruisviyifpangaqrx.supabase.co';
@@ -4857,8 +4858,8 @@ Thank you for supporting my small business and understanding the handmade nature
 
                 keyMap.forEach(({ redisKey, productId, metaKey }) => {
                     const val = data.stock[redisKey];
-                    // productInventory[productId] IS the same object as the product's Stripe
-                    // metadata everywhere else in the app (dtfRegistry, etc.), so mutating it
+                    // productInventory[productId] IS the same object as the product's metadata
+                    // everywhere else in the app (dtfRegistry, etc.), so mutating it
                     // in place keeps every other reference to it in sync for free.
                     if (val !== null && val !== undefined && window.productInventory[productId]) {
                         window.productInventory[productId][metaKey] = val.toString();
