@@ -696,6 +696,27 @@
         .auth-submit-btn { width: 100%; margin-top: 10px; }
         .auth-submit-btn:disabled { opacity: 0.5; pointer-events: none; }
 
+        /* --- PASSWORD SHOW/HIDE TOGGLE --- */
+        .form-group-password input { padding-right: 32px; }
+        .password-toggle-btn {
+            position: absolute; right: 0; bottom: 9px; background: none; border: none; padding: 4px;
+            color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+            cursor: none !important; transition: var(--transition-snappy);
+        }
+        @media (hover: hover) and (pointer: fine) {
+            .password-toggle-btn:hover { color: var(--accent-pink); }
+        }
+
+        /* --- FORGOT PASSWORD LINK --- */
+        .auth-forgot-link {
+            display: block; width: 100%; text-align: right; background: none; border: none;
+            margin: -14px 0 8px; padding: 0; font-family: var(--font-mono); font-size: 0.7rem;
+            letter-spacing: 0.05em; color: var(--text-muted); cursor: none !important;
+        }
+        @media (hover: hover) and (pointer: fine) {
+            .auth-forgot-link:hover { color: var(--accent-pink); }
+        }
+
         .account-summary { text-align: center; }
         .account-summary .account-email { font-family: var(--font-mono); font-size: 0.9rem; color: var(--text-pure); word-break: break-all; margin-bottom: 4px; }
         .account-summary .account-sub { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 30px; }
@@ -1525,7 +1546,7 @@
 
             <!-- LOGGED OUT VIEW -->
             <div id="authLoggedOutView">
-                <div class="auth-tabs">
+                <div class="auth-tabs" id="authTabs">
                     <button class="auth-tab-btn active hover-target" id="authTabLoginBtn" onclick="switchAuthTab('login')">Log In</button>
                     <button class="auth-tab-btn hover-target" id="authTabRegisterBtn" onclick="switchAuthTab('register')">Register</button>
                 </div>
@@ -1535,13 +1556,18 @@
 
                 <form class="auth-panel active" id="authPanelLogin" onsubmit="handleAuthSubmit(event, 'login')">
                     <div class="form-group">
-                        <input type="email" id="loginEmail" class="hover-target" required autocomplete="email">
-                        <label>Email</label>
+                        <input type="text" id="loginIdentifier" class="hover-target" required autocomplete="username">
+                        <label>Email or Username</label>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group form-group-password">
                         <input type="password" id="loginPassword" class="hover-target" required autocomplete="current-password">
                         <label>Password</label>
+                        <button type="button" class="password-toggle-btn hover-target" onclick="togglePasswordVisibility('loginPassword', this)" aria-label="Show password">
+                            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+                            <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/></svg>
+                        </button>
                     </div>
+                    <button type="button" class="auth-forgot-link hover-target" onclick="switchAuthTab('forgot')">Forgot password?</button>
                     <button type="submit" class="stripe-btn magnetic-btn hover-target auth-submit-btn" id="loginSubmitBtn">Log In</button>
                 </form>
 
@@ -1554,11 +1580,47 @@
                         <input type="email" id="registerEmail" class="hover-target" required autocomplete="email">
                         <label>Email</label>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group form-group-password">
                         <input type="password" id="registerPassword" class="hover-target" required autocomplete="new-password" minlength="6">
                         <label>Password (min. 6 characters)</label>
+                        <button type="button" class="password-toggle-btn hover-target" onclick="togglePasswordVisibility('registerPassword', this)" aria-label="Show password">
+                            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+                            <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/></svg>
+                        </button>
                     </div>
                     <button type="submit" class="stripe-btn magnetic-btn hover-target auth-submit-btn" id="registerSubmitBtn">Create Account</button>
+                </form>
+
+                <form class="auth-panel" id="authPanelForgot" onsubmit="handleForgotPassword(event)">
+                    <p class="settings-field-hint" style="margin-bottom:22px;">Enter your account email and we'll send you a link to reset your password.</p>
+                    <div class="form-group">
+                        <input type="email" id="forgotEmail" class="hover-target" required autocomplete="email">
+                        <label>Email</label>
+                    </div>
+                    <button type="submit" class="stripe-btn magnetic-btn hover-target auth-submit-btn" id="forgotSubmitBtn">Send Reset Link</button>
+                    <button type="button" class="auth-settings-back hover-target" style="margin-top:18px; margin-bottom:0;" onclick="switchAuthTab('login')">← Back to Log In</button>
+                </form>
+            </div>
+
+            <!-- PASSWORD RECOVERY VIEW -- shown only when the visitor arrives via the emailed
+                 reset link (Supabase fires a PASSWORD_RECOVERY auth event on load in that case,
+                 see the onAuthStateChange handler below). Mutually exclusive with both the
+                 logged-out and logged-in views -- we don't want to show the full account
+                 dashboard until they've actually set a new password. -->
+            <div id="authRecoveryView" style="display:none;">
+                <div class="auth-settings-title">Set New Password</div>
+                <div class="auth-error" id="resetPasswordErrorMsg"></div>
+                <div class="auth-status-msg" id="resetPasswordStatusMsg"></div>
+                <form onsubmit="handleResetPassword(event)">
+                    <div class="form-group form-group-password">
+                        <input type="password" id="newPassword" class="hover-target" required autocomplete="new-password" minlength="6">
+                        <label>New Password (min. 6 characters)</label>
+                        <button type="button" class="password-toggle-btn hover-target" onclick="togglePasswordVisibility('newPassword', this)" aria-label="Show password">
+                            <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></svg>
+                            <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none;"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke-linecap="round" stroke-linejoin="round"/><line x1="1" y1="1" x2="23" y2="23" stroke-linecap="round"/></svg>
+                        </button>
+                    </div>
+                    <button type="submit" class="stripe-btn magnetic-btn hover-target auth-submit-btn" id="resetPasswordSubmitBtn">Update Password</button>
                 </form>
             </div>
 
@@ -3765,12 +3827,93 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         function switchAuthTab(tab) {
+            // 'forgot' isn't a real tab (no button pairs with it) -- it's reached via the
+            // "Forgot password?" link under the login form, so the tab bar itself hides rather
+            // than showing both/neither tab as active.
+            document.getElementById('authTabs').style.display = tab === 'forgot' ? 'none' : 'flex';
             document.getElementById('authTabLoginBtn').classList.toggle('active', tab === 'login');
             document.getElementById('authTabRegisterBtn').classList.toggle('active', tab === 'register');
             document.getElementById('authPanelLogin').classList.toggle('active', tab === 'login');
             document.getElementById('authPanelRegister').classList.toggle('active', tab === 'register');
+            document.getElementById('authPanelForgot').classList.toggle('active', tab === 'forgot');
             document.getElementById('authErrorMsg').textContent = '';
             document.getElementById('authStatusMsg').textContent = '';
+        }
+
+        // Shared by the login password, register password, and reset-password fields.
+        function togglePasswordVisibility(inputId, btn) {
+            const input = document.getElementById(inputId);
+            const showing = input.type === 'password'; // about to become visible
+            input.type = showing ? 'text' : 'password';
+            btn.querySelector('.icon-eye').style.display = showing ? 'none' : 'block';
+            btn.querySelector('.icon-eye-off').style.display = showing ? 'block' : 'none';
+            btn.setAttribute('aria-label', showing ? 'Hide password' : 'Show password');
+        }
+
+        async function handleForgotPassword(event) {
+            event.preventDefault();
+            const errorEl = document.getElementById('authErrorMsg');
+            const statusEl = document.getElementById('authStatusMsg');
+            errorEl.textContent = '';
+            statusEl.textContent = '';
+            if (!supabaseClient) return;
+
+            const email = document.getElementById('forgotEmail').value.trim();
+            const submitBtn = document.getElementById('forgotSubmitBtn');
+            submitBtn.disabled = true;
+            try {
+                // redirectTo brings them back to this same page with a recovery token in the
+                // URL -- supabase-js auto-detects it on load and fires PASSWORD_RECOVERY (see
+                // the onAuthStateChange handler below), which opens straight into the
+                // "Set New Password" view.
+                const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin + window.location.pathname,
+                });
+                if (error) throw error;
+                // Same message whether or not that email actually has an account -- matches
+                // Supabase's own non-enumerating behavior for this call, so the UI doesn't
+                // contradict it by confirming/denying an account exists.
+                statusEl.textContent = "If that email has an account, we've sent a reset link.";
+            } catch (err) {
+                errorEl.textContent = err.message || 'Something went wrong. Try again.';
+            } finally {
+                submitBtn.disabled = false;
+            }
+        }
+
+        function showPasswordRecoveryView() {
+            document.getElementById('authLoggedOutView').style.display = 'none';
+            document.getElementById('authLoggedInView').style.display = 'none';
+            document.getElementById('authRecoveryView').style.display = 'block';
+            openAuthModal();
+        }
+
+        async function handleResetPassword(event) {
+            event.preventDefault();
+            const errorEl = document.getElementById('resetPasswordErrorMsg');
+            const statusEl = document.getElementById('resetPasswordStatusMsg');
+            errorEl.textContent = '';
+            statusEl.textContent = '';
+
+            const newPassword = document.getElementById('newPassword').value;
+            const submitBtn = document.getElementById('resetPasswordSubmitBtn');
+            submitBtn.disabled = true;
+            try {
+                // The recovery link already signed them into a (limited) session -- updateUser
+                // sets the real password on that same account.
+                const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+                if (error) throw error;
+                statusEl.textContent = 'Password updated! Signing you in…';
+                setTimeout(async () => {
+                    document.getElementById('authRecoveryView').style.display = 'none';
+                    const { data } = await supabaseClient.auth.getSession();
+                    refreshAuthUI(data.session); // now shows the normal logged-in dashboard
+                }, 1200);
+            } catch (err) {
+                errorEl.textContent = err.message || 'Could not update password. Try again.';
+            } finally {
+                submitBtn.disabled = false;
+            }
         }
 
         async function handleAuthSubmit(event, mode) {
@@ -3790,8 +3933,21 @@ Thank you for supporting my small business and understanding the handmade nature
 
             try {
                 if (mode === 'login') {
-                    const email = document.getElementById('loginEmail').value.trim();
+                    const identifier = document.getElementById('loginIdentifier').value.trim();
                     const password = document.getElementById('loginPassword').value;
+
+                    // signInWithPassword only ever accepts an email -- Supabase Auth has no
+                    // first-class username login. "@" in the typed value is treated as an email
+                    // as-is; anything else is resolved to its email first via a narrow RPC (see
+                    // lookup_email_by_username in sql/username_login.sql) before signing in
+                    // exactly as if they'd typed that email themselves.
+                    let email = identifier;
+                    if (!identifier.includes('@')) {
+                        const { data: resolvedEmail, error: lookupErr } = await supabaseClient.rpc('lookup_email_by_username', { p_username: identifier });
+                        if (lookupErr || !resolvedEmail) throw new Error('No account found for that username.');
+                        email = resolvedEmail;
+                    }
+
                     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                     if (error) throw error;
                     closeAuthModal();
@@ -4881,7 +5037,17 @@ Thank you for supporting my small business and understanding the handmade nature
                     }, 400);
                 }
             });
-            supabaseClient.auth.onAuthStateChange((_event, session) => refreshAuthUI(session));
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                // Fires when they arrive via the "reset your password" email link (see
+                // handleForgotPassword above) -- show the dedicated new-password view instead
+                // of the normal dashboard, since the session at this point exists only to
+                // authorize the password change, not real "signed in" browsing.
+                if (event === 'PASSWORD_RECOVERY') {
+                    showPasswordRecoveryView();
+                    return;
+                }
+                refreshAuthUI(session);
+            });
         }
 
         // --- 7. CART & WISHLIST ENGINES ---
