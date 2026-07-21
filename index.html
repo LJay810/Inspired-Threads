@@ -3875,7 +3875,14 @@ Thank you for supporting my small business and understanding the handmade nature
                 // contradict it by confirming/denying an account exists.
                 statusEl.textContent = "If that email has an account, we've sent a reset link.";
             } catch (err) {
-                errorEl.textContent = err.message || 'Something went wrong. Try again.';
+                // Logged in full -- Supabase's client sometimes can't extract a real message
+                // from a failed SMTP-relay send (shows up client-side as a bare "{}"), so the
+                // console is often the only place the actual underlying reason is visible here.
+                console.error('Password reset request failed:', err);
+                const hasRealMessage = err && err.message && err.message.trim() && err.message.trim() !== '{}';
+                errorEl.textContent = hasRealMessage
+                    ? err.message
+                    : 'Could not send the reset email -- this usually means the custom SMTP setup needs a fix. Check Supabase Dashboard > Authentication > Logs for the exact error.';
             } finally {
                 submitBtn.disabled = false;
             }
