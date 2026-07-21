@@ -23,7 +23,13 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/images/icons/icon-180.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- "black" (not "black-translucent") -- translucent would let page content render UNDER
+         the status bar/notch in standalone mode, which requires safe-area-inset-top padding on
+         every fixed-to-top element (header, overlays, drawers) to avoid the clock/battery icons
+         overlapping the nav. "black" has iOS reserve the status bar's own space instead -- it
+         renders solid black, which is visually indistinguishable from this site's near-black
+         #030303 background, without needing any of that extra padding work. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Inspired Threads">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -780,7 +786,7 @@
         }
 
         /* --- TOAST / CELEBRATION SYSTEM --- */
-        .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 12px; max-width: 380px; pointer-events: none; }
+        .toast-container { position: fixed; bottom: max(20px, env(safe-area-inset-bottom)); right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 12px; max-width: 380px; pointer-events: none; }
         .toast {
             position: relative; background: rgba(15,15,15,0.97); border: 1px solid var(--accent-pink); border-radius: 14px; padding: 18px 34px 18px 20px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 24px rgba(255,0,127,0.2);
@@ -797,7 +803,7 @@
         .toast-close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--text-muted); font-size: 1rem; cursor: none !important; line-height: 1; }
         .toast-close:hover { color: var(--text-pure); }
         @media (max-width: 900px) {
-            .toast-container { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+            .toast-container { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); max-width: none; }
         }
 
         /* --- INSTALL APP PROMPT (one-time, mobile only) --- */
