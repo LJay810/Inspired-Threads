@@ -906,6 +906,25 @@
         }
         .birthday-coupon-banner strong { font-family: var(--font-mono); letter-spacing: 0.05em; color: var(--accent-pink); }
 
+        /* --- ADMIN TOOLS ACCORDION -- same collapse mechanic as .policy-toggle-btn/.policy-panel
+           on the Contact page, sized to this dropdown's own (smaller) type scale instead of that
+           page-level accordion's larger padding/font-size. */
+        .admin-accordion-toggle {
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,0,127,0.06); border: 1px solid var(--accent-pink); border-radius: 8px;
+            padding: 10px 14px; color: var(--accent-pink); font-family: var(--font-mono); font-size: 0.7rem;
+            font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; transition: var(--transition-snappy);
+        }
+        @media (hover: hover) and (pointer: fine) {
+            .admin-accordion-toggle:hover { background: rgba(255,0,127,0.14); }
+        }
+        .admin-accordion-arrow { font-size: 0.85rem; transition: transform 0.3s ease; }
+        .admin-accordion-toggle.open .admin-accordion-arrow { transform: rotate(180deg); }
+
+        .admin-accordion-panel { max-height: 0; overflow: hidden; transition: max-height 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
+        .admin-accordion-panel.open { max-height: 3000px; } /* generous cap so the restock list / activity log never gets clipped */
+        .admin-accordion-inner { padding-top: 16px; }
+
         /* --- REVIEWS --- */
         .review-stars { color: #f5b800; letter-spacing: 1px; }
         @media (min-width: 901px) {
@@ -1668,34 +1687,50 @@
                     </div>
 
                     <div class="perks-panel" id="adminToolsPanel" style="display:none;">
-                        <a href="/admin.html" target="_blank" class="hover-target" style="display:inline-block; margin-bottom:16px; color:var(--accent-pink); font-family:var(--font-mono); font-size:0.85rem; font-weight:700; text-decoration:none;">Open Full Admin Panel (Categories &amp; Products) →</a>
-                        <div class="perks-panel-title">Admin Tools — Restock</div>
-                        <div class="settings-field-hint" style="margin-bottom:10px;">
-                            Setting a variant from 0 to a positive number notifies everyone who wishlisted it. Adjusting an already-in-stock number stays silent. Lowest-stock items are listed first.
-                        </div>
-                        <input type="text" id="adminRestockFilter" class="hover-target admin-filter-input" placeholder="Filter by product name…" oninput="filterAdminTools(this.value)">
-                        <div class="admin-stats-line" id="adminStatsLine"></div>
-                        <div class="admin-tools-scroll" id="adminToolsList"></div>
+                        <!-- Collapsed by default (same interaction pattern as the Store Policy
+                             accordion on the Contact page) -- this whole block used to render
+                             open at all times, which meant admins scrolling the account dropdown
+                             had to scroll past the full restock list / customer lookup / pending
+                             reviews / activity log every time just to reach Sign Out or Settings
+                             below it. Every element id inside is unchanged, so none of the
+                             existing admin JS (renderAdminTools, searchAdminUsers, etc.) needed
+                             to change -- this is purely a collapse wrapper around the same markup. -->
+                        <button type="button" class="admin-accordion-toggle hover-target" id="adminAccordionToggleBtn" onclick="toggleAdminToolsAccordion()">
+                            <span>🛡️ Admin Tools</span>
+                            <span class="admin-accordion-arrow">▾</span>
+                        </button>
+                        <div class="admin-accordion-panel" id="adminAccordionPanel">
+                            <div class="admin-accordion-inner">
+                                <a href="/admin.html" target="_blank" class="hover-target" style="display:inline-block; margin-bottom:16px; color:var(--accent-pink); font-family:var(--font-mono); font-size:0.85rem; font-weight:700; text-decoration:none;">Open Full Admin Panel (Categories &amp; Products) →</a>
+                                <div class="perks-panel-title">Admin Tools — Restock</div>
+                                <div class="settings-field-hint" style="margin-bottom:10px;">
+                                    Setting a variant from 0 to a positive number notifies everyone who wishlisted it. Adjusting an already-in-stock number stays silent. Lowest-stock items are listed first.
+                                </div>
+                                <input type="text" id="adminRestockFilter" class="hover-target admin-filter-input" placeholder="Filter by product name…" oninput="filterAdminTools(this.value)">
+                                <div class="admin-stats-line" id="adminStatsLine"></div>
+                                <div class="admin-tools-scroll" id="adminToolsList"></div>
 
-                        <div class="perks-panel-title" style="margin-top:22px;">Customer Lookup</div>
-                        <div class="settings-field-hint" style="margin-bottom:10px;">
-                            Search by username, or by email (must contain "@"). Edits here take effect immediately.
-                        </div>
-                        <div class="birthday-field-row">
-                            <input type="text" id="adminUserSearchInput" class="hover-target" placeholder="username or email@example.com" style="flex:1;">
-                            <button class="hover-target" type="button" onclick="searchAdminUsers()">Search</button>
-                        </div>
-                        <div id="adminUserSearchResults"></div>
-                        <div id="adminUserEditArea"></div>
+                                <div class="perks-panel-title" style="margin-top:22px;">Customer Lookup</div>
+                                <div class="settings-field-hint" style="margin-bottom:10px;">
+                                    Search by username, or by email (must contain "@"). Edits here take effect immediately.
+                                </div>
+                                <div class="birthday-field-row">
+                                    <input type="text" id="adminUserSearchInput" class="hover-target" placeholder="username or email@example.com" style="flex:1;">
+                                    <button class="hover-target" type="button" onclick="searchAdminUsers()">Search</button>
+                                </div>
+                                <div id="adminUserSearchResults"></div>
+                                <div id="adminUserEditArea"></div>
 
-                        <div class="perks-panel-title" style="margin-top:22px;">Pending Reviews</div>
-                        <div class="settings-field-hint" style="margin-bottom:10px;">
-                            New review submissions wait here until approved or rejected. Approving awards the reviewer their 'reviewer' badge.
-                        </div>
-                        <div class="admin-tools-scroll" id="adminPendingReviews" style="max-height:280px;"></div>
+                                <div class="perks-panel-title" style="margin-top:22px;">Pending Reviews</div>
+                                <div class="settings-field-hint" style="margin-bottom:10px;">
+                                    New review submissions wait here until approved or rejected. Approving awards the reviewer their 'reviewer' badge.
+                                </div>
+                                <div class="admin-tools-scroll" id="adminPendingReviews" style="max-height:280px;"></div>
 
-                        <div class="perks-panel-title" style="margin-top:22px;">Recent Activity</div>
-                        <div class="admin-tools-scroll" id="adminActivityLog" style="max-height:220px;"></div>
+                                <div class="perks-panel-title" style="margin-top:22px;">Recent Activity</div>
+                                <div class="admin-tools-scroll" id="adminActivityLog" style="max-height:220px;"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="account-summary">
@@ -5682,6 +5717,11 @@ Thank you for supporting my small business and understanding the handmade nature
         function togglePolicyPanel() {
             document.getElementById('policyPanel').classList.toggle('open');
             document.getElementById('policyToggleBtn').classList.toggle('open');
+        }
+
+        function toggleAdminToolsAccordion() {
+            document.getElementById('adminAccordionPanel').classList.toggle('open');
+            document.getElementById('adminAccordionToggleBtn').classList.toggle('open');
         }
 
         function changeTikTokQty(change) {
