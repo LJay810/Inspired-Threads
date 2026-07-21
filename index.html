@@ -5963,19 +5963,34 @@ Thank you for supporting my small business and understanding the handmade nature
     <canvas id="portalIntroCanvas"></canvas>
     <script>
     /* ==========================================================================
-       PORTAL INTRO — JS  (v4: cosmic refinement pass — more detail everywhere)
+       PORTAL INTRO — JS  (v5: removed the line-burst effects entirely — premium
+       polish pass, per feedback that any radiating "lines shooting out" read as
+       cheap regardless of whether they were straight (starburst spikes) or
+       curved (the old warp streaks))
        --------------------------------------------------------------------------
        Beats, in order: GATHER (a lone star-seed gathers at dead centre, no hole
        yet) -> IGNITE (hole punches open a few px; flash + screen-shake + a
-       double shockwave pulse + a radiating starburst + a burst of hyperspace
-       light-streaks all fire together) -> OPEN (hole eases out to cover the
-       screen while a starfield, one shooting star, swirling nebula smoke,
-       tapered comet-tail sparks, twinkling glints, expanding event-horizon
-       ripples, spinning spiral-galaxy arms with orbiting glint beads, and the
-       calligraphy signature all play) -> SETTLE (ring afterglow + trailing
-       particles fade to the hard stop).
+       triple shockwave pulse + a soft bokeh glow burst all fire together) ->
+       OPEN (hole eases out to cover the screen while a starfield, one shooting
+       star, swirling nebula smoke, tapered comet-tail sparks, twinkling glints,
+       expanding event-horizon ripples, spinning spiral-galaxy arms with
+       orbiting glint beads, and the calligraphy signature all play) -> SETTLE
+       (ring afterglow + trailing particles fade to the hard stop).
 
-       Changes in this pass, per feedback:
+       Changes in THIS pass:
+       - Removed the starburst spikes (generateFlareSpikes/drawFlareSpikes)
+         entirely -- straight lines radiating from center, read as a cheap
+         video-game effect next to the more painterly elements elsewhere.
+       - Replaced the old warp streaks (curved light-line burst) with a soft
+         bokeh glow burst instead -- round, soft-edged motes drifting outward
+         and fading, reusing the same puffSprites the nebula smoke already
+         uses. No hard lines/streaks anywhere in the intro anymore.
+       - Shockwave pulse went from double to triple (pink -> magenta -> violet)
+         to make up the "impact" the removed spikes used to contribute.
+       - Ripple expansion is now eased (decelerating) instead of flat-linear.
+       - Added a subtle cinematic vignette baked into the veil sprite.
+
+       Changes in the prior (v4) pass, per feedback:
        - Removed the central pulsing "singularity" dot entirely — nothing sits
          at dead centre once the starburst fades.
        - Nebula cloud color variation is now baked directly into the veil
@@ -6030,7 +6045,7 @@ Thank you for supporting my small business and understanding the handmade nature
         const EMBER_OPEN     = IS_MOBILE ? 70  : 150;
         const MAX_SPARKLES   = IS_MOBILE ? 34  : 80;
         const SPARKLE_RATE   = IS_MOBILE ? 11  : 26;
-        const WARP_COUNT     = IS_MOBILE ? 17  : 36;    // hyperspace light streaks fired at ignition
+        const WARP_COUNT     = IS_MOBILE ? 17  : 36;    // soft bokeh glow motes fired at ignition
         const STAR_COUNT     = IS_MOBILE ? 70  : 170;   // starfield, whole duration
         const RIPPLE_MAX     = IS_MOBILE ? 4   : 8;     // event-horizon ripple rings
         const RIPPLE_RATE    = 2.6;                     // rings/sec while the portal is opening
@@ -6045,7 +6060,7 @@ Thank you for supporting my small business and understanding the handmade nature
         const embers = [];      // comet-tail sparks with gravity
         const sparkles = [];    // twinkling glints
         const stars = [];       // ambient starfield (whole duration)
-        const warpStreaks = []; // hyperspace light streaks fired at ignition
+        const warpStreaks = []; // soft bokeh glow motes fired at ignition (see generateWarpStreaks/drawWarpStreaks)
         const ripples = [];     // expanding event-horizon ripple rings
 
         // ---------- Offscreen sprites (built once / on resize) ----------
@@ -6303,68 +6318,55 @@ Thank you for supporting my small business and understanding the handmade nature
             }
         }
 
-        // ---------- Hyperspace warp streaks (fired once, at ignition) ----------
+        // ---------- Bokeh glow burst (fired once, at ignition) ----------
+        // Soft round glow motes drifting outward from ignition and fading -- deliberately no
+        // hard lines/streaks anywhere in this effect (that's the whole point: replaces the old
+        // line-burst). Reuses the same pre-tinted puffSprites the nebula smoke already uses, so
+        // it reads as part of the same visual family instead of a bolted-on new effect, and
+        // stays cheap (drawImage only, no gradient creation per particle).
         function generateWarpStreaks() {
             warpStreaks.length = 0;
             for (let i = 0; i < WARP_COUNT; i++) {
                 warpStreaks.push({
                     angle: Math.random() * Math.PI * 2,
-                    len: (IS_MOBILE ? 70 : 110) + Math.random() * (IS_MOBILE ? 110 : 220),
-                    delay: Math.random() * 0.25,
-                    dur: 0.35 + Math.random() * 0.3,
+                    speed: (IS_MOBILE ? 85 : 125) + Math.random() * (IS_MOBILE ? 120 : 210),
+                    delay: Math.random() * 0.3,
+                    dur: 0.75 + Math.random() * 0.55,
                     hue: HUES[(Math.random() * HUES.length) | 0],
-                    widthScale: 0.6 + Math.random(),
-                    curve: (Math.random() - 0.5) * 64, // gentle bend, as if light is skimming the vortex
-                    twinklePhase: Math.random() * Math.PI * 2,
-                    twinkleSpeed: 8 + Math.random() * 10,
+                    size: (IS_MOBILE ? 5 : 6) + Math.random() * (IS_MOBILE ? 10 : 15),
+                    sprite: puffSprites[(Math.random() * puffSprites.length) | 0],
+                    drift: (Math.random() - 0.5) * 70, // gentle tangential curve as it drifts out
+                    spin: (Math.random() - 0.5) * 2.4,
+                    rot0: Math.random() * Math.PI * 2,
                 });
             }
         }
         function drawWarpStreaks(t, R) {
             ctx.globalCompositeOperation = 'lighter';
-            for (const ws of warpStreaks) {
-                const localT = t - T_GATHER - ws.delay;
+            for (const b of warpStreaks) {
+                const localT = t - T_GATHER - b.delay;
                 if (localT <= 0) continue;
-                const growProg = Math.min(localT / ws.dur, 1);
-                let alpha = localT < ws.dur ? easeOutQuad(growProg) : Math.max(0, 1 - (localT - ws.dur) / 0.35);
+                const k = Math.min(localT / b.dur, 1);
+                if (k >= 1) continue;
+                const eased = easeOutQuad(k);
+                const alpha = Math.pow(1 - k, 1.4);
                 if (alpha <= 0.01) continue;
 
-                const length = ws.len * easeOutQuad(growProg);
-                const innerR = R + 4, outerR = innerR + length, midR = (innerR + outerR) / 2;
-                const perpAngle = ws.angle + Math.PI / 2;
-                const x1 = CX + Math.cos(ws.angle) * innerR, y1 = CY + Math.sin(ws.angle) * innerR;
-                const x2 = CX + Math.cos(ws.angle) * outerR, y2 = CY + Math.sin(ws.angle) * outerR;
-                const mx = CX + Math.cos(ws.angle) * midR + Math.cos(perpAngle) * ws.curve;
-                const my = CY + Math.sin(ws.angle) * midR + Math.sin(perpAngle) * ws.curve;
+                const dist = R + eased * b.speed * b.dur;
+                const perpAngle = b.angle + Math.PI / 2;
+                const x = CX + Math.cos(b.angle) * dist + Math.cos(perpAngle) * b.drift * eased;
+                const y = CY + Math.sin(b.angle) * dist + Math.sin(perpAngle) * b.drift * eased;
 
-                // Subtle shimmer on the bright core layer only -- cheap (one extra sine per
-                // streak, no extra draw calls) but reads as a much more "alive" light trail
-                // than a flat-brightness line.
-                const twinkle = 0.75 + 0.25 * Math.sin(ws.twinklePhase + t * ws.twinkleSpeed);
-
-                const layers = [
-                    { w: 6.5 * ws.widthScale, a: 0.12, hueOff: 0, tw: 1 },
-                    { w: 3   * ws.widthScale, a: 0.30, hueOff: 4, tw: 1 },
-                    { w: 1.2 * ws.widthScale, a: 0.90, hueOff: 10, tw: twinkle },
-                ];
-                for (const L of layers) {
-                    ctx.strokeStyle = `hsla(${ws.hue + L.hueOff}, 100%, 86%, ${alpha * L.a * L.tw})`;
-                    ctx.lineWidth = L.w;
-                    ctx.beginPath();
-                    ctx.moveTo(x1, y1);
-                    ctx.quadraticCurveTo(mx, my, x2, y2);
-                    ctx.stroke();
-                }
-
-                // Bright core glint riding the leading tip -- a cheap filled dot (relying on
-                // the 'lighter' blend already active for the glow, not shadowBlur, so this
-                // stays fine even at higher streak counts) that reads as a spark leading the
-                // light trail rather than just a flat-ended line.
-                ctx.fillStyle = `hsla(${ws.hue + 12}, 100%, 94%, ${alpha * twinkle * 0.9})`;
-                ctx.beginPath();
-                ctx.arc(x2, y2, 1.4 * ws.widthScale + 0.6, 0, Math.PI * 2);
-                ctx.fill();
+                // Grows slightly as it drifts (like a soft puff expanding), fades out at the end.
+                const size = b.size * (0.65 + eased * 0.6);
+                ctx.globalAlpha = alpha * 0.8;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(b.rot0 + b.spin * localT);
+                ctx.drawImage(b.sprite, -size / 2, -size / 2, size, size);
+                ctx.restore();
             }
+            ctx.globalAlpha = 1;
         }
 
         // ---------- Event-horizon ripples (replace the old torn-edge detail) ----------
@@ -6796,7 +6798,7 @@ Thank you for supporting my small business and understanding the handmade nature
             // 4) Event-horizon ripples
             drawRipples(t);
 
-            // 5) Hyperspace warp streaks
+            // 5) Bokeh glow burst
             if (t < T_OPEN) drawWarpStreaks(t, R);
 
             // 6) Nebula smoke wisps (additive glow, slow continuous tumble)
