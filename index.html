@@ -6030,7 +6030,7 @@ Thank you for supporting my small business and understanding the handmade nature
         const EMBER_OPEN     = IS_MOBILE ? 70  : 150;
         const MAX_SPARKLES   = IS_MOBILE ? 34  : 80;
         const SPARKLE_RATE   = IS_MOBILE ? 11  : 26;
-        const WARP_COUNT     = IS_MOBILE ? 12  : 26;    // hyperspace light streaks fired at ignition
+        const WARP_COUNT     = IS_MOBILE ? 17  : 36;    // hyperspace light streaks fired at ignition
         const STAR_COUNT     = IS_MOBILE ? 70  : 170;   // starfield, whole duration
         const RIPPLE_MAX     = IS_MOBILE ? 4   : 8;     // event-horizon ripple rings
         const RIPPLE_RATE    = 2.6;                     // rings/sec while the portal is opening
@@ -6084,6 +6084,19 @@ Thank you for supporting my small business and understanding the handmade nature
                 vg.fillRect(0, 0, veilSprite.width, veilSprite.height);
             }
             vg.globalCompositeOperation = 'source-over';
+
+            // Cinematic vignette -- subtle darkening toward the corners, baked into the sprite
+            // (also free at runtime, same reasoning as the nebula texture above). A small,
+            // classic film/motion-graphics touch: it draws the eye back toward center instead
+            // of the frame reading as flat, uniform darkness all the way to the edges.
+            const vignette = vg.createRadialGradient(
+                veilSprite.width / 2, veilSprite.height / 2, Math.max(veilSprite.width, veilSprite.height) * 0.25,
+                veilSprite.width / 2, veilSprite.height / 2, Math.max(veilSprite.width, veilSprite.height) * 0.72
+            );
+            vignette.addColorStop(0, 'rgba(0,0,0,0)');
+            vignette.addColorStop(1, 'rgba(0,0,0,0.55)');
+            vg.fillStyle = vignette;
+            vg.fillRect(0, 0, veilSprite.width, veilSprite.height);
 
             // Hole eraser: solid center, soft rim (last 6%) — scales with radius
             holeSprite = document.createElement('canvas');
@@ -6301,7 +6314,9 @@ Thank you for supporting my small business and understanding the handmade nature
                     dur: 0.35 + Math.random() * 0.3,
                     hue: HUES[(Math.random() * HUES.length) | 0],
                     widthScale: 0.6 + Math.random(),
-                    curve: (Math.random() - 0.5) * 50, // gentle bend, as if light is skimming the vortex
+                    curve: (Math.random() - 0.5) * 64, // gentle bend, as if light is skimming the vortex
+                    twinklePhase: Math.random() * Math.PI * 2,
+                    twinkleSpeed: 8 + Math.random() * 10,
                 });
             }
         }
@@ -6322,19 +6337,33 @@ Thank you for supporting my small business and understanding the handmade nature
                 const mx = CX + Math.cos(ws.angle) * midR + Math.cos(perpAngle) * ws.curve;
                 const my = CY + Math.sin(ws.angle) * midR + Math.sin(perpAngle) * ws.curve;
 
+                // Subtle shimmer on the bright core layer only -- cheap (one extra sine per
+                // streak, no extra draw calls) but reads as a much more "alive" light trail
+                // than a flat-brightness line.
+                const twinkle = 0.75 + 0.25 * Math.sin(ws.twinklePhase + t * ws.twinkleSpeed);
+
                 const layers = [
-                    { w: 6.5 * ws.widthScale, a: 0.12, hueOff: 0 },
-                    { w: 3   * ws.widthScale, a: 0.30, hueOff: 4 },
-                    { w: 1.2 * ws.widthScale, a: 0.90, hueOff: 10 },
+                    { w: 6.5 * ws.widthScale, a: 0.12, hueOff: 0, tw: 1 },
+                    { w: 3   * ws.widthScale, a: 0.30, hueOff: 4, tw: 1 },
+                    { w: 1.2 * ws.widthScale, a: 0.90, hueOff: 10, tw: twinkle },
                 ];
                 for (const L of layers) {
-                    ctx.strokeStyle = `hsla(${ws.hue + L.hueOff}, 100%, 86%, ${alpha * L.a})`;
+                    ctx.strokeStyle = `hsla(${ws.hue + L.hueOff}, 100%, 86%, ${alpha * L.a * L.tw})`;
                     ctx.lineWidth = L.w;
                     ctx.beginPath();
                     ctx.moveTo(x1, y1);
                     ctx.quadraticCurveTo(mx, my, x2, y2);
                     ctx.stroke();
                 }
+
+                // Bright core glint riding the leading tip -- a cheap filled dot (relying on
+                // the 'lighter' blend already active for the glow, not shadowBlur, so this
+                // stays fine even at higher streak counts) that reads as a spark leading the
+                // light trail rather than just a flat-ended line.
+                ctx.fillStyle = `hsla(${ws.hue + 12}, 100%, 94%, ${alpha * twinkle * 0.9})`;
+                ctx.beginPath();
+                ctx.arc(x2, y2, 1.4 * ws.widthScale + 0.6, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
@@ -6355,9 +6384,11 @@ Thank you for supporting my small business and understanding the handmade nature
                     continue;
                 }
                 const k = age / dur;
-                const rad = rp.baseR + k * 150;
+                // Eased (decelerating) expansion instead of flat-linear -- reads as a real
+                // shockwave losing energy rather than a mechanically constant-speed ring.
+                const rad = rp.baseR + easeOutQuad(k) * 150;
                 if (rad <= 0) continue;
-                const alpha = (1 - k) * 0.5;
+                const alpha = Math.pow(1 - k, 1.3) * 0.5;
                 ctx.beginPath();
                 ctx.arc(CX, CY, rad, 0, Math.PI * 2);
                 ctx.strokeStyle = `hsla(${rp.hue}, 100%, 82%, ${alpha})`;
@@ -6368,36 +6399,6 @@ Thank you for supporting my small business and understanding the handmade nature
                 ctx.arc(CX, CY, rad * 0.985, 0, Math.PI * 2);
                 ctx.strokeStyle = `hsla(${rp.hue + 10}, 100%, 94%, ${alpha * 0.6})`;
                 ctx.lineWidth = 0.7;
-                ctx.stroke();
-            }
-        }
-
-        // ---------- Ignition starburst (radiating flare spikes, dies with the flash) ----------
-        let flareSpikes = [];
-        function generateFlareSpikes() {
-            const count = IS_MOBILE ? 10 : 16;
-            flareSpikes = Array.from({ length: count }, (_, i) => ({
-                angle: (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.25,
-                len: (IS_MOBILE ? 60 : 90) + Math.random() * (IS_MOBILE ? 60 : 120),
-                hue: HUES[(Math.random() * HUES.length) | 0],
-            }));
-        }
-        function drawFlareSpikes(st) {
-            // st = seconds since ignition flash started; spikes shoot out fast then vanish
-            const dur = 0.4;
-            if (st >= dur) return;
-            const k = easeOutQuad(Math.min(st / dur, 1));
-            const alpha = 1 - k;
-            if (alpha <= 0.01) return;
-            ctx.globalCompositeOperation = 'lighter';
-            for (const fs of flareSpikes) {
-                const len = fs.len * k;
-                const x2 = CX + Math.cos(fs.angle) * len, y2 = CY + Math.sin(fs.angle) * len;
-                ctx.strokeStyle = `hsla(${fs.hue}, 100%, 90%, ${alpha * 0.8})`;
-                ctx.lineWidth = 1.6;
-                ctx.beginPath();
-                ctx.moveTo(CX, CY);
-                ctx.lineTo(x2, y2);
                 ctx.stroke();
             }
         }
@@ -6688,7 +6689,6 @@ Thank you for supporting my small business and understanding the handmade nature
                 flashFired = true;
                 flashStartT = t;
                 generateWarpStreaks();
-                generateFlareSpikes();
             }
             if (!shootFired && t >= SHOOT_AT) {
                 shootFired = true;
@@ -6746,7 +6746,10 @@ Thank you for supporting my small business and understanding the handmade nature
                 ctx.drawImage(holeSprite, CX - d / 2, CY - d / 2, d, d);
             }
 
-            // 3) Ignition flash / bloom + double shockwave pulse + starburst spikes
+            // 3) Ignition flash / bloom + triple shockwave pulse (pink -> magenta -> violet,
+            //    tracing the same HUES progression used everywhere else) -- replaces the old
+            //    starburst spikes with a richer, more premium-feeling ringed impact instead of
+            //    a video-game-style line burst.
             if (flashFired) {
                 const st = t - flashStartT;
                 const alpha = Math.max(0, 1 - st / 0.35);
@@ -6777,7 +6780,17 @@ Thank you for supporting my small business and understanding the handmade nature
                         ctx.stroke();
                     }
                 }
-                drawFlareSpikes(st);
+                if (st >= 0.22) {
+                    const st3 = st - 0.22;
+                    if (st3 < 0.55) {
+                        const sw3 = easeOutQuad(Math.min(st3 / 0.55, 1));
+                        ctx.beginPath();
+                        ctx.arc(CX, CY, sw3 * 120, 0, Math.PI * 2);
+                        ctx.strokeStyle = `hsla(258, 100%, 88%, ${(1 - sw3) * 0.32})`;
+                        ctx.lineWidth = 1.6 * (1 - sw3) + 0.6;
+                        ctx.stroke();
+                    }
+                }
             }
 
             // 4) Event-horizon ripples
@@ -6863,7 +6876,7 @@ Thank you for supporting my small business and understanding the handmade nature
             cancelAnimationFrame(rafId);
             particles.length = 0; embers.length = 0; sparkles.length = 0;
             warpStreaks.length = 0; ripples.length = 0; stars.length = 0;
-            flareSpikes = []; shootStar = null;
+            shootStar = null;
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             canvas.classList.add('portal-done');
