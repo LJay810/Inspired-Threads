@@ -258,7 +258,8 @@
     .schedule-banner { max-width: 100%; padding: 0 10px; box-sizing: border-box; }
 }
 
-.schedule-text { max-width: 800px; margin: 30px auto 60px auto; text-align: center; padding: 20px 24px; box-sizing: border-box; background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; }
+.schedule-text-wrap { max-width: 800px; margin: 30px auto 60px auto; }
+.schedule-text { text-align: center; padding: 20px 24px; box-sizing: border-box; background: rgba(10,10,14,0.55); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; }
 .schedule-text p { color: var(--text-muted); font-size: clamp(0.95rem, 2vw, 1.15rem); line-height: 1.8; }
        /* --- HERO --- */
         #home { 
@@ -1897,9 +1898,17 @@
 
     <section id="reviews" class="page-section">
         <h2 class="section-header reveal">Reviews</h2>
-        <p class="reveal text-glass-bg" style="color: var(--text-muted); max-width: 640px; margin: 0 auto 40px; text-align: center; font-size: 0.95rem;">
-            What real customers say about Inspired Threads.
-        </p>
+        <!-- Blur (text-glass-bg) is deliberately on an INNER element, separate from the outer
+             .reveal wrapper that gets transform/opacity-transitioned on scroll-into-view --
+             Android Chrome flickers/artifacts when a backdrop-filter blur sits on the same
+             element as an active CSS transform transition (it has to re-composite the blurred
+             backdrop mid-transition). Splitting them onto two elements avoids that entirely,
+             same visual result. -->
+        <div class="reveal" style="max-width: 640px; margin: 0 auto 40px;">
+            <p class="text-glass-bg" style="color: var(--text-muted); text-align: center; font-size: 0.95rem;">
+                What real customers say about Inspired Threads.
+            </p>
+        </div>
 
         <div class="reviews-grid" id="approvedReviewsGrid">
             <div class="skeleton-card" style="padding:24px 22px 20px;">
@@ -1942,9 +1951,12 @@
 
     <section id="leaderboard" class="page-section">
         <h2 class="section-header reveal">Leaderboard</h2>
-        <p class="reveal text-glass-bg" style="color: var(--text-muted); max-width: 640px; margin: 0 auto 40px; text-align: center; font-size: 0.95rem;">
-            Our top customers, ranked by loyalty tier. Set a profile picture and pick a badge to show off in your Account Settings.
-        </p>
+        <!-- Same split-element fix as the Reviews subtitle above -- see that comment. -->
+        <div class="reveal" style="max-width: 640px; margin: 0 auto 40px;">
+            <p class="text-glass-bg" style="color: var(--text-muted); text-align: center; font-size: 0.95rem;">
+                Our top customers, ranked by loyalty tier. Set a profile picture and pick a badge to show off in your Account Settings.
+            </p>
+        </div>
         <div class="leaderboard-list" id="leaderboardList">
             <div class="leaderboard-entry">
                 <div class="skel-bar" style="width:30px; height:20px; flex-shrink:0;"></div>
@@ -2077,10 +2089,15 @@ Thank you for supporting my small business and understanding the handmade nature
         </div>
     </section>
 
-    <div class="schedule-text reveal">
-        <p>
-            Catch our next TikTok Live sale for first access to new drops, limited restocks, and Live-exclusive claim pricing. Follow along on TikTok so you never miss a start time.
-        </p>
+    <!-- Same split-element fix as the Reviews/Leaderboard subtitles above (see that comment) --
+         .reveal (transform/opacity transition) on the outer wrap, the blurred glass panel
+         (.schedule-text) nested inside, not on the same element. -->
+    <div class="schedule-text-wrap reveal">
+        <div class="schedule-text">
+            <p>
+                Catch our next TikTok Live sale for first access to new drops, limited restocks, and Live-exclusive claim pricing. Follow along on TikTok so you never miss a start time.
+            </p>
+        </div>
     </div>
 
      <footer class="site-footer">
