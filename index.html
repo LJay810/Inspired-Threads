@@ -20,6 +20,11 @@
     <script src="https://js.stripe.com/v3/"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="icon" type="image/png" href="images/inspiredthreadsLogoIcon2.png">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/images/icons/icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Inspired Threads">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
@@ -793,6 +798,46 @@
         .toast-close:hover { color: var(--text-pure); }
         @media (max-width: 900px) {
             .toast-container { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+        }
+
+        /* --- INSTALL APP PROMPT (one-time, mobile only) --- */
+        .install-prompt-card {
+            position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom));
+            transform: translate(-50%, 160%);
+            width: min(92%, 420px); background: rgba(15, 15, 15, 0.97); border: 1px solid var(--accent-pink);
+            border-radius: 20px; padding: 26px 24px 22px;
+            box-shadow: 0 -10px 50px rgba(0,0,0,0.7), 0 0 40px rgba(255,0,127,0.2);
+            z-index: 4000; transition: transform 0.5s cubic-bezier(0.25,1,0.5,1);
+            text-align: center;
+        }
+        .install-prompt-card.active { transform: translate(-50%, 0); }
+        .install-prompt-close { position: absolute; top: 12px; right: 14px; background: none; border: none; color: var(--text-muted); font-size: 1.1rem; cursor: none !important; }
+        .install-prompt-close:hover { color: var(--accent-pink); }
+        .install-prompt-icon-wrap {
+            width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 18px; overflow: hidden;
+            border: 1px solid var(--accent-pink); animation: badgePlasma 2.4s ease-in-out infinite;
+        }
+        .install-prompt-icon-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        .install-prompt-title { font-family: var(--font-mono); font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; font-size: 1rem; color: var(--text-pure); margin-bottom: 8px; }
+        .install-prompt-sub { color: var(--text-muted); font-size: 0.85rem; line-height: 1.55; margin-bottom: 20px; }
+        .install-prompt-actions { display: flex; gap: 10px; }
+        .install-prompt-actions button { flex: 1; padding: 13px; border-radius: 30px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; transition: var(--transition-snappy); }
+        .install-prompt-btn-primary { background: var(--accent-pink); border: none; color: #fff; }
+        .install-prompt-btn-primary:hover { background: var(--accent-pink-hover); box-shadow: 0 10px 25px rgba(255,0,127,0.3); }
+        .install-prompt-btn-secondary { background: none; border: 1px solid var(--border-subtle); color: var(--text-muted); }
+        .install-prompt-btn-secondary:hover { border-color: var(--text-muted); color: var(--text-pure); }
+        .install-prompt-ios-steps { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-subtle); text-align: left; }
+        .install-prompt-ios-step { display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: var(--text-pure); margin-bottom: 10px; }
+        .install-prompt-ios-step:last-child { margin-bottom: 0; }
+        .install-prompt-ios-step-num {
+            flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: rgba(255,0,127,0.12);
+            border: 1px solid var(--accent-pink); color: var(--accent-pink); font-family: var(--font-mono);
+            font-size: 0.7rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
+        }
+        @media (min-width: 901px) {
+            /* Mobile-only prompt -- JS also gates this on viewport + isStandalone, this is
+               just a defensive backstop against a resized/rotated desktop browser window. */
+            .install-prompt-card { display: none; }
         }
 
         /* --- SKELETON LOADING --- */
@@ -1754,6 +1799,38 @@
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
+
+    <div class="install-prompt-card" id="installPromptCard">
+        <button class="install-prompt-close hover-target" onclick="dismissInstallPrompt()" aria-label="Dismiss">✕</button>
+        <div class="install-prompt-icon-wrap">
+            <img src="images/icons/icon-192.png" alt="Inspired Threads">
+        </div>
+        <div class="install-prompt-title">Install Inspired Threads</div>
+        <p class="install-prompt-sub" id="installPromptSub">Get the app on your home screen — no browser bar, faster access, smoother checkout.</p>
+
+        <div class="install-prompt-actions" id="installPromptMainActions">
+            <button class="install-prompt-btn-secondary hover-target" type="button" onclick="dismissInstallPrompt()">Not Now</button>
+            <button class="install-prompt-btn-primary hover-target" type="button" onclick="triggerInstallPrompt()">Install App</button>
+        </div>
+
+        <div class="install-prompt-ios-steps" id="installPromptIosSteps">
+            <div class="install-prompt-ios-step">
+                <span class="install-prompt-ios-step-num">1</span>
+                <span>Tap the <strong>Share</strong>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="vertical-align:-2px; display:inline-block;"><path d="M12 3v12m0-12l-4 4m4-4l4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    icon in Safari's toolbar
+                </span>
+            </div>
+            <div class="install-prompt-ios-step">
+                <span class="install-prompt-ios-step-num">2</span>
+                <span>Scroll down and tap <strong>Add to Home Screen</strong></span>
+            </div>
+            <div class="install-prompt-ios-step">
+                <span class="install-prompt-ios-step-num">3</span>
+                <span>Tap <strong>Add</strong> in the top right — you're done!</span>
+            </div>
+        </div>
+    </div>
 
     <div class="tiktok-overlay" id="paymentStatusOverlay">
         <div class="tiktok-modal status-modal" id="paymentStatusModal">
@@ -5563,13 +5640,87 @@ Thank you for supporting my small business and understanding the handmade nature
                 window.history.replaceState(null, '', window.location.pathname);
             }
 
-            updateCartUI(); 
+            updateCartUI();
             updateWishlistUI();
             initShopEngine();
             loadApprovedReviews();
             loadTrustBadge();
             loadLeaderboard();
         };
+
+        // PWA installability -- registers the minimal static-asset-only service worker (see
+        // sw.js). Guarded by feature-check since older browsers have no serviceWorker API at all.
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+        }
+
+        // --- ONE-TIME "INSTALL OUR APP" PROMPT (mobile only) ---
+        // Shown at most once ever per browser (localStorage flag, cleared for nobody -- this is
+        // deliberately not a "snooze and re-ask later" nag). Skipped entirely if already running
+        // standalone (already installed) or on a desktop-width viewport.
+        (function initInstallPrompt() {
+            const STORAGE_KEY = 'installPromptSeen';
+            if (localStorage.getItem(STORAGE_KEY)) return;
+
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+            if (isStandalone) return;
+
+            // Same 900px breakpoint the rest of the site already uses for mobile vs. desktop.
+            if (!window.matchMedia('(max-width: 900px)').matches) return;
+
+            const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+
+            // Chrome/Android only -- fires when the browser's own engagement heuristics decide
+            // this page is a good install candidate. May never fire in this session at all
+            // (e.g. brand new visitor); triggerInstallPrompt() below falls back to on-screen
+            // instructions when that's the case, rather than the button silently doing nothing.
+            let deferredPrompt = null;
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+            });
+
+            window.dismissInstallPrompt = function () {
+                localStorage.setItem(STORAGE_KEY, '1');
+                const card = document.getElementById('installPromptCard');
+                if (card) card.classList.remove('active');
+            };
+
+            window.triggerInstallPrompt = async function () {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    await deferredPrompt.userChoice; // resolves regardless of accept/dismiss
+                    deferredPrompt = null;
+                    window.dismissInstallPrompt();
+                    return;
+                }
+                document.getElementById('installPromptMainActions').style.display = 'none';
+                if (isIOS) {
+                    document.getElementById('installPromptSub').textContent = "Here's how:";
+                    document.getElementById('installPromptIosSteps').style.display = 'block';
+                } else {
+                    document.getElementById('installPromptSub').textContent = 'Open your browser menu (⋮) and look for "Install app" or "Add to Home Screen."';
+                }
+            };
+
+            function showInstallPrompt() {
+                const card = document.getElementById('installPromptCard');
+                if (!card) return;
+                requestAnimationFrame(() => card.classList.add('active'));
+            }
+
+            // Waits for the portal intro to finish (see the 'portal-intro-done' event dispatched
+            // at the bottom of this file) so the two animations never visually collide -- with a
+            // fallback timer in case that event never fires for some reason.
+            function scheduleShow() { setTimeout(showInstallPrompt, 1200); }
+            const introCanvas = document.getElementById('portalIntroCanvas');
+            if (introCanvas && introCanvas.classList.contains('portal-done')) {
+                scheduleShow();
+            } else {
+                document.addEventListener('portal-intro-done', scheduleShow, { once: true });
+                setTimeout(scheduleShow, 6000);
+            }
+        })();
     </script>
 
     <!-- ================= PORTAL INTRO ================= -->
