@@ -359,6 +359,19 @@ export default async function handler(req, res) {
           if (releaseErr) throw releaseErr;
         }
       }
+
+      // Same idea for a reserved-but-unused Crew Cash amount.
+      if (metadata.crew_cash_used && metadata.supabase_user_id && supabaseAdmin) {
+        const creditReleaseMarker = `crew_cash_released_${session.id}`;
+        const claimed = await kv.set(creditReleaseMarker, '1', { nx: true, ex: 86400 });
+        if (claimed) {
+          const { error: releaseErr } = await supabaseAdmin.rpc('release_crew_cash', {
+            p_user_id: metadata.supabase_user_id,
+            p_amount: parseFloat(metadata.crew_cash_used),
+          });
+          if (releaseErr) throw releaseErr;
+        }
+      }
     }
 
     // COMMIT: only mark the whole event as processed after every step above succeeded.

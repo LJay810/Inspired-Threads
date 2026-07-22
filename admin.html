@@ -97,6 +97,7 @@
         <div class="admin-logo">INSPIRED THREADS<br>ADMIN</div>
         <button class="admin-nav-btn active" data-tab="categories" onclick="switchTab('categories')">Categories</button>
         <button class="admin-nav-btn" data-tab="products" onclick="switchTab('products')">Products</button>
+        <button class="admin-nav-btn" data-tab="promocodes" onclick="switchTab('promocodes')">Promo Codes</button>
         <div class="admin-nav-divider"></div>
         <a class="admin-nav-link" href="/#account">← Restock / Customers / Reviews (existing tools)</a>
         <a class="admin-nav-link" href="/">← Back to storefront</a>
@@ -132,6 +133,52 @@
             <table class="admin-table">
                 <thead><tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Published</th><th>Stripe</th><th></th></tr></thead>
                 <tbody id="productsTableBody"><tr><td colspan="8" class="empty-state">Loading...</td></tr></tbody>
+            </table>
+        </section>
+
+        <!-- ===================== PROMO CODES TAB ===================== -->
+        <section class="admin-tab-panel" id="tab-promocodes">
+            <div class="admin-modal" style="max-width: 720px; margin: 0 0 24px; padding: 22px;">
+                <h2 style="font-size:1rem;">Create Promo Code</h2>
+                <div id="promoCodeError"></div>
+                <form id="promoCodeForm" onsubmit="createPromoCode(event)">
+                    <div class="admin-field"><label>Code (what customers type at checkout)</label><input type="text" id="promo_code" required placeholder="e.g. SUMMER20" style="text-transform:uppercase;"></div>
+
+                    <div class="admin-field">
+                        <label>Discount type</label>
+                        <select id="promo_discount_type" onchange="onPromoDiscountTypeChange()">
+                            <option value="percent">Percent off</option>
+                            <option value="amount">Fixed amount off ($)</option>
+                        </select>
+                    </div>
+                    <div class="admin-field" id="promo_percent_field"><label>Percent off (1-100)</label><input type="number" id="promo_percent_off" min="1" max="100" step="1" placeholder="e.g. 20"></div>
+                    <div class="admin-field" id="promo_amount_field" style="display:none;"><label>Amount off ($)</label><input type="number" id="promo_amount_off" min="0.01" step="0.01" placeholder="e.g. 5.00"></div>
+
+                    <div class="admin-field">
+                        <label>Duration</label>
+                        <select id="promo_duration" onchange="onPromoDurationChange()">
+                            <option value="once">Once</option>
+                            <option value="repeating">Repeating (next N months)</option>
+                            <option value="forever">Forever</option>
+                        </select>
+                        <div class="settings-field-hint">This store only takes one-time payments (no subscriptions) -- "Once" is almost always what you want. Repeating/Forever only matter if this codebase ever adds subscription billing.</div>
+                    </div>
+                    <div class="admin-field" id="promo_months_field" style="display:none;"><label>Number of months</label><input type="number" id="promo_duration_months" min="1" step="1"></div>
+
+                    <div class="admin-field"><label>Max redemptions (optional -- blank = unlimited)</label><input type="number" id="promo_max_redemptions" min="1" step="1"></div>
+                    <div class="admin-field"><label>Expires on (optional -- blank = never expires)</label><input type="date" id="promo_expires_at"></div>
+                    <div class="admin-field"><label>Minimum order amount ($, optional)</label><input type="number" id="promo_min_order" min="0.01" step="0.01"></div>
+                    <div class="admin-field"><label><input type="checkbox" id="promo_first_time_only" style="width:auto;"> First-time customers only</label></div>
+
+                    <div class="admin-modal-actions" style="justify-content:flex-start;">
+                        <button type="submit" class="admin-btn">Create Promo Code</button>
+                    </div>
+                </form>
+            </div>
+
+            <table class="admin-table">
+                <thead><tr><th>Code</th><th>Discount</th><th>Duration</th><th>Redemptions</th><th>Expires</th><th>Active</th><th></th></tr></thead>
+                <tbody id="promoCodesTableBody"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
             </table>
         </section>
     </main>
@@ -263,6 +310,7 @@ function switchTab(tab) {
     document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
     if (tab === 'products') loadProducts();
+    if (tab === 'promocodes') loadPromoCodes();
 }
 
 async function adminApi(endpoint, body) {
@@ -833,6 +881,88 @@ async function saveProduct(evt) {
         await loadProducts();
     } catch (err) {
         document.getElementById('productModalError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+// ===================== PROMO CODES =====================
+
+let promoCodesCache = [];
+
+async function loadPromoCodes() {
+    const { promoCodes } = await adminApi('/api/admin-user', { action: 'list_promo_codes' });
+    promoCodesCache = promoCodes;
+    renderPromoCodesTable();
+}
+
+function renderPromoCodesTable() {
+    const body = document.getElementById('promoCodesTableBody');
+    if (promoCodesCache.length === 0) { body.innerHTML = '<tr><td colspan="7" class="empty-state">No promo codes yet.</td></tr>'; return; }
+    body.innerHTML = promoCodesCache.map(p => {
+        const c = p.coupon || {};
+        const discountLabel = c.percent_off ? `${c.percent_off}% off` : `$${((c.amount_off || 0) / 100).toFixed(2)} off`;
+        const durationLabel = c.duration === 'repeating' ? `Repeating (${c.duration_in_months} mo)` : (c.duration === 'forever' ? 'Forever' : 'Once');
+        const redemptionsLabel = `${p.times_redeemed || 0}${p.max_redemptions ? ' / ' + p.max_redemptions : ' / ∞'}`;
+        const expiresLabel = p.expires_at ? new Date(p.expires_at * 1000).toLocaleDateString() : 'Never';
+        return `
+        <tr>
+            <td><strong>${escapeHtml(p.code)}</strong></td>
+            <td>${discountLabel}</td>
+            <td>${durationLabel}</td>
+            <td>${redemptionsLabel}</td>
+            <td>${expiresLabel}</td>
+            <td>${p.active ? 'Yes' : '<span class="badge error">No</span>'}</td>
+            <td>${p.active ? `<button class="admin-btn small danger" onclick='deactivatePromoCode(${JSON.stringify(p.id)})'>Deactivate</button>` : ''}</td>
+        </tr>`;
+    }).join('');
+}
+
+function onPromoDiscountTypeChange() {
+    const type = document.getElementById('promo_discount_type').value;
+    document.getElementById('promo_percent_field').style.display = type === 'percent' ? 'block' : 'none';
+    document.getElementById('promo_amount_field').style.display = type === 'amount' ? 'block' : 'none';
+}
+
+function onPromoDurationChange() {
+    document.getElementById('promo_months_field').style.display = document.getElementById('promo_duration').value === 'repeating' ? 'block' : 'none';
+}
+
+async function createPromoCode(evt) {
+    evt.preventDefault();
+    const errorEl = document.getElementById('promoCodeError');
+    errorEl.innerHTML = '';
+
+    const payload = {
+        action: 'create_promo_code',
+        code: document.getElementById('promo_code').value,
+        discountType: document.getElementById('promo_discount_type').value,
+        percentOff: document.getElementById('promo_percent_off').value,
+        amountOff: document.getElementById('promo_amount_off').value,
+        duration: document.getElementById('promo_duration').value,
+        durationInMonths: document.getElementById('promo_duration_months').value,
+        maxRedemptions: document.getElementById('promo_max_redemptions').value,
+        expiresAt: document.getElementById('promo_expires_at').value,
+        minOrderAmount: document.getElementById('promo_min_order').value,
+        firstTimeOnly: document.getElementById('promo_first_time_only').checked,
+    };
+
+    try {
+        await adminApi('/api/admin-user', payload);
+        document.getElementById('promoCodeForm').reset();
+        onPromoDiscountTypeChange();
+        onPromoDurationChange();
+        await loadPromoCodes();
+    } catch (err) {
+        errorEl.innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+async function deactivatePromoCode(promotionCodeId) {
+    if (!confirm('Deactivate this promo code? Customers will no longer be able to redeem it.')) return;
+    try {
+        await adminApi('/api/admin-user', { action: 'deactivate_promo_code', promotionCodeId });
+        await loadPromoCodes();
+    } catch (err) {
+        alert(err.message);
     }
 }
 

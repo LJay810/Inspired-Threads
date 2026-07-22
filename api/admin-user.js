@@ -1,3 +1,4 @@
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const { requireAdmin } = require('../lib/require-admin');
@@ -48,7 +49,7 @@ export default async function handler(req, res) {
             const ids = idsWithEmail.map(m => m.id);
             const { data: fullProfiles, error: profErr } = await supabaseAdmin
                 .from('profiles')
-                .select('id, username, badges, order_count, total_spent, tier_spend, grandfathered_tier, referral_count, is_admin, hide_from_leaderboard')
+                .select('id, username, badges, order_count, total_spent, tier_spend, grandfathered_tier, referral_count, is_admin, hide_from_leaderboard, credit_balance')
                 .in('id', ids);
             if (profErr) throw profErr;
 
@@ -67,7 +68,7 @@ export default async function handler(req, res) {
         }
 
         if (action === 'update') {
-            const { userId, total_spent, tier_spend, badges, is_admin, hide_from_leaderboard, grandfathered_tier } = req.body;
+            const { userId, total_spent, tier_spend, badges, is_admin, hide_from_leaderboard, grandfathered_tier, credit_balance } = req.body;
             if (!userId) return res.status(400).json({ error: 'Missing userId.' });
 
             const updateFields = {};
@@ -77,6 +78,15 @@ export default async function handler(req, res) {
                     return res.status(400).json({ error: 'Invalid total_spent value.' });
                 }
                 updateFields.total_spent = totalSpentNum;
+            }
+            if (credit_balance !== undefined) {
+                // Manual Crew Cash grant/adjustment -- the only way this balance changes today
+                // (see sql/crew_cash_schema.sql; spent automatically at checkout via use_crew_cash).
+                const creditBalanceNum = parseFloat(credit_balance);
+                if (!Number.isFinite(creditBalanceNum) || creditBalanceNum < 0) {
+                    return res.status(400).json({ error: 'Invalid credit_balance value.' });
+                }
+                updateFields.credit_balance = creditBalanceNum;
             }
             if (tier_spend !== undefined) {
                 const tierSpendNum = parseFloat(tier_spend);
@@ -152,6 +162,99 @@ export default async function handler(req, res) {
             }
 
             return res.status(200).json({ ok: true });
+        }
+
+        // ===================== PROMO CODES =====================
+        // Folded into this file rather than a new api/admin-*.js one -- this project is already
+        // at Vercel Hobby's 12-serverless-function cap (see the comment in api/products.js).
+        // A Stripe Promotion Code is always backed by a Coupon (the actual discount terms);
+        // since each promo code created here gets its own fresh Coupon (never shared/reused,
+        // unlike the standing-discount coupons in checkout.js), the two are always created and
+        // read together as a single unit from the admin's point of view.
+
+        if (action === 'list_promo_codes') {
+            const promoCodes = await stripe.promotionCodes.list({ limit: 100, expand: ['data.coupon'] });
+            return res.status(200).json({ promoCodes: promoCodes.data });
+        }
+
+        if (action === 'create_promo_code') {
+            const {
+                code, discountType, percentOff, amountOff, duration, durationInMonths,
+                maxRedemptions, expiresAt, minOrderAmount, firstTimeOnly,
+            } = req.body;
+
+            const trimmedCode = String(code || '').trim().toUpperCase();
+            if (!trimmedCode) return res.status(400).json({ error: 'Missing promo code.' });
+            if (!['percent', 'amount'].includes(discountType)) {
+                return res.status(400).json({ error: 'discountType must be "percent" or "amount".' });
+            }
+            if (!['once', 'repeating', 'forever'].includes(duration)) {
+                return res.status(400).json({ error: 'duration must be "once", "repeating", or "forever".' });
+            }
+
+            const couponParams = { duration, name: trimmedCode };
+            if (discountType === 'percent') {
+                const pct = parseFloat(percentOff);
+                if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+                    return res.status(400).json({ error: 'percentOff must be between 1 and 100.' });
+                }
+                couponParams.percent_off = pct;
+            } else {
+                const amt = parseFloat(amountOff);
+                if (!Number.isFinite(amt) || amt <= 0) {
+                    return res.status(400).json({ error: 'amountOff must be a positive dollar amount.' });
+                }
+                couponParams.amount_off = Math.round(amt * 100);
+                couponParams.currency = 'usd';
+            }
+            if (duration === 'repeating') {
+                const months = parseInt(durationInMonths, 10);
+                if (!Number.isInteger(months) || months <= 0) {
+                    return res.status(400).json({ error: 'durationInMonths is required (positive whole number) when duration is "repeating".' });
+                }
+                couponParams.duration_in_months = months;
+            }
+
+            const promoParams = { code: trimmedCode, active: true };
+            if (maxRedemptions !== undefined && maxRedemptions !== '' && maxRedemptions !== null) {
+                const maxR = parseInt(maxRedemptions, 10);
+                if (!Number.isInteger(maxR) || maxR <= 0) {
+                    return res.status(400).json({ error: 'maxRedemptions must be a positive whole number.' });
+                }
+                promoParams.max_redemptions = maxR;
+            }
+            if (expiresAt) {
+                const expiresTs = Math.floor(new Date(expiresAt).getTime() / 1000);
+                if (!Number.isFinite(expiresTs)) return res.status(400).json({ error: 'Invalid expiresAt date.' });
+                promoParams.expires_at = expiresTs;
+            }
+            const restrictions = {};
+            if (minOrderAmount !== undefined && minOrderAmount !== '' && minOrderAmount !== null) {
+                const minAmt = parseFloat(minOrderAmount);
+                if (!Number.isFinite(minAmt) || minAmt <= 0) {
+                    return res.status(400).json({ error: 'minOrderAmount must be a positive dollar amount.' });
+                }
+                restrictions.minimum_amount = Math.round(minAmt * 100);
+                restrictions.minimum_amount_currency = 'usd';
+            }
+            if (firstTimeOnly) restrictions.first_time_transaction = true;
+            if (Object.keys(restrictions).length > 0) promoParams.restrictions = restrictions;
+
+            // Coupon first, then the customer-facing code pointing at it -- if the code itself
+            // is invalid/taken, Stripe rejects promotionCodes.create and we're left with an
+            // unused (harmless) coupon rather than a promo code with no backing discount.
+            const coupon = await stripe.coupons.create(couponParams);
+            promoParams.coupon = coupon.id;
+            const promotionCode = await stripe.promotionCodes.create(promoParams);
+
+            return res.status(200).json({ ok: true, promotionCode, coupon });
+        }
+
+        if (action === 'deactivate_promo_code') {
+            const { promotionCodeId } = req.body;
+            if (!promotionCodeId) return res.status(400).json({ error: 'Missing promotionCodeId.' });
+            const promotionCode = await stripe.promotionCodes.update(promotionCodeId, { active: false });
+            return res.status(200).json({ ok: true, promotionCode });
         }
 
         return res.status(400).json({ error: 'Unknown action.' });

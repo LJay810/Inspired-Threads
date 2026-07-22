@@ -825,6 +825,14 @@
         #stockAlertPhoneGroup input { font-size: 0.9rem; }
 
         /* --- TIER / XP / BADGES --- */
+        .crew-cash-badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            background: rgba(255,0,127,0.12); border: 1px solid var(--accent-pink);
+            color: var(--accent-pink); font-family: var(--font-mono); font-weight: 800;
+            font-size: 0.78rem; letter-spacing: 0.03em; padding: 5px 12px; border-radius: 20px;
+            margin-bottom: 12px;
+        }
+        .crew-cash-icon { font-size: 0.95rem; }
         .profile-tier-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
         .profile-tier-name { font-family: var(--font-mono); font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-pink); font-weight: 800; }
         .profile-xp-label { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); }
@@ -1719,6 +1727,9 @@
             <!-- LOGGED IN VIEW -->
             <div id="authLoggedInView" style="display:none; position: relative;">
                 <div id="authLoggedInMain">
+                    <div class="crew-cash-badge" id="crewCashBadge">
+                        <span class="crew-cash-icon">$</span> Crew Cash: <span id="crewCashAmount">$0.00</span>
+                    </div>
                     <div class="profile-tier-row">
                         <span class="profile-tier-name" id="profileTierName">Crew Member</span>
                         <span class="profile-xp-label" id="profileXpLabel">$0 spent</span>
@@ -4912,6 +4923,10 @@ Thank you for supporting my small business and understanding the handmade nature
                         <input type="number" min="0" step="0.01" id="adminEditTierSpend" value="${parseFloat(user.tier_spend || 0).toFixed(2)}">
                     </div>
                     <div class="admin-user-edit-row">
+                        <label class="settings-field-label" style="margin:0;">Crew Cash Balance ($)</label>
+                        <input type="number" min="0" step="0.01" id="adminEditCreditBalance" value="${parseFloat(user.credit_balance || 0).toFixed(2)}">
+                    </div>
+                    <div class="admin-user-edit-row">
                         <label class="settings-field-label" style="margin:0;">Tier Floor</label>
                         <select id="adminEditGrandfatheredTier">
                             <option value="">— None (use real spend) —</option>
@@ -4946,6 +4961,7 @@ Thank you for supporting my small business and understanding the handmade nature
             const statusEl = document.getElementById('adminEditStatus');
             const totalSpent = document.getElementById('adminEditTotalSpent').value;
             const tierSpend = document.getElementById('adminEditTierSpend').value;
+            const creditBalance = document.getElementById('adminEditCreditBalance').value;
             const badges = Array.from(document.querySelectorAll('#adminEditBadges input:checked')).map(cb => cb.value);
             const isAdmin = document.getElementById('adminEditIsAdmin').checked;
             const hideFromLeaderboard = document.getElementById('adminEditHideFromLeaderboard').checked;
@@ -4962,7 +4978,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${session.access_token}`,
                     },
-                    body: JSON.stringify({ action: 'update', userId, total_spent: totalSpent, tier_spend: tierSpend, badges, is_admin: isAdmin, hide_from_leaderboard: hideFromLeaderboard, grandfathered_tier: grandfatheredTier }),
+                    body: JSON.stringify({ action: 'update', userId, total_spent: totalSpent, tier_spend: tierSpend, credit_balance: creditBalance, badges, is_admin: isAdmin, hide_from_leaderboard: hideFromLeaderboard, grandfathered_tier: grandfatheredTier }),
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Save failed.');
@@ -5283,7 +5299,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     );
                     const fetchProfile = supabaseClient
                         .from('profiles')
-                        .select('username, tier_spend, grandfathered_tier, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin, avatar_url, selected_badge, spin_claimed_at, spin_prize_type, spin_prize_pct, spin_prize_used')
+                        .select('username, tier_spend, grandfathered_tier, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin, avatar_url, selected_badge, spin_claimed_at, spin_prize_type, spin_prize_pct, spin_prize_used, credit_balance')
                         .eq('id', session.user.id)
                         .single();
 
@@ -5291,6 +5307,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     if (profile) {
                         if (profile.username) displayName = profile.username;
                         renderTierAndBadges(profile.tier_spend || 0, profile.grandfathered_tier, profile.badges || [], profile.birthday_code, profile.birthday_code_expires);
+                        document.getElementById('crewCashAmount').textContent = `$${(parseFloat(profile.credit_balance) || 0).toFixed(2)}`;
                         document.getElementById('birthdayInput').value = profile.birthday || '';
 
                         if (profile.avatar_url) {

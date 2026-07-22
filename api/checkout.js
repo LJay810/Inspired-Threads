@@ -185,7 +185,7 @@ export default async function handler(req, res) {
             try {
                 const { data: profile } = await supabaseAdmin
                     .from('profiles')
-                    .select('tier_spend, grandfathered_tier, referred_by, referral_signup_discount_used, referral_reward_pending, order_count, spin_prize_type, spin_prize_pct, spin_prize_used')
+                    .select('tier_spend, grandfathered_tier, referred_by, referral_signup_discount_used, referral_reward_pending, order_count, spin_prize_type, spin_prize_pct, spin_prize_used, credit_balance')
                     .eq('id', supabaseUserId)
                     .single();
                 if (profile) {
@@ -317,12 +317,53 @@ export default async function handler(req, res) {
         }
         if (spinPrizeClaimed) sessionMetadata['spin_prize_used'] = 'true';
 
+        // CREW CASH: the shopper's own stored balance (manually granted by an admin via Customer
+        // Lookup), spendable like a gift card. It's a fixed dollar amount, not a percentage, so it
+        // can't just stack on top of a percent_off coupon -- same single discounts-per-session
+        // slot as everything above, so it's compared by actual dollar value against whatever's
+        // currently winning (same idiom as the spin-prize-percent-vs-standing comparison above)
+        // and only takes over the slot if it's worth more to this shopper on this cart.
+        const subtotalDollars = subtotalCents / 100;
+        let crewCashUsed = 0;
+        if (referralProfile && supabaseAdmin) {
+            const creditBalance = parseFloat(referralProfile.credit_balance) || 0;
+            if (creditBalance > 0) {
+                const currentDiscountValueDollars = subtotalDollars * (discountPct / 100);
+                const creditValueDollars = Math.min(creditBalance, subtotalDollars);
+                if (creditValueDollars > currentDiscountValueDollars) {
+                    try {
+                        const { data: applied } = await supabaseAdmin.rpc('use_crew_cash', {
+                            p_user_id: supabaseUserId,
+                            p_amount: creditValueDollars,
+                        });
+                        if (applied) {
+                            crewCashUsed = creditValueDollars;
+                            sessionMetadata['crew_cash_used'] = crewCashUsed.toFixed(2);
+                        }
+                    } catch (err) {
+                        console.warn('Crew Cash reservation failed, proceeding without it:', err.message);
+                    }
+                }
+            }
+        }
+
         // Stripe Checkout can't combine a pre-applied `discounts` coupon with customer-entered
         // `allow_promotion_codes` on the same session -- so whenever an automatic discount
-        // (referral or standing) applies, manual promo-code entry is disabled for that one
-        // checkout. Everyone else (Bronze/Silver with no referral reward/guests) keeps the
-        // ability to enter a promo code as before.
-        if (discountPct > 0) {
+        // (Crew Cash, referral, standing, or spin) applies, manual promo-code entry is disabled
+        // for that one checkout. Everyone else (Bronze/Silver with no referral reward/guests)
+        // keeps the ability to enter a promo code as before.
+        if (crewCashUsed > 0) {
+            // Unlike the standing-discount coupons, this amount is unique to this shopper's
+            // balance and this cart -- created fresh each time rather than looked up/reused.
+            const creditCoupon = await stripe.coupons.create({
+                amount_off: Math.round(crewCashUsed * 100),
+                currency: 'usd',
+                duration: 'once',
+                name: 'Crew Cash',
+                max_redemptions: 1,
+            });
+            sessionConfig.discounts = [{ coupon: creditCoupon.id }];
+        } else if (discountPct > 0) {
             const coupon = await ensureStandingDiscountCoupon(discountPct);
             sessionConfig.discounts = [{ coupon: coupon.id }];
         } else {
@@ -330,7 +371,6 @@ export default async function handler(req, res) {
         }
 
         if (fulfillmentMethod === 'shipping' && cartItems.length > 0) {
-            const subtotalDollars = subtotalCents / 100;
             const qualifiesForFreeShipping = perks.freeShippingMin !== null && subtotalDollars >= perks.freeShippingMin;
 
             let shippingFeeCents = 900;
@@ -412,6 +452,14 @@ export default async function handler(req, res) {
         // And for a reserved-but-unused spin-wheel prize.
         if (!sessionCreated && sessionMetadata['spin_prize_used'] === 'true' && supabaseAdmin) {
             await supabaseAdmin.rpc('release_spin_prize', { p_user_id: supabaseUserId });
+        }
+
+        // And for a reserved-but-unused Crew Cash amount.
+        if (!sessionCreated && sessionMetadata['crew_cash_used'] && supabaseAdmin) {
+            await supabaseAdmin.rpc('release_crew_cash', {
+                p_user_id: supabaseUserId,
+                p_amount: parseFloat(sessionMetadata['crew_cash_used']),
+            });
         }
 
         res.status(500).json({ error: error.message });
