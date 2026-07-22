@@ -37,14 +37,35 @@ export default async function handler(req, res) {
         // for the plain "stock" key), replacing Stripe metadata's old role -- same reasoning as
         // before: keeps a persistent source in sync with Redis, not just live in memory.
         await mirrorStockToCatalog(productId, stripeMetaKey, qty);
-        const { data: productRow } = await supabaseAdmin.from('products').select('name, images').eq('id', productId).single();
+        const { data: productRow } = await supabaseAdmin
+            .from('products')
+            .select('name, images, category_id, pre_graveyard_category_id, pre_graveyard_sub_category_id')
+            .eq('id', productId).single();
         const productName = productRow && productRow.name;
 
         // GRAVEYARD: manually zeroing out a DTF design's stock moves it to the Graveyard too,
         // same as the checkout path in webhook.js -- no-op for non-DTF products (see
         // move_product_to_graveyard in sql/graveyard_resurrection_schema.sql).
+        let restoredFromGraveyard = false;
         if (qty <= 0) {
             await maybeMoveToGraveyard(supabaseAdmin, productId);
+        } else if (productRow && productRow.category_id === 'graveyard' && productRow.pre_graveyard_category_id) {
+            // RESTORE FROM GRAVEYARD: a deliberate admin action (not the automatic resurrection
+            // pre-order flow, which never touches stock/category -- see
+            // sql/graveyard_no_auto_restock.sql). This is the moment real inventory actually
+            // exists, so restore the design to whatever category it came from, with the real
+            // count the admin just entered.
+            const { error: restoreErr } = await supabaseAdmin
+                .from('products')
+                .update({
+                    category_id: productRow.pre_graveyard_category_id,
+                    sub_category_id: productRow.pre_graveyard_sub_category_id,
+                    pre_graveyard_category_id: null,
+                    pre_graveyard_sub_category_id: null,
+                })
+                .eq('id', productId);
+            if (restoreErr) throw restoreErr;
+            restoredFromGraveyard = true;
         }
 
         // Mirrors the Stripe Dashboard's product metadata too, purely for cosmetic parity --
@@ -79,7 +100,7 @@ export default async function handler(req, res) {
             console.error('Failed to write restock_log entry (restock itself still succeeded):', logErr.message);
         }
 
-        res.status(200).json({ ok: true, previousStockLevel, newStockLevel: qty });
+        res.status(200).json({ ok: true, previousStockLevel, newStockLevel: qty, restoredFromGraveyard });
     } catch (error) {
         console.error('Admin restock error:', error);
         res.status(500).json({ error: error.message });

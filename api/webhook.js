@@ -94,11 +94,13 @@ export default async function handler(req, res) {
       }
 
       // GRAVEYARD RESURRECTION: for each line item that was a "resurrect this sold-out DTF
-      // design" pre-order (see item.resurrection in checkout.js), try to actually resurrect it.
-      // resurrect_product() is atomic and idempotent per-product (not per-session) -- only the
-      // first payment to reach it for a given product "wins" (gets a non-empty row back) and
-      // triggers the email/animation; anyone else's payment for the same design still completes
-      // as a normal order, it just doesn't re-trigger those.
+      // design" pre-order (see item.resurrection in checkout.js), notify the shop owner and flag
+      // the buyer's animation. Deliberately does NOT touch stock or category -- these designs are
+      // made to order (no physical inventory sitting ready), so every successful pre-order stays
+      // in the Graveyard, purchasable by anyone, until the shop owner deliberately restores it for
+      // real via the "Restore from Graveyard" admin action once actual inventory exists (see
+      // api/admin-restock.js). resurrect_product() is now a plain read (no race to protect), so
+      // this runs identically for every pre-order, not just a "first payment wins" one.
       if (supabaseAdmin) {
         for (let i = 0; i < itemCount; i++) {
           const itemData = unpackCartItemMetadata(metadata, i);
@@ -112,25 +114,21 @@ export default async function handler(req, res) {
 
             const result = Array.isArray(rows) ? rows[0] : rows;
             if (result) {
-              // Same canonical Redis key format used everywhere else -- DTF products are always
-              // the non-variant 'simple' card layout, so the key is always the plain 'stock' one.
-              // This and the success flag below are load-bearing (Redis is what the storefront
-              // actually reads, and the flag is how the buyer's animation fires) -- neither should
-              // ever get skipped just because the notification email had a hiccup, so that's
-              // isolated in its own try/catch, same as notifyPackingAlert/notifyRestock elsewhere
-              // in this file.
-              await kv.set(`stock_${result.id}_stock`, result.restock_qty);
-
               const imageUrl = result.images && result.images.length > 0 ? result.images[0] : null;
+
+              // The success flag below (what the buyer's browser polls for its animation) is
+              // load-bearing -- it should never get skipped just because the notification email
+              // had a hiccup, so that's isolated in its own try/catch, same as
+              // notifyPackingAlert/notifyRestock elsewhere in this file.
               try {
                 await notifyResurrection({
                   productName: result.name,
                   imageUrl,
-                  categoryLabel: result.restored_category_label,
+                  categoryLabel: result.category_label,
                   sessionId: session.id,
                 });
               } catch (notifyErr) {
-                console.error('Resurrection email failed (stock sync already succeeded):', notifyErr.message);
+                console.error('Resurrection email failed:', notifyErr.message);
               }
 
               // The buyer's browser polls this after the Stripe redirect (same idiom as

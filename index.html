@@ -657,6 +657,8 @@
         .admin-stats-line { font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 10px; }
         .admin-restock-current.stock-out { color: #ff4d6d; font-weight: 700; }
         .admin-restock-current.stock-low { color: #f5b800; font-weight: 700; }
+        .admin-restock-row-graveyard { background: rgba(124,58,237,0.06); border-radius: 6px; padding-left: 6px; padding-right: 6px; }
+        .admin-restock-graveyard-note { color: var(--accent-graveyard); font-size: 0.68rem; font-family: var(--font-mono); margin-top: 2px; }
 
         .admin-user-result {
             display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -1979,9 +1981,20 @@
             <h2 style="font-family: var(--font-mono); color: var(--accent-graveyard); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">🪦 Resurrect This Design</h2>
             <div class="resurrect-modal-img" id="resurrectModalImg"></div>
             <p id="resurrectModalName" style="text-align:center; font-weight:700; margin: 14px 0 6px;"></p>
-            <p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-bottom:20px;">This design sold out and moved to the Graveyard. Pre-order it now — the moment your payment clears, it rises from the dead and comes back in stock for everyone.</p>
+            <p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-bottom:14px;">This design sold out and moved to the Graveyard. This is a made-to-order pre-order, not off-the-shelf stock -- placing it doesn't take it from anyone else.</p>
+            <p style="text-align:center; color:var(--accent-graveyard); font-size:0.8rem; font-weight:700; margin-bottom:20px;">⏳ Please allow 7–10 days for it to be made and shipped.</p>
+
+            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <label style="margin-bottom: 0;">Quantity</label>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <button type="button" class="qty-btn hover-target" onclick="changeResurrectQty(-1)">-</button>
+                    <input type="number" id="resurrectQty" value="1" min="1" max="50" onchange="updateResurrectTotal()" style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--text-pure); background: transparent; border: none; width: 60px; text-align: center; outline: none; -moz-appearance: textfield;">
+                    <button type="button" class="qty-btn hover-target" onclick="changeResurrectQty(1)">+</button>
+                </div>
+            </div>
+
             <div class="cart-total-row" style="border-top: 1px solid var(--border-subtle); padding-top: 20px; margin-bottom: 20px;">
-                <span>Price:</span>
+                <span>Total:</span>
                 <span id="resurrectModalPrice" style="color:var(--accent-graveyard);"></span>
             </div>
             <button class="checkout-btn magnetic-btn hover-target" style="background:var(--accent-graveyard);" onclick="confirmResurrect()">🪦 Resurrect &amp; Pre-Order</button>
@@ -1999,7 +2012,7 @@
             </div>
             <h2 class="resurrection-title">IT'S ALIVE!</h2>
             <p class="resurrection-product-name" id="resurrectionProductName"></p>
-            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center;">You brought this design back from the Graveyard — thank you!</p>
+            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center;">Your pre-order is locked in — thank you for helping bring this design back! Please allow 7–10 days for it to be made and shipped.</p>
         </div>
     </div>
 
@@ -2812,9 +2825,10 @@ Thank you for supporting my small business and understanding the handmade nature
         function openResurrectModal(productId, name, price, priceId, imageUrl) {
             window.pendingResurrection = { productId, name, price: parseFloat(price), priceId, imageUrl };
             document.getElementById('resurrectModalName').innerText = name;
-            document.getElementById('resurrectModalPrice').innerText = `$${parseFloat(price).toFixed(2)}`;
             const imgZone = document.getElementById('resurrectModalImg');
             imgZone.style.backgroundImage = imageUrl ? `url('${imageUrl}')` : 'none';
+            document.getElementById('resurrectQty').value = 1;
+            updateResurrectTotal();
             document.getElementById('resurrectOverlay').classList.add('active');
         }
 
@@ -2823,29 +2837,51 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById('resurrectOverlay').classList.remove('active');
         }
 
+        // No stock cap on a made-to-order pre-order (see checkout.js), so this is just a plain
+        // qty stepper -- same 1-50 clamp checkout.js enforces server-side, kept in sync here so
+        // the displayed total never lies about what'll actually be charged.
+        function changeResurrectQty(delta) {
+            const input = document.getElementById('resurrectQty');
+            const newVal = Math.max(1, Math.min(50, (parseInt(input.value, 10) || 1) + delta));
+            input.value = newVal;
+            updateResurrectTotal();
+        }
+
+        function updateResurrectTotal() {
+            const pending = window.pendingResurrection;
+            if (!pending) return;
+            const qty = Math.max(1, Math.min(50, parseInt(document.getElementById('resurrectQty').value, 10) || 1));
+            document.getElementById('resurrectModalPrice').innerText = `$${(pending.price * qty).toFixed(2)}`;
+        }
+
         // Queues the resurrection pre-order into the same persistent cart/checkout pipeline
         // every other purchase already uses (see processCheckout) -- item.resurrection is the
         // only thing that makes it special, all the way down to checkout.js/webhook.js. Opens
         // the cart drawer afterward (same UX as addTikTokToCart/moveWishlistToCart) so the
-        // shopper can pick a fulfillment method and finish checkout normally.
+        // shopper can pick a fulfillment method and finish checkout normally. Re-opening the
+        // modal for a design already queued updates that line's quantity to whatever's chosen
+        // this time, rather than stacking a second line for the same design.
         function confirmResurrect() {
             const pending = window.pendingResurrection;
             if (!pending) return;
+            const qty = Math.max(1, Math.min(50, parseInt(document.getElementById('resurrectQty').value, 10) || 1));
 
-            const alreadyQueued = cart.some(c => c.resurrection && c.productId === pending.productId);
-            if (!alreadyQueued) {
+            const existing = cart.find(c => c.resurrection && c.productId === pending.productId);
+            if (existing) {
+                existing.quantity = qty;
+            } else {
                 cart.push({
                     id: Date.now(),
                     name: `🪦 Resurrect: ${pending.name}`,
                     price: pending.price,
                     priceId: pending.priceId,
                     productId: pending.productId,
-                    quantity: 1,
+                    quantity: qty,
                     resurrection: true,
                 });
-                localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
-                updateCartUI();
             }
+            localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+            updateCartUI();
 
             closeResurrectModal();
             if (!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
@@ -2905,8 +2941,10 @@ Thank you for supporting my small business and understanding the handmade nature
                     if (!response.ok) continue;
                     const data = await response.json();
                     if (data && data.resurrection) {
+                        // No grid refresh needed -- the design deliberately stays right where it
+                        // was in the Graveyard (made to order, no stock change), so nothing about
+                        // its card actually changes for this to reflect.
                         playResurrectionCelebration(data.resurrection);
-                        initShopEngine(); // refresh the grid so the design shows back in its real category
                         return;
                     }
                 } catch (err) {
@@ -4652,15 +4690,33 @@ Thank you for supporting my small business and understanding the handmade nature
             const rows = entries.map(e => {
                 const rowId = `admin-${e.productId}-${e.key}`;
                 const stockClass = e.qty <= 0 ? 'stock-out' : (e.qty <= 3 ? 'stock-low' : '');
+
+                // GRAVEYARD: this design is made-to-order with no real inventory (see
+                // sql/graveyard_no_auto_restock.sql) -- flag it distinctly and show where it'll
+                // go back to, so restocking it for real is a one-click, no-guessing action.
+                const isGraveyard = window.productCategoryId && window.productCategoryId[e.productId] === 'graveyard';
+                let graveyardNote = '';
+                let buttonLabel = 'Set';
+                let inputPlaceholder = 'new #';
+                if (isGraveyard) {
+                    const meta = window.productInventory[e.productId] || {};
+                    const preCatId = meta.pre_graveyard_category;
+                    const preCatLabel = (preCatId && window.categoriesById[preCatId] && window.categoriesById[preCatId].label) || preCatId || 'unknown category';
+                    graveyardNote = `<div class="admin-restock-graveyard-note">🪦 In the Graveyard — originally: ${escapeHtml(preCatLabel)}</div>`;
+                    buttonLabel = '🪦➜✅ Restore';
+                    inputPlaceholder = 'real stock #';
+                }
+
                 return `
-                    <div class="admin-restock-row" data-product-name="${escapeHtml(e.name.toLowerCase())}">
+                    <div class="admin-restock-row${isGraveyard ? ' admin-restock-row-graveyard' : ''}" data-product-name="${escapeHtml(e.name.toLowerCase())}">
                         <div class="admin-restock-label">
                             <div class="admin-restock-product">${escapeHtml(e.name)}</div>
                             <div class="admin-restock-variant">${escapeHtml(e.variantLabel)}</div>
+                            ${graveyardNote}
                         </div>
                         <div class="admin-restock-current ${stockClass}" id="${rowId}-current">now: ${e.qty}</div>
-                        <input type="number" min="0" id="${rowId}-input" placeholder="new #">
-                        <button type="button" onclick="adminRestock('${e.productId}', '${e.key}', '${rowId}')">Set</button>
+                        <input type="number" min="0" id="${rowId}-input" placeholder="${inputPlaceholder}">
+                        <button type="button" onclick="adminRestock('${e.productId}', '${e.key}', '${rowId}')">${buttonLabel}</button>
                         <span class="admin-restock-status" id="${rowId}-status"></span>
                     </div>
                 `;
@@ -4703,8 +4759,19 @@ Thank you for supporting my small business and understanding the handmade nature
             const currentQty = parseInt((currentEl.textContent.match(/\d+/) || ['0'])[0], 10);
             const willNotify = currentQty <= 0 && newQuantity > 0;
 
-            const confirmMsg = `Set "${productLabel}" (${variantLabel}) to ${newQuantity}?`
-                + (willNotify ? '\n\nThis will email everyone who wishlisted it.' : '');
+            // GRAVEYARD: setting a positive number here on a made-to-order design is a real
+            // "restore from Graveyard" action (see api/admin-restock.js), not just a stock edit --
+            // make that unmistakable before it happens, since it's a deliberate one-way move.
+            const isGraveyardRestore = window.productCategoryId
+                && window.productCategoryId[productId] === 'graveyard'
+                && newQuantity > 0;
+            const graveyardNoteEl = row ? row.querySelector('.admin-restock-graveyard-note') : null;
+            const destinationLabel = graveyardNoteEl ? graveyardNoteEl.textContent.replace('🪦 In the Graveyard — originally: ', '') : 'its original category';
+
+            const confirmMsg = isGraveyardRestore
+                ? `Restore "${productLabel}" out of the Graveyard back into ${destinationLabel} with ${newQuantity} in real stock?\n\nOnly do this once you actually have that many made -- anyone will be able to buy it immediately.`
+                : `Set "${productLabel}" (${variantLabel}) to ${newQuantity}?`
+                    + (willNotify ? '\n\nThis will email everyone who wishlisted it.' : '');
             if (!confirm(confirmMsg)) return;
 
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -4722,6 +4789,23 @@ Thank you for supporting my small business and understanding the handmade nature
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || 'Something went wrong.');
+
+                if (result.restoredFromGraveyard) {
+                    // Category actually changed this time (unlike a normal restock, or a
+                    // customer's resurrection pre-order, neither of which touch it) -- a full
+                    // grid refresh is what's needed to reflect that, same as the old
+                    // customer-facing bystander refresh used to do before resurrection stopped
+                    // auto-restocking.
+                    statusEl.textContent = 'Restored ✓';
+                    showToast(`
+                        <div style="text-align:center;">
+                            <div style="font-size:1.8rem;">🪦➜✅</div>
+                            <div style="font-weight:700; margin-top:6px;">"${escapeHtml(productLabel)}" restored from the Graveyard with ${newQuantity} in stock!</div>
+                        </div>
+                    `, { duration: 7000 });
+                    initShopEngine();
+                    return;
+                }
 
                 statusEl.textContent = 'Saved ✓';
                 input.value = '';

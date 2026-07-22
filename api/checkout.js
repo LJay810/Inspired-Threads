@@ -81,13 +81,13 @@ export default async function handler(req, res) {
                 if (item.resurrection) {
                     // Graveyard "resurrect" pre-order (DTF only): buying something that currently
                     // shows 0 stock is the entire point, so skip the normal reservation check --
-                    // the product only actually comes back in stock once this payment succeeds
-                    // (see resurrect_product() in sql/graveyard_resurrection_schema.sql, invoked
-                    // from webhook.js's checkout.session.completed handler). One unit per order,
-                    // no exceptions -- first paid resurrection wins, everyone after just buys
-                    // normally once it's back.
-                    item.quantity = 1;
+                    // these designs are made to order (no physical inventory sitting ready), so
+                    // stock is deliberately never touched by this purchase at all (see
+                    // resurrect_product() in sql/graveyard_no_auto_restock.sql). No natural stock
+                    // cap applies here (unlike every other item), so quantity is clamped instead
+                    // of trusted as-is, to guard against a malformed/absurd client-supplied value.
                     hasStockLimit = false;
+                    item.quantity = Math.max(1, Math.min(50, parseInt(item.quantity, 10) || 1));
                 }
             } else {
                 // FALLBACK: not in the admin-managed catalog -- e.g. the standalone TikTok Live
@@ -151,9 +151,7 @@ export default async function handler(req, res) {
             lineItems.push({
                 price: item.priceId,
                 quantity: item.quantity,
-                // Resurrection pre-orders are always exactly 1 unit -- don't let the Stripe
-                // Checkout page itself offer to bump the quantity back up.
-                adjustable_quantity: item.resurrection ? { enabled: false } : { enabled: true, minimum: 1 },
+                adjustable_quantity: { enabled: true, minimum: 1 },
             });
 
             // One packed key per item (not six) -- see lib/cart-metadata.js for why.

@@ -44,6 +44,10 @@ export default async function handler(req, res) {
                     sort_order: (product.sort_order != null ? product.sort_order : 99).toString(),
                 };
                 if (product.sub_category_id) metadata.sub_category = product.sub_category_id;
+                // Graveyard only: the category this design lived in before it sold out, so the
+                // embedded Admin Tools restock panel can show "originally: X" without guessing --
+                // see the "Restore from Graveyard" flow in index.html/api/admin-restock.js.
+                if (product.pre_graveyard_category_id) metadata.pre_graveyard_category = product.pre_graveyard_category_id;
                 if (product.dtf_placement) {
                     if (product.dtf_placement.top) metadata.dtf_top = product.dtf_placement.top;
                     if (product.dtf_placement.left) metadata.dtf_left = product.dtf_placement.left;
