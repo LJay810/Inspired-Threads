@@ -2922,6 +2922,22 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById('resurrectionCelebrationOverlay').classList.remove('active');
         }
 
+        // The webhook can finish (and this celebration become ready to show) while the shopper
+        // still has the "Payment Successful" modal open in front of them -- both are the same
+        // .tiktok-overlay layer, so showing this one on top would visually stack/collide with
+        // that one. Wait for the payment modal to actually be dismissed (see the
+        // 'payment-status-modal-closed' event dispatched from closePaymentStatusModal()) before
+        // revealing this one; if the payment modal was never shown or is already closed, show
+        // right away.
+        function revealResurrectionCelebration(data) {
+            const paymentOverlay = document.getElementById('paymentStatusOverlay');
+            if (paymentOverlay && paymentOverlay.classList.contains('active')) {
+                document.addEventListener('payment-status-modal-closed', () => playResurrectionCelebration(data), { once: true });
+            } else {
+                playResurrectionCelebration(data);
+            }
+        }
+
         // Mirrors showRewardRecapIfAvailable's polling idiom: the webhook that actually finalizes
         // a resurrection runs async, so it may not be done the instant Stripe redirects back here.
         // One-shot: the pending session id is consumed (removed) regardless of outcome.
@@ -2944,7 +2960,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         // No grid refresh needed -- the design deliberately stays right where it
                         // was in the Graveyard (made to order, no stock change), so nothing about
                         // its card actually changes for this to reflect.
-                        playResurrectionCelebration(data.resurrection);
+                        revealResurrectionCelebration(data.resurrection);
                         return;
                     }
                 } catch (err) {
@@ -6073,6 +6089,10 @@ Thank you for supporting my small business and understanding the handmade nature
 
         function closePaymentStatusModal() {
             document.getElementById('paymentStatusOverlay').classList.remove('active');
+            // Lets checkResurrectionSuccess() (which can resolve while this modal is still open,
+            // since the webhook and this modal fire independently) know it's safe to reveal the
+            // resurrection celebration now, instead of stacking both overlays at once.
+            document.dispatchEvent(new CustomEvent('payment-status-modal-closed'));
         }
 
         function togglePolicyPanel() {
