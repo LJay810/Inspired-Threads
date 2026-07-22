@@ -5454,6 +5454,15 @@ Thank you for supporting my small business and understanding the handmade nature
         // productMeta cache instead of scraping the DOM, so it works even if the item was
         // rendered SOLD OUT on the very first page load.
         function refreshSimpleStock(productId) {
+            // GRAVEYARD: this card's badge/button are the themed "IN THE GRAVEYARD" / "Resurrect"
+            // state, not the generic sold-out one -- leave it alone. Stock on a graveyarded
+            // product is always 0 by definition, so this function would otherwise stomp the
+            // Resurrect button back to "SOLD OUT" on every 20s poll. The only transition that
+            // matters (stock crossing 0 -> positive, i.e. an actual resurrection) is already
+            // handled separately in pollLiveStock(), which triggers a full initShopEngine()
+            // re-render instead of a targeted patch, since the product's category changes too.
+            if (window.productCategoryId && window.productCategoryId[productId] === 'graveyard') return;
+
             const metadata = (window.productInventory && window.productInventory[productId]) || {};
             if (metadata.stock === undefined) return; // untracked / made-to-order, nothing to refresh
 
