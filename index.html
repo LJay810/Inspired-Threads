@@ -6120,17 +6120,40 @@ Thank you for supporting my small business and understanding the handmade nature
             }
         });
 
-        window.onload = () => { 
-            onScroll();  
-            
+        // Waits for the portal intro (z-index 99999, plays on every page load -- see
+        // 'portal-intro-done', dispatched near the bottom of this file) to finish before running
+        // callback, so a success overlay fired at page-load time doesn't sit invisible underneath
+        // the still-playing intro canvas and then pop in abruptly the instant it clears. Same
+        // wait idiom initInstallPrompt() already uses below, just pulled out so more than one
+        // caller can share it. Falls back to a timer in case the event never fires.
+        function afterPortalIntro(callback) {
+            const introCanvas = document.getElementById('portalIntroCanvas');
+            if (introCanvas && introCanvas.classList.contains('portal-done')) {
+                callback();
+                return;
+            }
+            let fired = false;
+            const run = () => { if (fired) return; fired = true; callback(); };
+            document.addEventListener('portal-intro-done', run, { once: true });
+            setTimeout(run, 6000);
+        }
+
+        window.onload = () => {
+            onScroll();
+
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('success') === 'true') {
                 localStorage.removeItem('inspiredThreadsCart');
-                cart = []; 
+                cart = [];
                 window.history.replaceState(null, '', window.location.pathname);
-                showPaymentStatusModal('success', 'Payment Successful', 'Your order has been placed. Your cart has been cleared.');
-                showRewardRecapIfAvailable();
-                checkResurrectionSuccess();
+                // Grouped behind afterPortalIntro so the payment modal, reward recap toast, and
+                // resurrection celebration (if applicable) all reveal together right after the
+                // intro clears, instead of firing immediately and getting visually swallowed by it.
+                afterPortalIntro(() => {
+                    showPaymentStatusModal('success', 'Payment Successful', 'Your order has been placed. Your cart has been cleared.');
+                    showRewardRecapIfAvailable();
+                    checkResurrectionSuccess();
+                });
             }
 
             if (urlParams.get('canceled') === 'true') {
