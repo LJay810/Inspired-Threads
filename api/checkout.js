@@ -77,6 +77,18 @@ export default async function handler(req, res) {
                 hasStockLimit = hasVariants
                     ? product.product_variants.some(v => v.size === item.size && v.color === item.color)
                     : product.stock !== null;
+
+                if (item.resurrection) {
+                    // Graveyard "resurrect" pre-order (DTF only): buying something that currently
+                    // shows 0 stock is the entire point, so skip the normal reservation check --
+                    // the product only actually comes back in stock once this payment succeeds
+                    // (see resurrect_product() in sql/graveyard_resurrection_schema.sql, invoked
+                    // from webhook.js's checkout.session.completed handler). One unit per order,
+                    // no exceptions -- first paid resurrection wins, everyone after just buys
+                    // normally once it's back.
+                    item.quantity = 1;
+                    hasStockLimit = false;
+                }
             } else {
                 // FALLBACK: not in the admin-managed catalog -- e.g. the standalone TikTok Live
                 // Claims product, which uses its own hardcoded Stripe Price IDs (see index.html)
@@ -139,7 +151,9 @@ export default async function handler(req, res) {
             lineItems.push({
                 price: item.priceId,
                 quantity: item.quantity,
-                adjustable_quantity: { enabled: true, minimum: 1 },
+                // Resurrection pre-orders are always exactly 1 unit -- don't let the Stripe
+                // Checkout page itself offer to bump the quantity back up.
+                adjustable_quantity: item.resurrection ? { enabled: false } : { enabled: true, minimum: 1 },
             });
 
             // One packed key per item (not six) -- see lib/cart-metadata.js for why.

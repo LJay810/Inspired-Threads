@@ -55,6 +55,8 @@
             --text-muted: #8e9aa8;
             --accent-pink: #ff007f;
             --accent-pink-hover: #cc0066;
+            --accent-graveyard: #7c3aed;
+            --accent-graveyard-glow: #34d399;
             --border-subtle: rgba(255, 255, 255, 0.08);
             
             --transition-fluid: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
@@ -328,6 +330,70 @@
         .tiktok-overlay.active .tiktok-modal { transform: translateY(0) scale(1); }
         .close-tiktok { position: absolute; top: 15px; right: 20px; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: color 0.2s; }
         .close-tiktok:hover { color: var(--accent-pink); }
+
+        /* --- GRAVEYARD RESURRECTION --- */
+        .resurrect-modal { border-color: var(--accent-graveyard); box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px rgba(124,58,237,0.2); }
+        .resurrect-modal-img { height: 180px; background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; border-radius: 8px; }
+
+        .resurrection-modal { border-color: var(--accent-graveyard); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(124,58,237,0.3); }
+        .resurrection-stage { position: relative; height: 220px; display: flex; justify-content: center; align-items: center; overflow: visible; margin-bottom: 10px; }
+
+        .resurrection-glow {
+            position: absolute; width: 160px; height: 160px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(52,211,153,0.55) 0%, rgba(124,58,237,0.35) 45%, transparent 75%);
+            opacity: 0; filter: blur(4px);
+        }
+        .resurrection-overlay.active .resurrection-glow { animation: resurrectionGlowPulse 2.4s ease-in-out 0.6s infinite; }
+
+        .resurrection-tombstone { font-size: 4.5rem; position: relative; z-index: 2; opacity: 1; }
+        .resurrection-overlay.active .resurrection-tombstone { animation: resurrectionCrack 0.9s cubic-bezier(0.36,0.07,0.19,0.97) forwards; }
+
+        .resurrection-product-img {
+            position: absolute; width: 130px; height: 130px; object-fit: contain; border-radius: 12px;
+            background: #f5f5f5; z-index: 1; opacity: 0; transform: scale(0.6) rotateY(90deg);
+        }
+        .resurrection-overlay.active .resurrection-product-img { animation: resurrectionReveal 0.8s ease-out 0.75s forwards; }
+
+        .resurrection-sparks { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+        .resurrection-spark {
+            position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; border-radius: 50%;
+            background: var(--accent-graveyard-glow); opacity: 0;
+        }
+        .resurrection-overlay.active .resurrection-spark { animation: resurrectionSparkBurst 1s ease-out 0.75s forwards; }
+
+        .resurrection-title {
+            font-family: var(--font-mono); letter-spacing: 0.12em; color: var(--accent-graveyard-glow);
+            font-size: 1.4rem; margin: 6px 0 8px; opacity: 0; transform: scale(0.7);
+        }
+        .resurrection-overlay.active .resurrection-title { animation: resurrectionStamp 0.5s cubic-bezier(0.34,1.56,0.64,1) 1.15s forwards; }
+        .resurrection-product-name { font-weight: 700; margin-bottom: 10px; opacity: 0; }
+        .resurrection-overlay.active .resurrection-product-name { animation: fadeIn 0.6s ease 1.4s forwards; }
+
+        @keyframes resurrectionCrack {
+            0% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+            30% { transform: scale(1.08) rotate(-4deg); filter: brightness(1.3); }
+            45% { transform: scale(1.05) rotate(3deg); }
+            60% { transform: scale(0.9) rotate(-2deg); filter: brightness(1.6); opacity: 1; }
+            75% { transform: scale(0.4) rotate(6deg); opacity: 0.3; }
+            100% { transform: scale(0.2) rotate(10deg); opacity: 0; }
+        }
+        @keyframes resurrectionReveal {
+            0% { opacity: 0; transform: scale(0.6) rotateY(90deg); }
+            60% { opacity: 1; transform: scale(1.08) rotateY(0deg); }
+            100% { opacity: 1; transform: scale(1) rotateY(0deg); }
+        }
+        @keyframes resurrectionGlowPulse {
+            0%, 100% { opacity: 0.35; transform: scale(0.9); }
+            50% { opacity: 0.8; transform: scale(1.15); }
+        }
+        @keyframes resurrectionStamp {
+            0% { opacity: 0; transform: scale(0.7); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes resurrectionSparkBurst {
+            0% { opacity: 1; transform: translate(-50%, -50%) translate(0, 0) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) var(--spark-offset, translate(60px, -60px)) scale(0.3); }
+        }
 
         .review-entry { border-bottom: 1px solid var(--border-subtle); padding: 14px 0; }
         .review-entry:last-child { border-bottom: none; }
@@ -1245,6 +1311,11 @@
         @keyframes lowStockPulse { 0%, 100% { box-shadow: 0 0 0 rgba(245,184,0,0); } 50% { box-shadow: 0 0 12px rgba(245,184,0,0.5); } }
         .stock-badge.low-stock { background: rgba(245,184,0,0.12); border-color: #f5b800; color: #f5b800; animation: lowStockPulse 1.8s ease-in-out infinite; }
 
+        @keyframes graveyardPulse { 0%, 100% { box-shadow: 0 0 0 rgba(124,58,237,0); } 50% { box-shadow: 0 0 12px rgba(124,58,237,0.45); } }
+        .stock-badge.graveyard-badge { background: rgba(124,58,237,0.14); border-color: var(--accent-graveyard); color: #c4b5fd; animation: graveyardPulse 2.2s ease-in-out infinite; }
+        .resurrect-btn { background: var(--accent-graveyard); color: var(--text-pure); border: none; padding: 14px 28px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 6px; transition: transform 0.2s, background 0.3s; display: inline-block; cursor: pointer; }
+        .resurrect-btn:hover { background: #6d28d9; transform: translateY(-2px); }
+
         .variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 25px; }
         .variant-select { background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); color: var(--text-pure); padding: 10px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.8rem; outline: none; transition: var(--transition-snappy); appearance: none; }
         .variant-select:focus { border-color: var(--accent-pink); }
@@ -1899,6 +1970,36 @@
 
             <button class="checkout-btn magnetic-btn hover-target" id="spinWheelBtn" onclick="spinTheWheel()" style="margin-top: 22px;">Spin Now</button>
             <p class="spin-wheel-result" id="spinWheelResult"></p>
+        </div>
+    </div>
+
+    <div class="tiktok-overlay" id="resurrectOverlay" onclick="closeResurrectModal(event)">
+        <div class="tiktok-modal resurrect-modal" style="max-width: 420px;" onclick="event.stopPropagation()">
+            <button class="close-tiktok hover-target" onclick="closeResurrectModal()">✕</button>
+            <h2 style="font-family: var(--font-mono); color: var(--accent-graveyard); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">🪦 Resurrect This Design</h2>
+            <div class="resurrect-modal-img" id="resurrectModalImg"></div>
+            <p id="resurrectModalName" style="text-align:center; font-weight:700; margin: 14px 0 6px;"></p>
+            <p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-bottom:20px;">This design sold out and moved to the Graveyard. Pre-order it now — the moment your payment clears, it rises from the dead and comes back in stock for everyone.</p>
+            <div class="cart-total-row" style="border-top: 1px solid var(--border-subtle); padding-top: 20px; margin-bottom: 20px;">
+                <span>Price:</span>
+                <span id="resurrectModalPrice" style="color:var(--accent-graveyard);"></span>
+            </div>
+            <button class="checkout-btn magnetic-btn hover-target" style="background:var(--accent-graveyard);" onclick="confirmResurrect()">🪦 Resurrect &amp; Pre-Order</button>
+        </div>
+    </div>
+
+    <div class="tiktok-overlay resurrection-overlay" id="resurrectionCelebrationOverlay" onclick="closeResurrectionCelebration(event)">
+        <div class="tiktok-modal resurrection-modal" onclick="event.stopPropagation()">
+            <button class="close-tiktok hover-target" onclick="closeResurrectionCelebration()">✕</button>
+            <div class="resurrection-stage" id="resurrectionStage">
+                <div class="resurrection-glow"></div>
+                <div class="resurrection-tombstone" id="resurrectionTombstone">🪦</div>
+                <img class="resurrection-product-img" id="resurrectionProductImg" src="" alt="Resurrected design">
+                <div class="resurrection-sparks" id="resurrectionSparks"></div>
+            </div>
+            <h2 class="resurrection-title">IT'S ALIVE!</h2>
+            <p class="resurrection-product-name" id="resurrectionProductName"></p>
+            <p style="color:var(--text-muted); font-size:0.85rem; text-align:center;">You brought this design back from the Graveyard — thank you!</p>
         </div>
     </div>
 
@@ -2705,6 +2806,115 @@ Thank you for supporting my small business and understanding the handmade nature
             }
         }
 
+        // --- GRAVEYARD RESURRECTION ---
+        window.pendingResurrection = null;
+
+        function openResurrectModal(productId, name, price, priceId, imageUrl) {
+            window.pendingResurrection = { productId, name, price: parseFloat(price), priceId, imageUrl };
+            document.getElementById('resurrectModalName').innerText = name;
+            document.getElementById('resurrectModalPrice').innerText = `$${parseFloat(price).toFixed(2)}`;
+            const imgZone = document.getElementById('resurrectModalImg');
+            imgZone.style.backgroundImage = imageUrl ? `url('${imageUrl}')` : 'none';
+            document.getElementById('resurrectOverlay').classList.add('active');
+        }
+
+        function closeResurrectModal(e) {
+            if (e && e.target.id !== 'resurrectOverlay') return;
+            document.getElementById('resurrectOverlay').classList.remove('active');
+        }
+
+        // Queues the resurrection pre-order into the same persistent cart/checkout pipeline
+        // every other purchase already uses (see processCheckout) -- item.resurrection is the
+        // only thing that makes it special, all the way down to checkout.js/webhook.js. Opens
+        // the cart drawer afterward (same UX as addTikTokToCart/moveWishlistToCart) so the
+        // shopper can pick a fulfillment method and finish checkout normally.
+        function confirmResurrect() {
+            const pending = window.pendingResurrection;
+            if (!pending) return;
+
+            const alreadyQueued = cart.some(c => c.resurrection && c.productId === pending.productId);
+            if (!alreadyQueued) {
+                cart.push({
+                    id: Date.now(),
+                    name: `🪦 Resurrect: ${pending.name}`,
+                    price: pending.price,
+                    priceId: pending.priceId,
+                    productId: pending.productId,
+                    quantity: 1,
+                    resurrection: true,
+                });
+                localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+                updateCartUI();
+            }
+
+            closeResurrectModal();
+            if (!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
+        }
+
+        function buildResurrectionSparks() {
+            const container = document.getElementById('resurrectionSparks');
+            if (!container) return;
+            let html = '';
+            const sparkCount = 14;
+            for (let i = 0; i < sparkCount; i++) {
+                const angle = (i / sparkCount) * Math.PI * 2;
+                const distance = 70 + Math.random() * 40;
+                const x = Math.round(Math.cos(angle) * distance);
+                const y = Math.round(Math.sin(angle) * distance);
+                const delay = (Math.random() * 0.2).toFixed(2);
+                html += `<div class="resurrection-spark" style="--spark-offset: translate(${x}px, ${y}px); animation-delay: ${delay}s;"></div>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function playResurrectionCelebration({ productName, imageUrl }) {
+            document.getElementById('resurrectionProductName').innerText = productName || 'Your design';
+            const img = document.getElementById('resurrectionProductImg');
+            img.src = imageUrl || '';
+            img.style.display = imageUrl ? 'block' : 'none';
+            buildResurrectionSparks();
+
+            const overlay = document.getElementById('resurrectionCelebrationOverlay');
+            // Force the enter animations to restart even if this fires twice in one page life.
+            overlay.classList.remove('active');
+            void overlay.offsetWidth;
+            overlay.classList.add('active');
+        }
+
+        function closeResurrectionCelebration(e) {
+            if (e && e.target.id !== 'resurrectionCelebrationOverlay') return;
+            document.getElementById('resurrectionCelebrationOverlay').classList.remove('active');
+        }
+
+        // Mirrors showRewardRecapIfAvailable's polling idiom: the webhook that actually finalizes
+        // a resurrection runs async, so it may not be done the instant Stripe redirects back here.
+        // One-shot: the pending session id is consumed (removed) regardless of outcome.
+        async function checkResurrectionSuccess() {
+            const sessionId = localStorage.getItem('pendingResurrectionSessionId');
+            localStorage.removeItem('pendingResurrectionSessionId');
+            if (!sessionId) return;
+
+            for (const delayMs of [1500, 2500, 3500, 4500]) {
+                await new Promise(r => setTimeout(r, delayMs));
+                try {
+                    const response = await fetch('/api/stock', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ keys: [], resurrectionSessionId: sessionId }),
+                    });
+                    if (!response.ok) continue;
+                    const data = await response.json();
+                    if (data && data.resurrection) {
+                        playResurrectionCelebration(data.resurrection);
+                        initShopEngine(); // refresh the grid so the design shows back in its real category
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('Resurrection status check failed, will retry:', err.message);
+                }
+            }
+        }
+
         function starString(avg) {
             const rounded = Math.round(avg);
             return '★'.repeat(rounded) + '☆'.repeat(5 - rounded);
@@ -3016,6 +3226,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
                 shopGrid.innerHTML = '';
                 window.productInventory = {};
+                window.productCategoryId = {}; // productId -> current categoryId, used by pollLiveStock to spot a Graveyard resurrection
                 window.dtfRegistry = []; // Reset local memory
 
                 const firstFilterBtnId = renderFilterBar(categoryList);
@@ -3032,6 +3243,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     const cardCategory = (product.metadata && product.metadata.sub_category) || categoryId;
 
                     window.productInventory[product.id] = product.metadata || {};
+                    window.productCategoryId[product.id] = categoryId;
                     window.productMeta = window.productMeta || {};
                     window.productMeta[product.id] = { name: product.name, price: product.price, priceId: product.priceId };
 
@@ -3040,7 +3252,23 @@ Thank you for supporting my small business and understanding the handmade nature
 
                     const renderer = CARD_LAYOUT_RENDERERS[category.card_layout_type] || renderSimpleCard;
                     const { imageZoneHTML, variantHTML, stockCount } = renderer(product, category);
-                    const { stockHTML, checkoutButtonHTML } = buildStockAndCheckoutHTML(product, hasVariants, stockCount);
+                    let { stockHTML, checkoutButtonHTML } = buildStockAndCheckoutHTML(product, hasVariants, stockCount);
+
+                    // GRAVEYARD: a sold-out DTF design that's been moved here (see
+                    // move_product_to_graveyard in sql/graveyard_resurrection_schema.sql) gets a
+                    // themed "Resurrect" button instead of the normal "SOLD OUT" state -- clicking
+                    // it opens a confirm modal, and a completed payment is what actually brings it
+                    // back (see openResurrectModal() / confirmResurrect()).
+                    if (categoryId === 'graveyard') {
+                        const safeGraveyardName = product.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        const graveyardImg = (product.images && product.images.length > 0) ? product.images[0] : '';
+                        stockHTML = `<div class="stock-badge graveyard-badge" id="stock-badge-${product.id}">🪦 IN THE GRAVEYARD</div>`;
+                        checkoutButtonHTML = `
+                            <button class="stripe-btn resurrect-btn magnetic-btn hover-target" id="btn-zone-${product.id}"
+                                onclick="openResurrectModal('${product.id}', '${safeGraveyardName}', '${product.price}', '${product.priceId}', '${graveyardImg}')">
+                                🪦 Resurrect
+                            </button>`;
+                    }
 
                     const isInWishlist = window.wishlist && window.wishlist.some(w => w.productId === product.id);
                     const heartClass = isInWishlist ? 'wishlist-heart hover-target active' : 'wishlist-heart hover-target';
@@ -5164,15 +5392,46 @@ Thank you for supporting my small business and understanding the handmade nature
                 const data = await response.json();
                 if (!data || !data.stock) return;
 
+                // GRAVEYARD RESURRECTION (bystander effect): a Graveyard product's stock
+                // crossing 0 -> positive means someone else's resurrection payment just cleared.
+                // Collected here rather than acted on inline, since a full shop refresh (the
+                // product's *category* changed, not just its stock count -- a targeted DOM patch
+                // like refreshSimpleStock does elsewhere isn't enough) should only happen once
+                // even if several Graveyard items cross in the same poll.
+                const justResurrected = [];
+
                 keyMap.forEach(({ redisKey, productId, metaKey }) => {
                     const val = data.stock[redisKey];
                     // productInventory[productId] IS the same object as the product's metadata
                     // everywhere else in the app (dtfRegistry, etc.), so mutating it
                     // in place keeps every other reference to it in sync for free.
                     if (val !== null && val !== undefined && window.productInventory[productId]) {
+                        const prevVal = parseInt(window.productInventory[productId][metaKey]) || 0;
+                        const newVal = parseInt(val) || 0;
                         window.productInventory[productId][metaKey] = val.toString();
+
+                        if (window.productCategoryId && window.productCategoryId[productId] === 'graveyard' && prevVal <= 0 && newVal > 0) {
+                            justResurrected.push(productId);
+                        }
                     }
                 });
+
+                if (justResurrected.length > 0) {
+                    justResurrected.forEach(productId => {
+                        const meta = (window.productMeta && window.productMeta[productId]) || {};
+                        showToast(`
+                            <div style="text-align:center;">
+                                <div style="font-size:1.8rem;">🪦➜✨</div>
+                                <div style="font-weight:700; margin-top:6px;">"${escapeHtml(meta.name || 'A design')}" was just resurrected!</div>
+                            </div>
+                        `, { duration: 7000 });
+                    });
+                    // The item's category actually changed (Graveyard -> its real category), so a
+                    // full re-render is what's needed here, not a targeted badge patch. This also
+                    // re-arms live stock polling on its own (see the end of initShopEngine).
+                    initShopEngine();
+                    return;
+                }
 
                 refreshAllStockBadges();
             } catch (err) {
@@ -5295,12 +5554,14 @@ Thank you for supporting my small business and understanding the handmade nature
                 cart.forEach((item, index) => {
                     totalItems += item.quantity;
                     subTotalPrice += (item.price * item.quantity);
-                    const metaText = item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
-                    
+                    const metaText = item.resurrection
+                        ? '🪦 Resurrection Pre-Order'
+                        : item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
+
                     cartItemsContainer.innerHTML += `
                         <div class="drawer-item">
                             <div class="drawer-item-details">
-                                <h4 style="color: ${item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
+                                <h4 style="color: ${item.resurrection ? 'var(--accent-graveyard)' : item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
                                 <div class="drawer-item-meta">${metaText}</div>
                                 <div class="drawer-item-price">$${item.price.toFixed(2)} x ${item.quantity}</div>
                             </div>
@@ -5544,6 +5805,13 @@ Thank you for supporting my small business and understanding the handmade nature
                         pollLiveStock(); // refresh product-card badges immediately, don't wait for the next tick
                     }
                     throw new Error(session.error);
+                }
+
+                // GRAVEYARD RESURRECTION: if this order includes a resurrection pre-order, stash
+                // the session id so checkResurrectionSuccess() can poll for it after the Stripe
+                // redirect back and play the "rise from the grave" animation.
+                if (cart.some(item => item.resurrection)) {
+                    localStorage.setItem('pendingResurrectionSessionId', session.id);
                 }
 
                 await stripe.redirectToCheckout({ sessionId: session.id });
@@ -5853,6 +6121,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 window.history.replaceState(null, '', window.location.pathname);
                 showPaymentStatusModal('success', 'Payment Successful', 'Your order has been placed. Your cart has been cleared.');
                 showRewardRecapIfAvailable();
+                checkResurrectionSuccess();
             }
 
             if (urlParams.get('canceled') === 'true') {

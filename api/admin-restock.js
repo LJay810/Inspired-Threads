@@ -7,6 +7,7 @@ const { requireAdmin } = require('../lib/require-admin');
 const { notifyRestock } = require('../lib/notify');
 const { syncVariantStockToStripe } = require('../lib/stripe-sync');
 const { mirrorStockToCatalog } = require('../lib/catalog-stock');
+const { maybeMoveToGraveyard } = require('../lib/graveyard');
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -38,6 +39,13 @@ export default async function handler(req, res) {
         await mirrorStockToCatalog(productId, stripeMetaKey, qty);
         const { data: productRow } = await supabaseAdmin.from('products').select('name, images').eq('id', productId).single();
         const productName = productRow && productRow.name;
+
+        // GRAVEYARD: manually zeroing out a DTF design's stock moves it to the Graveyard too,
+        // same as the checkout path in webhook.js -- no-op for non-DTF products (see
+        // move_product_to_graveyard in sql/graveyard_resurrection_schema.sql).
+        if (qty <= 0) {
+            await maybeMoveToGraveyard(supabaseAdmin, productId);
+        }
 
         // Mirrors the Stripe Dashboard's product metadata too, purely for cosmetic parity --
         // never blocks the restock itself if Stripe is unreachable.

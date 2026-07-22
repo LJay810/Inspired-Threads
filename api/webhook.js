@@ -4,9 +4,10 @@ const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
 const { effectiveTierName, evaluateOrderBadges, isAnniversaryDay } = require('../lib/loyalty');
-const { notifyRestock, notifyPackingAlert } = require('../lib/notify');
+const { notifyRestock, notifyPackingAlert, notifyResurrection } = require('../lib/notify');
 const { unpackCartItemMetadata } = require('../lib/cart-metadata');
 const { mirrorStockToCatalog } = require('../lib/catalog-stock');
+const { maybeMoveToGraveyard } = require('../lib/graveyard');
 
 // Service-role client: bypasses RLS, used only here and in cron-birthday-coupons.js to write
 // loyalty fields the shopper's own browser session is never allowed to touch directly.
@@ -79,7 +80,61 @@ export default async function handler(req, res) {
 
         const finalStock = await kv.get(itemData.redisKey);
         if (finalStock !== null) {
-          await mirrorStockToCatalog(itemData.prodId, itemData.stripeMetaKey, parseInt(finalStock, 10) || 0);
+          const stockNum = parseInt(finalStock, 10) || 0;
+          await mirrorStockToCatalog(itemData.prodId, itemData.stripeMetaKey, stockNum);
+
+          // GRAVEYARD: a DTF design that just sold its last unit moves to the Graveyard
+          // category instead of sitting there merely "OUT OF STOCK" -- no-op for non-DTF
+          // products, still-in-stock products, or ones already in the Graveyard (see
+          // move_product_to_graveyard in sql/graveyard_resurrection_schema.sql).
+          if (stockNum <= 0) {
+            await maybeMoveToGraveyard(supabaseAdmin, itemData.prodId);
+          }
+        }
+      }
+
+      // GRAVEYARD RESURRECTION: for each line item that was a "resurrect this sold-out DTF
+      // design" pre-order (see item.resurrection in checkout.js), try to actually resurrect it.
+      // resurrect_product() is atomic and idempotent per-product (not per-session) -- only the
+      // first payment to reach it for a given product "wins" (gets a non-empty row back) and
+      // triggers the email/animation; anyone else's payment for the same design still completes
+      // as a normal order, it just doesn't re-trigger those.
+      if (supabaseAdmin) {
+        for (let i = 0; i < itemCount; i++) {
+          const itemData = unpackCartItemMetadata(metadata, i);
+          if (!itemData || !itemData.resurrection) continue;
+
+          try {
+            const { data: rows, error: rezErr } = await supabaseAdmin.rpc('resurrect_product', {
+              p_product_id: itemData.prodId,
+            });
+            if (rezErr) throw rezErr;
+
+            const result = Array.isArray(rows) ? rows[0] : rows;
+            if (result) {
+              // Same canonical Redis key format used everywhere else -- DTF products are always
+              // the non-variant 'simple' card layout, so the key is always the plain 'stock' one.
+              await kv.set(`stock_${result.id}_stock`, result.restock_qty);
+
+              const imageUrl = result.images && result.images.length > 0 ? result.images[0] : null;
+              await notifyResurrection({
+                productName: result.name,
+                imageUrl,
+                categoryLabel: result.restored_category_label,
+                sessionId: session.id,
+              });
+
+              // The buyer's browser polls this after the Stripe redirect (same idiom as
+              // showRewardRecapIfAvailable) to trigger the "rise from the grave" animation.
+              await kv.set(
+                `resurrection_success_${session.id}`,
+                JSON.stringify({ productId: result.id, productName: result.name, imageUrl }),
+                { ex: 600 }
+              );
+            }
+          } catch (err) {
+            console.error('Resurrection finalize failed for', itemData.prodId, ':', err.message);
+          }
         }
       }
 

@@ -216,6 +216,11 @@
                 <input type="number" id="prod_stock" min="0">
             </div>
 
+            <div class="admin-field" id="prod_resurrection_qty_field" style="display:none;">
+                <label>🪦 Resurrection restock qty (when this sells out and gets resurrected, how many units come back -- default 3 if left blank)</label>
+                <input type="number" id="prod_resurrection_restock_qty" min="1" placeholder="3">
+            </div>
+
             <div class="admin-field" id="prod_variants_field" style="display:none;">
                 <label>Variants (size × color × stock)</label>
                 <div style="display:flex; gap:8px; margin-bottom:8px;">
@@ -567,6 +572,7 @@ function onProductCategoryChange() {
 
     document.getElementById('prod_subcat_field').style.display = catId === 'dtf' ? 'block' : 'none';
     document.getElementById('prod_price_presets').style.display = catId === 'dtf' ? 'flex' : 'none';
+    document.getElementById('prod_resurrection_qty_field').style.display = catId === 'dtf' ? 'block' : 'none';
     document.getElementById('prod_dtf_fields').style.display = (category.card_layout_type === 'variant-apparel' || category.card_layout_type === 'design-attach') ? 'block' : 'none';
     document.getElementById('prod_stock_field').style.display = category.card_layout_type === 'variant-apparel' ? 'none' : 'block';
     document.getElementById('prod_variants_field').style.display = category.card_layout_type === 'variant-apparel' ? 'block' : 'none';
@@ -736,6 +742,7 @@ function openProductModal(id) {
         document.getElementById('prod_published').checked = p.published;
         document.getElementById('prod_sort_order').value = (p.sort_order != null && p.sort_order !== 99) ? p.sort_order : '';
         document.getElementById('prod_stock').value = p.stock ?? '';
+        document.getElementById('prod_resurrection_restock_qty').value = p.resurrection_restock_qty ?? '';
         document.getElementById('prod_extra_metadata').value = p.extra_metadata && Object.keys(p.extra_metadata).length ? JSON.stringify(p.extra_metadata, null, 2) : '';
         if (p.dtf_placement) {
             document.getElementById('prod_dtf_top').value = p.dtf_placement.top || '';
@@ -817,6 +824,13 @@ async function saveProduct(evt) {
     } else {
         const stockVal = document.getElementById('prod_stock').value;
         payload.stock = stockVal === '' ? null : parseInt(stockVal, 10);
+    }
+    if (category.id === 'dtf') {
+        // How many units come back if this design sells out and later gets resurrected from the
+        // Graveyard -- see resurrect_product() in sql/graveyard_resurrection_schema.sql, which
+        // falls back to its own default of 3 if this is left null.
+        const rezQtyVal = document.getElementById('prod_resurrection_restock_qty').value;
+        payload.resurrection_restock_qty = rezQtyVal === '' ? null : parseInt(rezQtyVal, 10);
     }
 
     try {
