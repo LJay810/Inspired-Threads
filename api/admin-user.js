@@ -173,7 +173,9 @@ export default async function handler(req, res) {
         // read together as a single unit from the admin's point of view.
 
         if (action === 'list_promo_codes') {
-            const promoCodes = await stripe.promotionCodes.list({ limit: 100, expand: ['data.coupon'] });
+            // Coupon details live under promotion.coupon in this API schema, not a flat top-level
+            // `coupon` field (see the create_promo_code comment below for why).
+            const promoCodes = await stripe.promotionCodes.list({ limit: 100, expand: ['data.promotion.coupon'] });
             return res.status(200).json({ promoCodes: promoCodes.data });
         }
 
@@ -243,8 +245,11 @@ export default async function handler(req, res) {
             // Coupon first, then the customer-facing code pointing at it -- if the code itself
             // is invalid/taken, Stripe rejects promotionCodes.create and we're left with an
             // unused (harmless) coupon rather than a promo code with no backing discount.
+            // NOTE: this SDK/API version nests the coupon reference under `promotion: { type:
+            // 'coupon', coupon }` rather than a flat top-level `coupon` field (Stripe's newer
+            // generalized Promotions schema, in case non-coupon promotion types are added later).
             const coupon = await stripe.coupons.create(couponParams);
-            promoParams.coupon = coupon.id;
+            promoParams.promotion = { type: 'coupon', coupon: coupon.id };
             const promotionCode = await stripe.promotionCodes.create(promoParams);
 
             return res.status(200).json({ ok: true, promotionCode, coupon });

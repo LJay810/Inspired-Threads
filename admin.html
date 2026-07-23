@@ -898,7 +898,8 @@ function renderPromoCodesTable() {
     const body = document.getElementById('promoCodesTableBody');
     if (promoCodesCache.length === 0) { body.innerHTML = '<tr><td colspan="7" class="empty-state">No promo codes yet.</td></tr>'; return; }
     body.innerHTML = promoCodesCache.map(p => {
-        const c = p.coupon || {};
+        // Coupon details live under promotion.coupon in this API schema, not a flat p.coupon.
+        const c = (p.promotion && p.promotion.coupon) || {};
         const discountLabel = c.percent_off ? `${c.percent_off}% off` : `$${((c.amount_off || 0) / 100).toFixed(2)} off`;
         const durationLabel = c.duration === 'repeating' ? `Repeating (${c.duration_in_months} mo)` : (c.duration === 'forever' ? 'Forever' : 'Once');
         const redemptionsLabel = `${p.times_redeemed || 0}${p.max_redemptions ? ' / ' + p.max_redemptions : ' / ∞'}`;
