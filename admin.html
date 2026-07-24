@@ -1047,8 +1047,22 @@ async function saveBulkDtfRows() {
     let attemptedCount = 0;
     let successCount = 0;
 
+    // Compute the whole batch's sort_order range ONCE, up front, instead of letting each row's
+    // create() call auto-compute "current lowest in category - 1" independently. Rows save
+    // sequentially, so if each one recomputed that after the previous row already landed, every
+    // row would see the one just before it as the new lowest -- meaning the LAST row you filled
+    // in would end up with the lowest number (shows first), reversing the entire batch relative
+    // to the order you actually typed the rows in. Reserving a contiguous, ascending range here
+    // means row 1 always ends up with the lowest number (shows first) and row N the highest,
+    // matching top-to-bottom entry order, while the whole batch still sorts ahead of
+    // (lower than) anything that already existed -- same "newest first" convention as a single
+    // add, just computed once instead of once per row.
+    const { products: existingDtf } = await adminApi('/api/admin-products', { action: 'list', category_id: dtfParent.id });
+    const currentLowest = existingDtf.reduce((min, p) => Math.min(min, Number.isInteger(p.sort_order) ? p.sort_order : 99), 99);
+    let nextSortOrder = currentLowest - rows.length;
+
     for (const tr of rows) {
-        if (tr.dataset.saved === 'true') continue; // already saved on a prior click -- don't resubmit
+        if (tr.dataset.saved === 'true') { nextSortOrder++; continue; } // already saved on a prior click -- don't resubmit
 
         const statusEl = tr.querySelector('.bulk-status');
         const nameInput = tr.querySelector('.bulk-name');
@@ -1060,6 +1074,8 @@ async function saveBulkDtfRows() {
         const name = nameInput.value.trim();
         const price = priceInput.value;
         const file = fileInput.files[0];
+        const rowSortOrder = nextSortOrder;
+        nextSortOrder++; // reserved for this row regardless of whether it actually saves, so later rows keep their intended relative order
 
         if (!name && !file) continue; // a fully blank leftover row -- not meant to be saved
 
@@ -1080,6 +1096,7 @@ async function saveBulkDtfRows() {
                 price_dollars: price,
                 images: [imageUrl],
                 stock: stockInput.value === '' ? null : parseInt(stockInput.value, 10),
+                sort_order: rowSortOrder,
             });
 
             if (result.sync && !result.sync.ok) {
