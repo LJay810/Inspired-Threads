@@ -200,24 +200,26 @@
             transform: scale(1.1) translateY(-2px);
         }
 
-        /* Mobile: pinned to the header's own left/right edges, aligned with the bottom
-           WISHLIST/CART row specifically (anchored from the header's bottom edge, not
-           vertically centered across the whole wrapped header) -- and since <header> is
-           position:fixed, they stay put through scroll instead of disappearing once you
-           scroll past Home. */
+        /* Mobile-only duplicate icons living inside .nav-container (see the HTML) -- hidden on
+           desktop, where the .header-left copies are the ones that show. */
+        .social-btn-inline { display: none; }
+
+        /* Mobile: the icons become real flex items in the SAME wrapping row group as
+           Account/Wishlist/Cart (see header nav's flex-wrap in the 900px block below), instead
+           of being absolutely positioned against the header's total height. That total height
+           varies by device (different nav-tab wrap points from viewport width/font-rendering
+           differences), which is exactly why a fixed "4px from the bottom" offset lined up fine
+           on some phones and overlapped whatever row landed underneath on others -- letting the
+           browser's normal flex-wrap place them adapts correctly to any device automatically. */
         @media (max-width: 900px) {
             .header-left { gap: 0; }
-            .social-stack { position: static; }
-            .social-btn {
-                width: 40px;
-                height: 40px;
-                position: absolute;
-                bottom: 4px;
+            .social-stack { display: none; }
+            .social-btn-inline {
+                display: flex;
+                width: 36px;
+                height: 36px;
             }
-            .social-btn:hover { transform: scale(1.1); }
-            .social-btn svg { width: 20px; height: 20px; }
-            .social-stack a[aria-label="Facebook"] { left: 8px; }
-            .social-stack a[aria-label="TikTok"] { right: 8px; }
+            .social-btn-inline svg { width: 18px; height: 18px; }
         }
          
         /* --- PAGE SECTIONS --- */
@@ -1586,10 +1588,26 @@
             <button class="nav-tab hover-target" data-section="leaderboard" onclick="scrollToSection('leaderboard')">Leaderboard</button>
             <button class="nav-tab hover-target" data-section="about" onclick="scrollToSection('about')">About</button>
             <button class="nav-tab hover-target" data-section="contact" onclick="scrollToSection('contact')">Contact</button>
-            
+
+            <!-- Mobile-only duplicates of the header's social icons (see .social-stack above) --
+                 real flex items in this same wrapping row group, not absolutely positioned, so
+                 they land correctly next to Account/Wishlist/Cart on ANY device's wrap point
+                 instead of guessing a fixed pixel offset from the header's total height. Hidden
+                 on desktop (see .social-btn-inline); the desktop-positioned originals in
+                 .header-left are hidden on mobile instead. -->
+            <a href="https://www.facebook.com/InspiredThreadsGT" target="_blank" class="social-btn social-btn-inline hover-target" aria-label="Facebook">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                    <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/>
+                </svg>
+            </a>
             <button class="nav-tab account-btn hover-target" id="accountNavBtn" onclick="openAuthModal()">Account</button>
             <button class="nav-tab wishlist-btn hover-target" onclick="toggleWishlist()">Wishlist (<span id="wishlistNavCount">0</span>)</button>
             <button class="nav-tab cart-btn hover-target" onclick="toggleCart()">Cart (<span id="cartNavCount">0</span>)</button>
+            <a href="https://www.tiktok.com/@stephaniehutchinson21?_r=1&_t=ZP-97f8yZ0djSx" target="_blank" class="social-btn social-btn-inline hover-target" aria-label="TikTok">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                </svg>
+            </a>
         </nav>
     </header>
 
