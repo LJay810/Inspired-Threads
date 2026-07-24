@@ -115,11 +115,33 @@
         .admin-flex-row input { flex: 1 1 100px; } /* wraps into a comfortable 2-up grid instead of 4 squeezed slivers */
         .admin-modal-actions { flex-wrap: wrap; }
 
-        /* Every table scrolls horizontally on its own instead of forcing the whole page wider --
-           .admin-table-scroll wraps each <table> below (see the HTML), and the JS-rendered
-           products/categories/promo-codes tables inherit this same wrapper. */
-        .admin-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        table.admin-table { font-size: 0.8rem; }
+        /* Rather than horizontal-scrolling a 6-8 column table on a ~360px phone screen, each row
+           becomes its own card: thead hides, each <td> stacks and labels itself from its
+           data-label attribute (set in the render functions below) instead of a shared header
+           row. Text stays full-size since columns no longer compete for horizontal space --
+           trades a bit more vertical scroll for zero horizontal scroll. */
+        .admin-table-scroll { overflow-x: visible; }
+        table.admin-table thead { display: none; }
+        table.admin-table, table.admin-table tbody, table.admin-table tr, table.admin-table td { display: block; width: 100%; }
+        table.admin-table tr { border: 1px solid var(--border-subtle); border-radius: 8px; margin-bottom: 10px; padding: 4px 12px; background: var(--bg-card); }
+        table.admin-table td { border-bottom: 1px dashed var(--border-subtle); padding: 8px 0; }
+        table.admin-table td:last-child { border-bottom: none; }
+        table.admin-table td[data-label]:not([data-label=""]) { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        table.admin-table td::before {
+            content: attr(data-label); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em;
+            color: var(--text-muted); font-weight: 700; flex-shrink: 0;
+        }
+        table.admin-table td[data-label=""]::before { content: none; }
+
+        /* Bulk Add DTF's rows are a form, not read-only data -- a label ABOVE a full-width input
+           reads far better on a phone than squeezing an input next to its label. */
+        #bulkAddDtfTable td[data-label]:not([data-label=""]) { display: block; }
+        #bulkAddDtfTable td::before { display: block; margin-bottom: 4px; }
+        #bulkAddDtfTable input, #bulkAddDtfTable select { width: 100% !important; }
+
+        /* The size x color stock matrix stays a real scrollable grid (see #variantMatrixWrap
+           above) rather than becoming cards -- it's a genuine 2D grid, and stacking it into
+           cards would lose the at-a-glance row/column comparison that's the whole point of it. */
     }
 </style>
 </head>
@@ -405,12 +427,12 @@ function renderCategoriesTable() {
     if (categories.length === 0) { body.innerHTML = '<tr><td colspan="6" class="empty-state">No categories yet.</td></tr>'; return; }
     body.innerHTML = categories.map(c => `
         <tr>
-            <td>${escapeHtml(c.label)}</td>
-            <td><span class="badge">${c.card_layout_type}</span></td>
-            <td>${escapeHtml(c.filter_group || '—')}</td>
-            <td>${c.product_count}</td>
-            <td>${c.active ? 'Yes' : 'No'}</td>
-            <td>
+            <td data-label="Label">${escapeHtml(c.label)}</td>
+            <td data-label="Layout"><span class="badge">${c.card_layout_type}</span></td>
+            <td data-label="Filter Group">${escapeHtml(c.filter_group || '—')}</td>
+            <td data-label="Products">${c.product_count}</td>
+            <td data-label="Active">${c.active ? 'Yes' : 'No'}</td>
+            <td data-label="">
                 <button class="admin-btn small secondary" onclick='openCategoryModal(${JSON.stringify(c.id)})'>Edit</button>
                 <button class="admin-btn small danger" onclick='deleteCategory(${JSON.stringify(c.id)})'>Delete</button>
             </td>
@@ -636,14 +658,14 @@ function renderProductsTable() {
             : `<button class="admin-btn small" onclick='restoreProduct(${JSON.stringify(p.id)})'>Restore</button>`;
         return `
         <tr>
-            <td><img class="admin-thumb" src="${p.images && p.images[0] || ''}" loading="lazy" onerror="this.style.opacity=0"></td>
-            <td>${escapeHtml(p.name)}</td>
-            <td>${escapeHtml(p.category_id)}</td>
-            <td>$${(p.price_cents / 100).toFixed(2)}</td>
-            <td>${stockLabel}</td>
-            <td>${publishedCell}</td>
-            <td>${syncBadge}</td>
-            <td>
+            <td data-label=""><img class="admin-thumb" src="${p.images && p.images[0] || ''}" loading="lazy" onerror="this.style.opacity=0"></td>
+            <td data-label="Name">${escapeHtml(p.name)}</td>
+            <td data-label="Category">${escapeHtml(p.category_id)}</td>
+            <td data-label="Price">$${(p.price_cents / 100).toFixed(2)}</td>
+            <td data-label="Stock">${stockLabel}</td>
+            <td data-label="Published">${publishedCell}</td>
+            <td data-label="Stripe">${syncBadge}</td>
+            <td data-label="">
                 <button class="admin-btn small secondary" onclick='openProductModal(${JSON.stringify(p.id)})'>Edit</button>
                 ${archiveOrRestoreBtn}
             </td>
@@ -967,20 +989,20 @@ function addBulkDtfRow() {
     const tr = document.createElement('tr');
     tr.dataset.rowId = bulkDtfRowCounter;
     tr.innerHTML = `
-        <td>
+        <td data-label="Image">
             <input type="file" accept="image/*" class="bulk-image-input" onchange="previewBulkDtfImage(this)">
             <img class="admin-thumb bulk-image-preview" style="display:none; margin-top:6px;">
         </td>
-        <td><input type="text" class="bulk-name" placeholder="Design name" style="min-width:140px;"></td>
-        <td><input type="number" class="bulk-price" min="0.01" step="0.01" value="2.00" style="width:80px;"></td>
-        <td><input type="number" class="bulk-stock" min="0" placeholder="Unlimited" style="width:90px;"></td>
-        <td>
+        <td data-label="Name"><input type="text" class="bulk-name" placeholder="Design name" style="min-width:140px;"></td>
+        <td data-label="Price ($)"><input type="number" class="bulk-price" min="0.01" step="0.01" value="2.00" style="width:80px;"></td>
+        <td data-label="Stock"><input type="number" class="bulk-stock" min="0" placeholder="Unlimited" style="width:90px;"></td>
+        <td data-label="File Under">
             <select class="bulk-subcat">
                 <option value="">General DTF</option>
                 ${getDtfSubcategoryOptions()}
             </select>
         </td>
-        <td>
+        <td data-label="">
             <button type="button" class="admin-btn small danger" onclick="this.closest('tr').remove()">✕</button>
             <div class="bulk-status" style="font-size:0.72rem; margin-top:4px;"></div>
         </td>
@@ -1105,13 +1127,13 @@ function renderPromoCodesTable() {
         const expiresLabel = p.expires_at ? new Date(p.expires_at * 1000).toLocaleDateString() : 'Never';
         return `
         <tr>
-            <td><strong>${escapeHtml(p.code)}</strong></td>
-            <td>${discountLabel}</td>
-            <td>${durationLabel}</td>
-            <td>${redemptionsLabel}</td>
-            <td>${expiresLabel}</td>
-            <td>${p.active ? 'Yes' : '<span class="badge error">No</span>'}</td>
-            <td>${p.active ? `<button class="admin-btn small danger" onclick='deactivatePromoCode(${JSON.stringify(p.id)})'>Deactivate</button>` : ''}</td>
+            <td data-label="Code"><strong>${escapeHtml(p.code)}</strong></td>
+            <td data-label="Discount">${discountLabel}</td>
+            <td data-label="Duration">${durationLabel}</td>
+            <td data-label="Redemptions">${redemptionsLabel}</td>
+            <td data-label="Expires">${expiresLabel}</td>
+            <td data-label="Active">${p.active ? 'Yes' : '<span class="badge error">No</span>'}</td>
+            <td data-label="">${p.active ? `<button class="admin-btn small danger" onclick='deactivatePromoCode(${JSON.stringify(p.id)})'>Deactivate</button>` : ''}</td>
         </tr>`;
     }).join('');
 }
