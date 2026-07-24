@@ -79,15 +79,26 @@ export default async function handler(req, res) {
                     : product.stock !== null;
 
                 if (item.resurrection) {
-                    // Graveyard "resurrect" pre-order (DTF only): buying something that currently
-                    // shows 0 stock is the entire point, so skip the normal reservation check --
-                    // these designs are made to order (no physical inventory sitting ready), so
-                    // stock is deliberately never touched by this purchase at all (see
-                    // resurrect_product() in sql/graveyard_no_auto_restock.sql). No natural stock
-                    // cap applies here (unlike every other item), so quantity is clamped instead
-                    // of trusted as-is, to guard against a malformed/absurd client-supplied value.
-                    hasStockLimit = false;
-                    item.quantity = Math.max(1, Math.min(50, parseInt(item.quantity, 10) || 1));
+                    if (product.category_id === 'graveyard') {
+                        // Graveyard "resurrect" pre-order (DTF only): buying something that
+                        // currently shows 0 stock is the entire point, so skip the normal
+                        // reservation check -- these designs are made to order (no physical
+                        // inventory sitting ready), so stock is deliberately never touched by
+                        // this purchase at all (see resurrect_product() in
+                        // sql/graveyard_no_auto_restock.sql). No natural stock cap applies here
+                        // (unlike every other item), so quantity is clamped instead of trusted
+                        // as-is, to guard against a malformed/absurd client-supplied value.
+                        hasStockLimit = false;
+                        item.quantity = Math.max(1, Math.min(50, parseInt(item.quantity, 10) || 1));
+                    } else {
+                        // The client claimed this was a resurrection pre-order, but the product
+                        // isn't (or is no longer) actually in the Graveyard -- never trust this
+                        // flag blindly, since it bypasses the stock check entirely. Ignore it and
+                        // fall through to the normal stock-checked path above; also clear the
+                        // flag itself so packCartItemMetadata below doesn't pack a resurrection
+                        // marker for an item that was never actually one.
+                        item.resurrection = false;
+                    }
                 }
             } else {
                 // FALLBACK: not in the admin-managed catalog -- e.g. the standalone TikTok Live
@@ -281,6 +292,11 @@ export default async function handler(req, res) {
             mystery_tshirt: 'Mystery T-Shirt',
         };
         let spinPrizeClaimed = false;
+        // Distinct from spinPrizeClaimed below: only true when the percent branch actually wins
+        // the discount slot. A physical prize (pop socket, pen, etc.) also sets spinPrizeClaimed,
+        // but never touches discountPct or the slot at all -- Crew Cash further down should still
+        // be free to apply alongside a physical prize, just not alongside a percent one.
+        let spinDiscountApplied = false;
         if (referralProfile && supabaseAdmin && referralProfile.spin_prize_type && !referralProfile.spin_prize_used) {
             if (referralProfile.spin_prize_type === 'percent') {
                 if (!referralDiscountType) {
@@ -295,6 +311,7 @@ export default async function handler(req, res) {
                             if (reserved) {
                                 discountPct = referralProfile.spin_prize_pct;
                                 spinPrizeClaimed = true;
+                                spinDiscountApplied = true;
                             }
                         } catch (err) {
                             console.warn('Spin prize reservation failed, proceeding without it:', err.message);
@@ -320,12 +337,19 @@ export default async function handler(req, res) {
         // CREW CASH: the shopper's own stored balance (manually granted by an admin via Customer
         // Lookup), spendable like a gift card. It's a fixed dollar amount, not a percentage, so it
         // can't just stack on top of a percent_off coupon -- same single discounts-per-session
-        // slot as everything above, so it's compared by actual dollar value against whatever's
-        // currently winning (same idiom as the spin-prize-percent-vs-standing comparison above)
-        // and only takes over the slot if it's worth more to this shopper on this cart.
+        // slot as everything above. Gated on !referralDiscountType && !spinDiscountApplied rather
+        // than a value comparison against those two specifically (unlike the plain tier standing
+        // discount, which is compared by value): a referral reward/signup discount and a spin
+        // percent prize were already RESERVED above (their RPCs already ran and consumed/marked-
+        // used the reward) by the time this runs, so if Crew Cash won by value and took the
+        // discount slot instead, that already-committed reservation would be silently burned with
+        // the reward never actually applied to any order. The plain standing discount never
+        // consumes anything to "earn" it, so overriding that one by value is always safe -- and a
+        // physical spin prize (spinPrizeClaimed but NOT spinDiscountApplied) never touches this
+        // slot at all, so Crew Cash can still apply right alongside one of those.
         const subtotalDollars = subtotalCents / 100;
         let crewCashUsed = 0;
-        if (referralProfile && supabaseAdmin) {
+        if (!referralDiscountType && !spinDiscountApplied && referralProfile && supabaseAdmin) {
             const creditBalance = parseFloat(referralProfile.credit_balance) || 0;
             if (creditBalance > 0) {
                 const currentDiscountValueDollars = subtotalDollars * (discountPct / 100);
