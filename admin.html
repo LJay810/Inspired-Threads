@@ -127,6 +127,7 @@
         <section class="admin-tab-panel" id="tab-products">
             <div class="admin-toolbar">
                 <button class="admin-btn" onclick="openProductModal()">+ Add Product</button>
+                <button class="admin-btn secondary" onclick="openBulkAddDtfModal()">+ Bulk Add DTF's</button>
                 <select id="productFilterCategory" onchange="loadProducts()"><option value="">All categories</option></select>
                 <input type="text" id="productFilterSearch" placeholder="Search by name..." oninput="debouncedLoadProducts()">
             </div>
@@ -285,6 +286,33 @@
                 <button type="submit" class="admin-btn">Save Product</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- ===================== BULK ADD DTF MODAL ===================== -->
+<!-- Scoped to DTF designs only (category card_layout_type 'simple', single image, no size/color
+     variant matrix) -- that shape is what makes a compact repeatable row practical. Variant-apparel
+     products still go through the regular Add Product form's full matrix editor above. -->
+<div class="admin-modal-overlay" id="bulkAddDtfModalOverlay">
+    <div class="admin-modal" style="max-width: 980px;">
+        <h2>Bulk Add DTF Designs</h2>
+        <div id="bulkAddDtfError"></div>
+        <div class="settings-field-hint" style="margin-bottom:14px;">
+            Each row becomes its own product with its own image, name, price, and stock. Saved rows lock and won't be re-submitted if you fix a mistake and click "Save All" again.
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="admin-table" id="bulkAddDtfTable">
+                <thead><tr><th>Image</th><th>Name</th><th>Price ($)</th><th>Stock</th><th>File Under</th><th></th></tr></thead>
+                <tbody id="bulkAddDtfRows"></tbody>
+            </table>
+        </div>
+        <div class="admin-modal-actions" style="justify-content:space-between;">
+            <button type="button" class="admin-btn secondary" onclick="addBulkDtfRow()">+ Add Row</button>
+            <div>
+                <button type="button" class="admin-btn secondary" onclick="closeBulkAddDtfModal()">Close</button>
+                <button type="button" class="admin-btn" onclick="saveBulkDtfRows()">Save All</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -881,6 +909,138 @@ async function saveProduct(evt) {
         await loadProducts();
     } catch (err) {
         document.getElementById('productModalError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+// ===================== BULK ADD DTF =====================
+
+let bulkDtfRowCounter = 0;
+
+function getDtfSubcategoryOptions() {
+    const dtfParent = categories.find(c => c.id === 'dtf');
+    if (!dtfParent) return '';
+    return categories.filter(c => c.parent_id === dtfParent.id)
+        .map(c => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+}
+
+function addBulkDtfRow() {
+    bulkDtfRowCounter++;
+    const tr = document.createElement('tr');
+    tr.dataset.rowId = bulkDtfRowCounter;
+    tr.innerHTML = `
+        <td>
+            <input type="file" accept="image/*" class="bulk-image-input" onchange="previewBulkDtfImage(this)">
+            <img class="admin-thumb bulk-image-preview" style="display:none; margin-top:6px;">
+        </td>
+        <td><input type="text" class="bulk-name" placeholder="Design name" style="min-width:140px;"></td>
+        <td><input type="number" class="bulk-price" min="0.01" step="0.01" placeholder="2.00" style="width:80px;"></td>
+        <td><input type="number" class="bulk-stock" min="0" placeholder="Unlimited" style="width:90px;"></td>
+        <td>
+            <select class="bulk-subcat">
+                <option value="">General DTF</option>
+                ${getDtfSubcategoryOptions()}
+            </select>
+        </td>
+        <td>
+            <button type="button" class="admin-btn small danger" onclick="this.closest('tr').remove()">✕</button>
+            <div class="bulk-status" style="font-size:0.72rem; margin-top:4px;"></div>
+        </td>
+    `;
+    document.getElementById('bulkAddDtfRows').appendChild(tr);
+}
+
+function previewBulkDtfImage(input) {
+    const img = input.closest('tr').querySelector('.bulk-image-preview');
+    const file = input.files[0];
+    if (!file) { img.style.display = 'none'; return; }
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+}
+
+function openBulkAddDtfModal() {
+    document.getElementById('bulkAddDtfRows').innerHTML = '';
+    document.getElementById('bulkAddDtfError').innerHTML = '';
+    for (let i = 0; i < 5; i++) addBulkDtfRow();
+    document.getElementById('bulkAddDtfModalOverlay').classList.add('open');
+}
+
+function closeBulkAddDtfModal() {
+    document.getElementById('bulkAddDtfModalOverlay').classList.remove('open');
+}
+
+async function saveBulkDtfRows() {
+    const errorEl = document.getElementById('bulkAddDtfError');
+    errorEl.innerHTML = '';
+
+    // category_id must always be the literal 'dtf' parent (never 'dtf-pocket'/'dtf-kids'
+    // directly) -- index.html's shop engine only registers a product into window.dtfRegistry
+    // (making it selectable in the DTF visualizer) when category_id === 'dtf' exactly; pocket/
+    // kids filing happens via sub_category_id instead, same as the regular Add Product form.
+    const dtfParent = categories.find(c => c.id === 'dtf');
+    if (!dtfParent) {
+        errorEl.innerHTML = `<div class="admin-error-banner">Could not find a category with id "dtf" -- has it been renamed?</div>`;
+        return;
+    }
+
+    const rows = Array.from(document.querySelectorAll('#bulkAddDtfRows tr'));
+    let attemptedCount = 0;
+    let successCount = 0;
+
+    for (const tr of rows) {
+        if (tr.dataset.saved === 'true') continue; // already saved on a prior click -- don't resubmit
+
+        const statusEl = tr.querySelector('.bulk-status');
+        const nameInput = tr.querySelector('.bulk-name');
+        const priceInput = tr.querySelector('.bulk-price');
+        const stockInput = tr.querySelector('.bulk-stock');
+        const subcatSelect = tr.querySelector('.bulk-subcat');
+        const fileInput = tr.querySelector('.bulk-image-input');
+
+        const name = nameInput.value.trim();
+        const price = priceInput.value;
+        const file = fileInput.files[0];
+
+        if (!name && !file) continue; // a fully blank leftover row -- not meant to be saved
+
+        attemptedCount++;
+        if (!name || !price || !file) {
+            statusEl.innerHTML = '<span style="color:#ff6b8a;">Missing name, price, or image</span>';
+            continue;
+        }
+
+        statusEl.textContent = 'Saving…';
+        try {
+            const imageUrl = await uploadToStorage(file);
+            const result = await adminApi('/api/admin-products', {
+                action: 'create',
+                name,
+                category_id: dtfParent.id,
+                sub_category_id: subcatSelect.value || null,
+                price_dollars: price,
+                images: [imageUrl],
+                stock: stockInput.value === '' ? null : parseInt(stockInput.value, 10),
+            });
+
+            if (result.sync && !result.sync.ok) {
+                statusEl.innerHTML = '<span style="color:#ff6b8a;">Saved, but Stripe sync failed</span>';
+            } else {
+                statusEl.innerHTML = '<span style="color:#4ade80;">Saved ✓</span>';
+            }
+            // Lock the row so a later "Save All" (after fixing a different broken row) can't
+            // accidentally create a duplicate product from this already-successful one.
+            tr.dataset.saved = 'true';
+            [nameInput, priceInput, stockInput, subcatSelect, fileInput].forEach(el => el.disabled = true);
+            successCount++;
+        } catch (err) {
+            statusEl.innerHTML = `<span style="color:#ff6b8a;">${escapeHtml(err.message)}</span>`;
+        }
+    }
+
+    if (successCount > 0) await loadProducts();
+    if (attemptedCount === 0) {
+        errorEl.innerHTML = `<div class="admin-error-banner">Nothing to save -- fill in at least a name, price, and image on one row.</div>`;
+    } else if (successCount === attemptedCount) {
+        setTimeout(closeBulkAddDtfModal, 900); // brief pause so the "Saved ✓" statuses are visible
     }
 }
 
