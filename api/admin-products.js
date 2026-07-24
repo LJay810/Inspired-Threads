@@ -1,7 +1,23 @@
+const { Redis } = require('@upstash/redis');
+const kv = Redis.fromEnv();
 const { createClient } = require('@supabase/supabase-js');
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const { requireAdmin } = require('../lib/require-admin');
 const { syncProductToStripe, archiveProductInStripe } = require('../lib/stripe-sync');
+
+// Redis is the live source of truth the storefront actually reads (see api/products.js) --
+// Supabase's stock/product_variants.stock columns are only a cold-storage mirror, re-seeded from
+// Supabase ONLY when Redis has nothing cached yet for that key. Without this, editing stock here
+// would update Supabase but silently have zero effect on the live site for any product/variant
+// Redis already has a value for -- exactly the bug this function exists to close.
+async function syncStockToRedis(productId, stripeMetaKey, qty) {
+    const redisKey = `stock_${productId}_${stripeMetaKey}`;
+    if (qty === null || qty === undefined) {
+        await kv.del(redisKey); // explicitly cleared back to untracked/unlimited
+    } else {
+        await kv.set(redisKey, qty);
+    }
+}
 
 // Variants payload shape from admin.html's product form: [{ size, color, color_image_url, stock }, ...]
 async function replaceVariants(productId, variants) {
@@ -18,6 +34,11 @@ async function replaceVariants(productId, variants) {
     }));
     const { error: insErr } = await supabaseAdmin.from('product_variants').insert(rows);
     if (insErr) throw insErr;
+
+    // Keep Redis in sync too -- see syncStockToRedis above for why this matters.
+    for (const row of rows) {
+        await syncStockToRedis(productId, `stock_${row.size}_${row.color}`, row.stock);
+    }
 }
 
 export default async function handler(req, res) {
@@ -97,6 +118,8 @@ export default async function handler(req, res) {
 
             if (category.card_layout_type === 'variant-apparel') {
                 await replaceVariants(product.id, variants || []);
+            } else {
+                await syncStockToRedis(product.id, 'stock', product.stock);
             }
 
             const syncResult = await syncProductToStripe(product);
@@ -140,6 +163,8 @@ export default async function handler(req, res) {
 
             if (variants !== undefined) {
                 await replaceVariants(id, variants);
+            } else if (stock !== undefined) {
+                await syncStockToRedis(id, 'stock', updateFields.stock);
             }
 
             const syncResult = await syncProductToStripe({ ...product, __priceChanged: priceChanged });
