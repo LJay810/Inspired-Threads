@@ -1410,7 +1410,12 @@
                the rest of the viewport below it once it does. */
             padding-bottom: calc(var(--drawer-item-height) + 20px);
         }
-        #cartItems .drawer-item-page { display: flex; flex-direction: column; gap: 20px; scroll-snap-align: start; scroll-margin-top: 4px; }
+        /* No scroll-margin-top here (deliberately) -- a nonzero value shifts EVERY page after the
+           first by that same amount (page 1's shift just clamps invisibly to 0, since it can't
+           scroll negative, but page 2 onward actually shifts up), which reveals a sliver of the
+           previous inter-page gap at the top of the view while clipping the same amount off the
+           BOTTOM of the current page -- exactly the "bottom item's border cut off" symptom. */
+        #cartItems .drawer-item-page { display: flex; flex-direction: column; gap: 20px; scroll-snap-align: start; }
         /* No overflow:hidden here (deliberately) -- it would clip the image's glow box-shadow,
            which extends beyond the item's own edges by design. The text-truncation rules below
            already guarantee each line stays single-line (via white-space:nowrap), which is what
@@ -5834,48 +5839,75 @@ Thank you for supporting my small business and understanding the handmade nature
             
             let totalItems = 0;
             let subTotalPrice = 0;
-            cartItemsContainer.innerHTML = '';
 
             if (cart.length === 0) {
                 cartItemsContainer.innerHTML = '<p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>';
+                window._cartItemNodes = {};
             } else {
-                // Grouped into pairs (.drawer-item-page) so scroll-snap advances 2 full items at
-                // a time instead of settling on individual item boundaries -- a trailing odd item
-                // (e.g. 3 in the cart) just gets its own shorter final page, nothing to pad it
-                // out to a false pair since there's nothing after it to peek into anyway.
-                let itemsHtml = '';
+                // Reuses each item's existing DOM node (image included), keyed by its stable
+                // cart id, across re-renders -- appendChild on a node that's ALREADY in the
+                // document just MOVES it (even into a different .drawer-item-page group when
+                // another item is added/removed around it), it never destroys/recreates it. The
+                // previous version rebuilt the whole cart's HTML from a string on every single
+                // add/remove, which tore down and recreated every <img> -- even for items that
+                // hadn't changed at all -- visibly "refreshing"/flickering every product photo on
+                // every single cart mutation. Only genuinely new items ever get a fresh <img> now.
+                window._cartItemNodes = window._cartItemNodes || {};
+                const nextNodes = {};
+                const pageWrappers = [];
+                let currentPage = null;
+
                 cart.forEach((item, index) => {
                     totalItems += item.quantity;
                     subTotalPrice += (item.price * item.quantity);
-                    const metaText = item.resurrection
-                        ? '🪦 Resurrection Pre-Order'
-                        : item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
-                    const itemAccentClass = item.resurrection
-                        ? 'drawer-item-img-wrap-graveyard'
-                        : (item.isDtf || item.name.includes('[ATTACHED PRINT]')) ? 'drawer-item-img-wrap-dtf' : '';
-                    const imageHtml = item.image
-                        ? `<div class="drawer-item-img-wrap ${itemAccentClass}"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
-                        : '';
 
-                    const isPageStart = index % 2 === 0;
-                    const isLast = index === cart.length - 1;
-                    if (isPageStart) itemsHtml += '<div class="drawer-item-page">';
+                    let node = window._cartItemNodes[item.id];
+                    if (!node) {
+                        const metaText = item.resurrection
+                            ? '🪦 Resurrection Pre-Order'
+                            : item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
+                        const itemAccentClass = item.resurrection
+                            ? 'drawer-item-img-wrap-graveyard'
+                            : (item.isDtf || item.name.includes('[ATTACHED PRINT]')) ? 'drawer-item-img-wrap-dtf' : '';
+                        const imageHtml = item.image
+                            ? `<div class="drawer-item-img-wrap ${itemAccentClass}"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+                            : '';
 
-                    itemsHtml += `
-                        <div class="drawer-item">
+                        node = document.createElement('div');
+                        node.className = 'drawer-item';
+                        node.innerHTML = `
                             ${imageHtml}
                             <div class="drawer-item-details">
                                 <h4 style="color: ${item.resurrection ? 'var(--accent-graveyard)' : item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
                                 <div class="drawer-item-meta">${metaText}</div>
-                                <div class="drawer-item-price">$${item.price.toFixed(2)} x ${item.quantity}</div>
+                                <div class="drawer-item-price"></div>
                             </div>
-                            <button class="remove-item hover-target" onclick="removeFromCart(${index})">✕</button>
-                        </div>
-                    `;
+                            <button type="button" class="remove-item hover-target">✕</button>
+                        `;
+                    }
 
-                    if (!isPageStart || isLast) itemsHtml += '</div>';
+                    // Quantity/price CAN change on an already-rendered item (e.g. clicking Add to
+                    // Cart again for the same product just increments it) -- always keep this in
+                    // sync regardless of whether the node itself is new or reused. Same for the
+                    // remove button's handler, since its target index shifts whenever an earlier
+                    // item is removed from the array.
+                    node.querySelector('.drawer-item-price').textContent = `$${item.price.toFixed(2)} x ${item.quantity}`;
+                    node.querySelector('.remove-item').onclick = () => removeFromCart(index);
+
+                    nextNodes[item.id] = node;
+
+                    if (index % 2 === 0) {
+                        currentPage = document.createElement('div');
+                        currentPage.className = 'drawer-item-page';
+                        pageWrappers.push(currentPage);
+                    }
+                    currentPage.appendChild(node);
                 });
-                cartItemsContainer.innerHTML = itemsHtml;
+
+                window._cartItemNodes = nextNodes;
+
+                while (cartItemsContainer.firstChild) cartItemsContainer.removeChild(cartItemsContainer.firstChild);
+                pageWrappers.forEach(p => cartItemsContainer.appendChild(p));
             }
             
             // FULFILLMENT MATH
@@ -5965,33 +5997,53 @@ Thank you for supporting my small business and understanding the handmade nature
             const container = document.getElementById('wishlistItems');
             const count = document.getElementById('wishlistNavCount');
             count.innerText = window.wishlist.length;
-            container.innerHTML = '';
 
             if (window.wishlist.length === 0) {
                 container.innerHTML = '<p style="color:var(--text-muted); font-size: 0.9rem;">Your wishlist is currently empty.</p>';
+                window._wishlistItemNodes = {};
             } else {
+                // Same DOM-node-reuse idea as updateCartUI, keyed by matchKey (wishlist items
+                // don't carry a plain .id) -- avoids re-fetching/re-decoding every image on every
+                // single wishlist add/remove.
+                window._wishlistItemNodes = window._wishlistItemNodes || {};
+                const nextNodes = {};
+
                 window.wishlist.forEach((item, index) => {
                     const metaText = item.size ? `${item.size} / ${item.color}` : 'Standard Specifications';
                     const dtfText = item.attachedDtf ? `<br><span style="color:var(--accent-pink);">+ DTF: ${item.attachedDtf.name}</span>` : '';
                     const totalPrice = item.price + (item.attachedDtf ? parseFloat(item.attachedDtf.price) : 0);
-                    const wishlistAccentClass = item.isDtf ? 'drawer-item-img-wrap-dtf' : '';
-                    const imageHtml = item.image
-                        ? `<div class="drawer-item-img-wrap ${wishlistAccentClass}"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
-                        : '';
 
-                    container.innerHTML += `
-                        <div class="drawer-item">
+                    let node = window._wishlistItemNodes[item.matchKey];
+                    if (!node) {
+                        const wishlistAccentClass = item.isDtf ? 'drawer-item-img-wrap-dtf' : '';
+                        const imageHtml = item.image
+                            ? `<div class="drawer-item-img-wrap ${wishlistAccentClass}"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+                            : '';
+
+                        node = document.createElement('div');
+                        node.className = 'drawer-item';
+                        node.innerHTML = `
                             ${imageHtml}
                             <div class="drawer-item-details">
                                 <h4 style="color: var(--text-pure); font-size: 0.9rem;">${item.name}</h4>
-                                <div class="drawer-item-meta">${metaText}${dtfText}</div>
-                                <div class="drawer-item-price">$${totalPrice.toFixed(2)}</div>
-                                <button class="stripe-btn magnetic-btn hover-target" style="padding: 6px 12px; font-size: 0.65rem; margin-top: 5px;" onclick="moveWishlistToCart(${index})">Move to Cart</button>
+                                <div class="drawer-item-meta"></div>
+                                <div class="drawer-item-price"></div>
+                                <button type="button" class="stripe-btn magnetic-btn hover-target" style="padding: 6px 12px; font-size: 0.65rem; margin-top: 5px;">Move to Cart</button>
                             </div>
-                            <button class="remove-item hover-target" onclick="removeFromWishlist(${index})">✕</button>
-                        </div>
-                    `;
+                            <button type="button" class="remove-item hover-target">✕</button>
+                        `;
+                    }
+
+                    node.querySelector('.drawer-item-meta').innerHTML = `${metaText}${dtfText}`;
+                    node.querySelector('.drawer-item-price').textContent = `$${totalPrice.toFixed(2)}`;
+                    node.querySelector('.stripe-btn').onclick = () => moveWishlistToCart(index);
+                    node.querySelector('.remove-item').onclick = () => removeFromWishlist(index);
+
+                    nextNodes[item.matchKey] = node;
+                    container.appendChild(node);
                 });
+
+                window._wishlistItemNodes = nextNodes;
             }
             if(isDesktop) attachHoverTargets();
         }
