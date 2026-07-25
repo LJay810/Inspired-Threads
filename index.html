@@ -1399,6 +1399,16 @@
         #cartItems {
             flex-grow: 0; flex-shrink: 0; height: calc(var(--drawer-item-height) * 2 + 20px);
             scroll-snap-type: y mandatory;
+            /* Classic scroll-snap trap: a trailing ODD item (3rd of 3, 5th of 5, etc.) gets its
+               own page shorter than the fixed 2-item viewport. "mandatory" snap needs to align
+               that short page's TOP with the viewport's top -- but doing so would require
+               scrolling past the actual end of the content, which the browser refuses to do. The
+               practical result is that last item becomes completely unreachable; scrolling just
+               snaps back to the previous (full) page every time. Padding the bottom by one item's
+               worth of height gives the scroll range enough extra room for even the shortest
+               possible trailing page to reach its aligned position, with blank space filling
+               the rest of the viewport below it once it does. */
+            padding-bottom: calc(var(--drawer-item-height) + 20px);
         }
         #cartItems .drawer-item-page { display: flex; flex-direction: column; gap: 20px; scroll-snap-align: start; scroll-margin-top: 4px; }
         /* No overflow:hidden here (deliberately) -- it would clip the image's glow box-shadow,
@@ -5773,10 +5783,29 @@ Thank you for supporting my small business and understanding the handmade nature
         }
         const stripe = Stripe('pk_live_51TnjXXFWt379RB9CQuAZ3roCVW8l892C9ffUstWDP6TjNAtlmYZ4gWWnad9kPpqGveHGqA54LAjtGE3eKNfYy6FM00dGd8t5Hr');
         
+        // Locks the underlying page's own scroll while a drawer is open on mobile, where the
+        // drawer visually overlays the page (unlike desktop, where there's more room and no real
+        // scroll "conflict" between the two) -- otherwise a touch-scroll starting outside the
+        // drawer's own item list (its header/footer/padding) can scroll the Home page behind it
+        // instead, which feels like the two are fighting each other.
+        function updateBodyScrollLock() {
+            const isMobile = window.matchMedia('(max-width: 900px)').matches;
+            const anyDrawerOpen = document.getElementById('cartDrawer').classList.contains('open')
+                || document.getElementById('wishlistDrawer').classList.contains('open');
+            if (isMobile && anyDrawerOpen) {
+                document.documentElement.style.overflow = 'hidden';
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.documentElement.style.overflow = '';
+                document.body.style.overflow = '';
+            }
+        }
+
         function closeAllDrawers() {
             document.getElementById('cartDrawer').classList.remove('open');
             document.getElementById('wishlistDrawer').classList.remove('open');
             document.getElementById('drawerOverlay').classList.remove('open');
+            updateBodyScrollLock();
         }
 
         function toggleCart() {
@@ -5786,6 +5815,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 document.getElementById('drawerOverlay').classList.toggle('open');
             }
             document.getElementById('cartDrawer').classList.toggle('open');
+            updateBodyScrollLock();
         }
 
         function toggleWishlist() {
@@ -5795,6 +5825,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 document.getElementById('drawerOverlay').classList.toggle('open');
             }
             document.getElementById('wishlistDrawer').classList.toggle('open');
+            updateBodyScrollLock();
         }
 
         function updateCartUI() {
