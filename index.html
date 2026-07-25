@@ -1357,20 +1357,19 @@
 
         /* overscroll-behavior stops scroll momentum "leaking" into the page behind the drawer
            once you hit the top/bottom of the item list (a common mobile papercut); -webkit-
-           overflow-scrolling gives proper momentum scrolling on older iOS Safari; scroll-snap
-           mandatory locks each item into a fixed, aligned position the instant scrolling stops
-           (rather than leaving it wherever momentum happened to run out), on both trackpad and
-           touch. */
+           overflow-scrolling gives proper momentum scrolling on older iOS Safari. Base rules here
+           stay flexible (flex-grow, no fixed height) -- the wishlist keeps this behavior since its
+           items carry an extra "Move to Cart" button that doesn't fit the cart's fixed-height
+           math below. The cart's own #cartItems override (further down) is what actually
+           implements the fixed 2-items-per-page window. */
         .drawer-items {
             flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px;
             overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-            scroll-snap-type: y mandatory;
             scrollbar-width: thin; scrollbar-color: var(--border-subtle) transparent; /* Firefox parity with the ::-webkit-scrollbar rules below */
         }
         .drawer-item {
             background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 15px;
             display: flex; gap: 14px; align-items: center; position: relative;
-            scroll-snap-align: start; scroll-margin-top: 4px;
             transition: border-color 0.25s ease, box-shadow 0.25s ease;
         }
         .drawer-item:hover { border-color: var(--accent-pink); box-shadow: 0 4px 18px rgba(255,0,127,0.12); }
@@ -1387,6 +1386,32 @@
         }
         .drawer-item-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+        /* ===== CART-ONLY: fixed 2-items-per-page window (see updateCartUI's page-grouping) =====
+           Item height here is a DECLARED CONSTANT (104px = 72px image + 15px*2 padding + 1px*2
+           border), enforced via box-sizing + overflow:hidden + single-line text truncation --
+           not a measured/guessed value. That's what makes "exactly 2 items visible, zero partial
+           peek of a 3rd" achievable with plain CSS: #cartItems' viewport height is a calc() off
+           this same constant, so it can never drift out of sync with what's actually rendered.
+           Scoped to #cartItems specifically (not the shared .drawer-items/.drawer-item classes)
+           because the wishlist's extra "Move to Cart" button needs more vertical room than this
+           fixed height allows -- forcing the same constraint there would clip that button. */
+        :root { --drawer-item-height: 104px; }
+        #cartItems {
+            flex-grow: 0; flex-shrink: 0; height: calc(var(--drawer-item-height) * 2 + 20px);
+            scroll-snap-type: y mandatory;
+        }
+        #cartItems .drawer-item-page { display: flex; flex-direction: column; gap: 20px; scroll-snap-align: start; scroll-margin-top: 4px; }
+        /* No overflow:hidden here (deliberately) -- it would clip the image's glow box-shadow,
+           which extends beyond the item's own edges by design. The text-truncation rules below
+           already guarantee each line stays single-line (via white-space:nowrap), which is what
+           actually keeps the content from ever needing more than the declared 104px anyway. */
+        #cartItems .drawer-item { height: var(--drawer-item-height); box-sizing: border-box; }
+        #cartItems .drawer-item-details h4,
+        #cartItems .drawer-item-meta,
+        #cartItems .drawer-item-price {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
         @keyframes drawerImgGlowPink {
             0%, 100% { box-shadow: 0 0 6px rgba(255,0,127,0.55), 0 0 14px rgba(255,0,127,0.25); }
             50%      { box-shadow: 0 0 10px rgba(255,0,127,0.85), 0 0 22px rgba(255,0,127,0.4); }
@@ -1402,6 +1427,21 @@
             .drawer-item-img-wrap-graveyard { animation: none; box-shadow: 0 0 8px rgba(124,58,237,0.55); }
         }
 
+        /* Desktop: stronger glow -- more noticeable at typical monitor viewing distance/size than
+           on a phone held close. Same two keyframes, just wider spread + higher peak opacity. */
+        @media (min-width: 901px) {
+            @keyframes drawerImgGlowPinkDesktop {
+                0%, 100% { box-shadow: 0 0 8px rgba(255,0,127,0.7), 0 0 18px rgba(255,0,127,0.4); }
+                50%      { box-shadow: 0 0 16px rgba(255,0,127,1), 0 0 32px rgba(255,0,127,0.6); }
+            }
+            @keyframes drawerImgGlowGraveyardDesktop {
+                0%, 100% { box-shadow: 0 0 8px rgba(124,58,237,0.7), 0 0 18px rgba(124,58,237,0.45); }
+                50%      { box-shadow: 0 0 16px rgba(124,58,237,1), 0 0 32px rgba(124,58,237,0.65); }
+            }
+            .drawer-item-img-wrap-dtf { animation-name: drawerImgGlowPinkDesktop; }
+            .drawer-item-img-wrap-graveyard { animation-name: drawerImgGlowGraveyardDesktop; }
+        }
+
         .drawer-item-details { flex: 1; min-width: 0; padding-right: 35px; }
         .drawer-item-details h4 { font-size: 0.95rem; text-transform: uppercase; margin-bottom: 5px; overflow-wrap: break-word; }
         .drawer-item-meta { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-pink); margin-bottom: 5px; }
@@ -1409,7 +1449,10 @@
         .remove-item { position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-muted); transition: color 0.2s; font-size: 1.2rem; }
         .remove-item:hover { color: #ef4444; }
 
-        .drawer-footer { border-top: 1px solid var(--border-subtle); padding-top: 25px; margin-top: 20px; }
+        /* .drawer-items no longer flex-grows to fill the drawer (it's a fixed 2-item-tall
+           window now) -- margin-top:auto keeps the footer pinned to the bottom of the drawer
+           instead of riding up right underneath a now-shorter items list. */
+        .drawer-footer { border-top: 1px solid var(--border-subtle); padding-top: 25px; margin-top: auto; }
         .cart-total-row { display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 800; margin-bottom: 20px; text-transform: uppercase;}
 
         .checkout-btn { background: var(--accent-pink); color: var(--text-pure); border: none; width: 100%; padding: 18px; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 6px; transition: transform 0.2s, box-shadow 0.3s; display: inline-block;}
@@ -5765,6 +5808,11 @@ Thank you for supporting my small business and understanding the handmade nature
             if (cart.length === 0) {
                 cartItemsContainer.innerHTML = '<p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>';
             } else {
+                // Grouped into pairs (.drawer-item-page) so scroll-snap advances 2 full items at
+                // a time instead of settling on individual item boundaries -- a trailing odd item
+                // (e.g. 3 in the cart) just gets its own shorter final page, nothing to pad it
+                // out to a false pair since there's nothing after it to peek into anyway.
+                let itemsHtml = '';
                 cart.forEach((item, index) => {
                     totalItems += item.quantity;
                     subTotalPrice += (item.price * item.quantity);
@@ -5778,7 +5826,11 @@ Thank you for supporting my small business and understanding the handmade nature
                         ? `<div class="drawer-item-img-wrap ${itemAccentClass}"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
                         : '';
 
-                    cartItemsContainer.innerHTML += `
+                    const isPageStart = index % 2 === 0;
+                    const isLast = index === cart.length - 1;
+                    if (isPageStart) itemsHtml += '<div class="drawer-item-page">';
+
+                    itemsHtml += `
                         <div class="drawer-item">
                             ${imageHtml}
                             <div class="drawer-item-details">
@@ -5789,7 +5841,10 @@ Thank you for supporting my small business and understanding the handmade nature
                             <button class="remove-item hover-target" onclick="removeFromCart(${index})">✕</button>
                         </div>
                     `;
+
+                    if (!isPageStart || isLast) itemsHtml += '</div>';
                 });
+                cartItemsContainer.innerHTML = itemsHtml;
             }
             
             // FULFILLMENT MATH
