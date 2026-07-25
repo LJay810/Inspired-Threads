@@ -1355,18 +1355,46 @@
         .close-drawer { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: var(--transition-snappy); }
         .close-drawer:hover { color: var(--accent-pink); transform: scale(1.1); }
 
-        .drawer-items { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px; }
-        .drawer-item { background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; position: relative;}
-        .drawer-item-details { width: 100%; padding-right: 35px; }
-        .drawer-item-details h4 { font-size: 0.95rem; text-transform: uppercase; margin-bottom: 5px; }
+        /* overscroll-behavior stops scroll momentum "leaking" into the page behind the drawer
+           once you hit the top/bottom of the item list (a common mobile papercut); -webkit-
+           overflow-scrolling gives proper momentum scrolling on older iOS Safari; scroll-snap
+           (proximity, not mandatory -- it settles items into place without fighting a fast
+           flick) makes long lists feel more precise on both trackpad and touch. */
+        .drawer-items {
+            flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px;
+            overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+            scroll-snap-type: y proximity;
+            scrollbar-width: thin; scrollbar-color: var(--border-subtle) transparent; /* Firefox parity with the ::-webkit-scrollbar rules below */
+        }
+        .drawer-item {
+            background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 15px;
+            display: flex; gap: 14px; align-items: center; position: relative;
+            scroll-snap-align: start;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        .drawer-item:hover { border-color: var(--accent-pink); box-shadow: 0 4px 18px rgba(255,0,127,0.12); }
+
+        /* Product thumbnail -- object-fit:contain + the same light backdrop as the shop grid's
+           own image zones, so garment photos and transparent-background DTF designs both sit
+           cleanly rather than being cropped or floating on a mismatched dark background. */
+        .drawer-item-img-wrap {
+            flex-shrink: 0; width: 64px; height: 64px; border-radius: 8px; overflow: hidden;
+            background: #f5f5f5; border: 1px solid var(--border-subtle); transition: border-color 0.25s ease;
+        }
+        .drawer-item-img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .drawer-item-img-wrap-dtf { border-color: rgba(255,0,127,0.4); }
+        .drawer-item-img-wrap-graveyard { border-color: var(--accent-graveyard); }
+
+        .drawer-item-details { flex: 1; min-width: 0; padding-right: 35px; }
+        .drawer-item-details h4 { font-size: 0.95rem; text-transform: uppercase; margin-bottom: 5px; overflow-wrap: break-word; }
         .drawer-item-meta { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-pink); margin-bottom: 5px; }
         .drawer-item-price { font-family: var(--font-mono); font-weight: 700; margin-bottom: 10px;}
         .remove-item { position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-muted); transition: color 0.2s; font-size: 1.2rem; }
-        .remove-item:hover { color: #ef4444; } 
+        .remove-item:hover { color: #ef4444; }
 
         .drawer-footer { border-top: 1px solid var(--border-subtle); padding-top: 25px; margin-top: 20px; }
         .cart-total-row { display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 800; margin-bottom: 20px; text-transform: uppercase;}
-        
+
         .checkout-btn { background: var(--accent-pink); color: var(--text-pure); border: none; width: 100%; padding: 18px; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 6px; transition: transform 0.2s, box-shadow 0.3s; display: inline-block;}
         .checkout-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 10px 25px rgba(255, 0, 127, 0.3); transform: scale(1.02); }
 
@@ -2907,6 +2935,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     productId: pending.productId,
                     quantity: qty,
                     resurrection: true,
+                    image: pending.imageUrl,
                 });
             }
             localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
@@ -3328,7 +3357,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     window.productInventory[product.id] = product.metadata || {};
                     window.productCategoryId[product.id] = categoryId;
                     window.productMeta = window.productMeta || {};
-                    window.productMeta[product.id] = { name: product.name, price: product.price, priceId: product.priceId };
+                    window.productMeta[product.id] = { name: product.name, price: product.price, priceId: product.priceId, image: (product.images && product.images[0]) || '' };
 
                     // Load all DTF transfers into visualizer memory bank silently
                     if(categoryId === 'dtf') window.dtfRegistry.push(product);
@@ -3665,6 +3694,21 @@ Thank you for supporting my small business and understanding the handmade nature
             return match ? match[1] : null;
         }
 
+        // Grabs whatever image is CURRENTLY shown for a product, so a variant-apparel item added
+        // to cart shows the actual selected color's photo (not just the product's default first
+        // image) -- tries the lazy-bg image zone (variant-apparel/design-attach/simple), then the
+        // gallery layout's real <img>, then falls back to the product's static default image.
+        function getCardImageUrl(productId, card) {
+            const imgZone = document.getElementById(`img-zone-${productId}`);
+            if (imgZone) {
+                const bg = extractCssUrl(imgZone.style.backgroundImage);
+                if (bg) return bg;
+            }
+            const galleryImg = card && card.querySelector('.main-binder-img');
+            if (galleryImg && galleryImg.src) return galleryImg.src;
+            return (window.productMeta && window.productMeta[productId] && window.productMeta[productId].image) || '';
+        }
+
         // "Save this look" -- draws the garment photo + any attached DTF design directly onto a
         // <canvas>, from the original full-resolution image files, using the EXACT same
         // placement math applyDtfToTarget() already applies on screen (same base top/left/width/
@@ -3911,10 +3955,14 @@ Thank you for supporting my small business and understanding the handmade nature
 
                     // CHECK FOR ATTACHED DTF IN THE MODAL LOGIC
                     const attachedDtf = window.attachedDtfs[productId];
-                    
+
                     // Modifies the base item name so the user knows it's bundled in the cart UI
                     const baseItemName = attachedDtf ? `${name} (w/ ${attachedDtf.name})` : name;
                     const dtfCartName = attachedDtf ? `[ATTACHED PRINT] ${attachedDtf.name}` : null;
+
+                    // Whatever's CURRENTLY shown on the card (e.g. the selected color's photo for
+                    // a variant-apparel item), not just the product's static default image.
+                    const imageUrl = getCardImageUrl(productId, card);
 
                     // STOCK GUARD: block the add entirely (base garment or attached DTF) if it
                     // would push either item's cart quantity past what's actually in stock.
@@ -3939,7 +3987,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     if (existingBaseItem) {
                         existingBaseItem.quantity += 1;
                     } else {
-                        cart.push({ id: Date.now(), name: baseItemName, price, priceId, size, color, quantity: 1 });
+                        cart.push({ id: Date.now(), name: baseItemName, price, priceId, size, color, quantity: 1, image: imageUrl });
                     }
 
                     // PUSH #2: THE ATTACHED DTF PRINT (DUAL PAYLOAD)
@@ -3948,7 +3996,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         if (existingDtf) {
                             existingDtf.quantity += 1;
                         } else {
-                            cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(attachedDtf.price), priceId: attachedDtf.priceId, size: null, color: null, quantity: 1 });
+                            cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(attachedDtf.price), priceId: attachedDtf.priceId, size: null, color: null, quantity: 1, image: attachedDtf.image });
                         }
                     }
                     
@@ -5701,9 +5749,14 @@ Thank you for supporting my small business and understanding the handmade nature
                     const metaText = item.resurrection
                         ? '🪦 Resurrection Pre-Order'
                         : item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
+                    const itemAccentClass = item.resurrection ? 'drawer-item-img-wrap-graveyard' : (item.name.includes('[ATTACHED PRINT]') ? 'drawer-item-img-wrap-dtf' : '');
+                    const imageHtml = item.image
+                        ? `<div class="drawer-item-img-wrap ${itemAccentClass}"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+                        : '';
 
                     cartItemsContainer.innerHTML += `
                         <div class="drawer-item">
+                            ${imageHtml}
                             <div class="drawer-item-details">
                                 <h4 style="color: ${item.resurrection ? 'var(--accent-graveyard)' : item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
                                 <div class="drawer-item-meta">${metaText}</div>
@@ -5776,16 +5829,17 @@ Thank you for supporting my small business and understanding the handmade nature
             }
 
             const attachedDtf = window.attachedDtfs[productId] || null;
-            
+            const image = getCardImageUrl(productId, card);
+
             // Generates a unique key so the user can save multiple variants of the same shirt independently!
             const matchKey = `${productId}-${size}-${color}-${attachedDtf ? attachedDtf.id : 'none'}`;
 
             const existingIndex = window.wishlist.findIndex(item => item.matchKey === matchKey);
-            
+
             if (existingIndex > -1) {
                 window.wishlist.splice(existingIndex, 1);
             } else {
-                window.wishlist.push({ matchKey, productId, name, price, priceId, size, color, hasVariants, attachedDtf });
+                window.wishlist.push({ matchKey, productId, name, price, priceId, size, color, hasVariants, attachedDtf, image });
             }
             
             localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
@@ -5809,9 +5863,13 @@ Thank you for supporting my small business and understanding the handmade nature
                     const metaText = item.size ? `${item.size} / ${item.color}` : 'Standard Specifications';
                     const dtfText = item.attachedDtf ? `<br><span style="color:var(--accent-pink);">+ DTF: ${item.attachedDtf.name}</span>` : '';
                     const totalPrice = item.price + (item.attachedDtf ? parseFloat(item.attachedDtf.price) : 0);
+                    const imageHtml = item.image
+                        ? `<div class="drawer-item-img-wrap"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+                        : '';
 
                     container.innerHTML += `
                         <div class="drawer-item">
+                            ${imageHtml}
                             <div class="drawer-item-details">
                                 <h4 style="color: var(--text-pure); font-size: 0.9rem;">${item.name}</h4>
                                 <div class="drawer-item-meta">${metaText}${dtfText}</div>
@@ -5863,7 +5921,7 @@ Thank you for supporting my small business and understanding the handmade nature
             if (existingBase) {
                 existingBase.quantity += 1;
             } else {
-                cart.push({ id: Date.now(), name: baseItemName, price: item.price, priceId: item.priceId, size: item.size, color: item.color, quantity: 1 });
+                cart.push({ id: Date.now(), name: baseItemName, price: item.price, priceId: item.priceId, size: item.size, color: item.color, quantity: 1, image: item.image });
             }
 
             // Push Attached DTF to Cart
@@ -5873,7 +5931,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 if (existingDtf) {
                     existingDtf.quantity += 1;
                 } else {
-                    cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(item.attachedDtf.price), priceId: item.attachedDtf.priceId, size: null, color: null, quantity: 1 });
+                    cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(item.attachedDtf.price), priceId: item.attachedDtf.priceId, size: null, color: null, quantity: 1, image: item.attachedDtf.image });
                 }
             }
 
