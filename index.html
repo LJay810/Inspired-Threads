@@ -1650,7 +1650,13 @@
                 padding: 20px;
                 border: 1px solid var(--accent-pink);
                 border-radius: 20px;
-                transform: translateY(100%);
+                /* translateY(100%) alone only accounts for the sheet's OWN height -- it doesn't
+                   know about the extra bottom gap above (the floating-corner fix from before),
+                   so closed still left the sheet's own top edge peeking back into the viewport by
+                   about that gap's worth of pixels. The flat +50px comfortably covers that gap
+                   plus any real device's safe-area-inset-bottom, fully clearing the sheet off
+                   the bottom of the screen when closed regardless of device. */
+                transform: translateY(calc(100% + 50px));
                 overflow-y: auto;
             }
             /* #cartDrawer.open (id+class) rather than .cart-drawer.open (class+class) --
