@@ -226,62 +226,19 @@ export default async function handler(req, res) {
             expires_at: Math.floor(Date.now() / 1000) + (30 * 60),
         };
 
-        // DISCOUNT PRIORITY: referral rewards (both flavors are a flat 15%) outrank the tier
-        // standing discount (max 10%, VIP), which outranks manual promo codes -- Stripe
-        // Checkout Sessions only allow ONE `discounts` coupon per session, so at most one of
-        // these actually applies. Whichever one gets used is reserved optimistically here
-        // (same pattern as stock/VIP-credit above) and released back by webhook.js if this
-        // session expires unpaid.
-        let discountPct = perks.standingDiscountPct;
-        let referralDiscountType = null; // 'reward' | 'signup' | null, stamped into metadata below
+        // DISCOUNT SELECTION: Stripe Checkout Sessions only allow ONE `discounts` coupon per
+        // session, so at most one of referral/spin/crew-cash/standing ever actually applies.
+        // 'auto' (the default, and the only mode that existed before this) picks the best-value
+        // one automatically via the priority cascade below. An explicit discountChoice instead
+        // lets the shopper pick which single one they want -- most notably including "none," so
+        // a shopper with an unused spin-wheel prize or standing discount can still decline it in
+        // favor of entering their own manual promo code, which Stripe can't combine with a
+        // pre-applied coupon. Whichever one gets used is reserved optimistically here (same
+        // pattern as stock/VIP-credit above) and released back by webhook.js if this session
+        // expires unpaid -- that release logic keys off the sessionMetadata fields set below, so
+        // it works identically regardless of which branch set them.
+        const discountChoice = req.body.discountChoice || 'auto';
 
-        if (referralProfile && supabaseAdmin) {
-            try {
-                if (referralProfile.referral_reward_pending > 0) {
-                    const { data: reserved } = await supabaseAdmin.rpc('reserve_referral_reward', {
-                        p_user_id: supabaseUserId,
-                    });
-                    if (reserved) {
-                        discountPct = 15;
-                        referralDiscountType = 'reward';
-                    }
-                }
-                if (!referralDiscountType
-                    && referralProfile.referred_by
-                    && !referralProfile.referral_signup_discount_used
-                    && referralProfile.order_count === 0) {
-                    const { data: reserved } = await supabaseAdmin.rpc('reserve_referee_discount', {
-                        p_user_id: supabaseUserId,
-                    });
-                    if (reserved) {
-                        discountPct = 15;
-                        referralDiscountType = 'signup';
-                    }
-                }
-            } catch (err) {
-                console.warn('Referral discount lookup failed, falling back to tier discount:', err.message);
-            }
-        }
-        if (referralDiscountType) sessionMetadata['referral_discount_type'] = referralDiscountType;
-
-        // SPIN-WHEEL PRIZE: two different kinds, handled differently.
-        //   - Percent-off ('percent'): LEGACY ONLY as of the six-physical-prize wheel redesign
-        //     -- claim_spin_prize() (see sql/spin_wheel.sql) no longer hands these out to new
-        //     spins, but anyone who already won one under the old odds keeps a fully-working
-        //     prize, so this branch stays. Competes for Stripe's single discounts-per-session
-        //     slot, same as the referral/tier discounts above. Compared by actual dollar value
-        //     on THIS cart rather than raw percent-vs-percent -- the old raw comparison meant a
-        //     Gold member's 5%-off prize could never beat their own already-5% standing
-        //     discount (5 > 5 is false), silently making the "win" worthless for exactly the
-        //     members most likely to have it. That redundancy is the whole reason the wheel no
-        //     longer offers percent-off prizes at all; this fix just makes the comparison honest
-        //     for whoever's still holding one from before.
-        //   - Physical prize (all six current prizes, plus legacy 'mystery_gift'): doesn't touch
-        //     pricing or that discount slot at all -- just flags the order for whoever packs it,
-        //     same idea as Include_Free_Gift below, so it applies independently of whatever
-        //     discount (if any) is also on this order.
-        // Same reserve-now/release-on-expiry pattern as the referral signup discount above,
-        // reused for both kinds via reserve_spin_prize/release_spin_prize.
         const SPIN_PRIZE_LABELS = {
             pop_socket: 'Mystery Pop-Socket',
             custom_pen: 'Mystery Custom Pen',
@@ -291,82 +248,235 @@ export default async function handler(req, res) {
             mystery_cup_wraps: '3x Mystery Cup-Wraps',
             mystery_tshirt: 'Mystery T-Shirt',
         };
+        const subtotalDollars = subtotalCents / 100;
+
+        let discountPct = perks.standingDiscountPct;
+        let referralDiscountType = null; // 'reward' | 'signup' | null, stamped into metadata below
         let spinPrizeClaimed = false;
         // Distinct from spinPrizeClaimed below: only true when the percent branch actually wins
         // the discount slot. A physical prize (pop socket, pen, etc.) also sets spinPrizeClaimed,
-        // but never touches discountPct or the slot at all -- Crew Cash further down should still
-        // be free to apply alongside a physical prize, just not alongside a percent one.
+        // but never touches discountPct or the slot at all -- Crew Cash should still be free to
+        // apply alongside a physical prize, just not alongside a percent one.
         let spinDiscountApplied = false;
-        if (referralProfile && supabaseAdmin && referralProfile.spin_prize_type && !referralProfile.spin_prize_used) {
-            if (referralProfile.spin_prize_type === 'percent') {
-                if (!referralDiscountType) {
-                    const subtotalDollars = subtotalCents / 100;
-                    const standingValueDollars = subtotalDollars * (discountPct / 100);
-                    const spinValueDollars = subtotalDollars * (referralProfile.spin_prize_pct / 100);
-                    if (spinValueDollars > standingValueDollars) {
+        let crewCashUsed = 0;
+
+        if (discountChoice === 'auto') {
+            // Referral rewards (both flavors are a flat 15%) outrank the tier standing discount
+            // (max 10%, VIP), which outranks manual promo codes.
+            if (referralProfile && supabaseAdmin) {
+                try {
+                    if (referralProfile.referral_reward_pending > 0) {
+                        const { data: reserved } = await supabaseAdmin.rpc('reserve_referral_reward', {
+                            p_user_id: supabaseUserId,
+                        });
+                        if (reserved) {
+                            discountPct = 15;
+                            referralDiscountType = 'reward';
+                        }
+                    }
+                    if (!referralDiscountType
+                        && referralProfile.referred_by
+                        && !referralProfile.referral_signup_discount_used
+                        && referralProfile.order_count === 0) {
+                        const { data: reserved } = await supabaseAdmin.rpc('reserve_referee_discount', {
+                            p_user_id: supabaseUserId,
+                        });
+                        if (reserved) {
+                            discountPct = 15;
+                            referralDiscountType = 'signup';
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Referral discount lookup failed, falling back to tier discount:', err.message);
+                }
+            }
+            if (referralDiscountType) sessionMetadata['referral_discount_type'] = referralDiscountType;
+
+            // SPIN-WHEEL PRIZE: two different kinds, handled differently.
+            //   - Percent-off ('percent'): LEGACY ONLY as of the six-physical-prize wheel redesign
+            //     -- claim_spin_prize() (see sql/spin_wheel.sql) no longer hands these out to new
+            //     spins, but anyone who already won one under the old odds keeps a fully-working
+            //     prize, so this branch stays. Competes for Stripe's single discounts-per-session
+            //     slot, same as the referral/tier discounts above. Compared by actual dollar value
+            //     on THIS cart rather than raw percent-vs-percent -- the old raw comparison meant a
+            //     Gold member's 5%-off prize could never beat their own already-5% standing
+            //     discount (5 > 5 is false), silently making the "win" worthless for exactly the
+            //     members most likely to have it. That redundancy is the whole reason the wheel no
+            //     longer offers percent-off prizes at all; this fix just makes the comparison honest
+            //     for whoever's still holding one from before.
+            //   - Physical prize (all six current prizes, plus legacy 'mystery_gift'): doesn't touch
+            //     pricing or that discount slot at all -- just flags the order for whoever packs it,
+            //     same idea as Include_Free_Gift below, so it applies independently of whatever
+            //     discount (if any) is also on this order.
+            // Same reserve-now/release-on-expiry pattern as the referral signup discount above,
+            // reused for both kinds via reserve_spin_prize/release_spin_prize.
+            if (referralProfile && supabaseAdmin && referralProfile.spin_prize_type && !referralProfile.spin_prize_used) {
+                if (referralProfile.spin_prize_type === 'percent') {
+                    if (!referralDiscountType) {
+                        const standingValueDollars = subtotalDollars * (discountPct / 100);
+                        const spinValueDollars = subtotalDollars * (referralProfile.spin_prize_pct / 100);
+                        if (spinValueDollars > standingValueDollars) {
+                            try {
+                                const { data: reserved } = await supabaseAdmin.rpc('reserve_spin_prize', {
+                                    p_user_id: supabaseUserId,
+                                });
+                                if (reserved) {
+                                    discountPct = referralProfile.spin_prize_pct;
+                                    spinPrizeClaimed = true;
+                                    spinDiscountApplied = true;
+                                }
+                            } catch (err) {
+                                console.warn('Spin prize reservation failed, proceeding without it:', err.message);
+                            }
+                        }
+                    }
+                } else {
+                    try {
+                        const { data: reserved } = await supabaseAdmin.rpc('reserve_spin_prize', {
+                            p_user_id: supabaseUserId,
+                        });
+                        if (reserved) {
+                            spinPrizeClaimed = true;
+                            sessionMetadata['Include_Spin_Prize'] = SPIN_PRIZE_LABELS[referralProfile.spin_prize_type] || referralProfile.spin_prize_type;
+                        }
+                    } catch (err) {
+                        console.warn('Spin prize reservation failed, proceeding without it:', err.message);
+                    }
+                }
+            }
+            if (spinPrizeClaimed) sessionMetadata['spin_prize_used'] = 'true';
+
+            // CREW CASH: the shopper's own stored balance (manually granted by an admin via
+            // Customer Lookup), spendable like a gift card. It's a fixed dollar amount, not a
+            // percentage, so it can't just stack on top of a percent_off coupon -- same single
+            // discounts-per-session slot as everything above. Gated on !referralDiscountType &&
+            // !spinDiscountApplied rather than a value comparison against those two specifically
+            // (unlike the plain tier standing discount, which is compared by value): a referral
+            // reward/signup discount and a spin percent prize were already RESERVED above (their
+            // RPCs already ran and consumed/marked-used the reward) by the time this runs, so if
+            // Crew Cash won by value and took the discount slot instead, that already-committed
+            // reservation would be silently burned with the reward never actually applied to any
+            // order. The plain standing discount never consumes anything to "earn" it, so
+            // overriding that one by value is always safe -- and a physical spin prize
+            // (spinPrizeClaimed but NOT spinDiscountApplied) never touches this slot at all, so
+            // Crew Cash can still apply right alongside one of those.
+            if (!referralDiscountType && !spinDiscountApplied && referralProfile && supabaseAdmin) {
+                const creditBalance = parseFloat(referralProfile.credit_balance) || 0;
+                if (creditBalance > 0) {
+                    const currentDiscountValueDollars = subtotalDollars * (discountPct / 100);
+                    const creditValueDollars = Math.min(creditBalance, subtotalDollars);
+                    if (creditValueDollars > currentDiscountValueDollars) {
                         try {
-                            const { data: reserved } = await supabaseAdmin.rpc('reserve_spin_prize', {
+                            const { data: applied } = await supabaseAdmin.rpc('use_crew_cash', {
                                 p_user_id: supabaseUserId,
+                                p_amount: creditValueDollars,
                             });
-                            if (reserved) {
-                                discountPct = referralProfile.spin_prize_pct;
-                                spinPrizeClaimed = true;
-                                spinDiscountApplied = true;
+                            if (applied) {
+                                crewCashUsed = creditValueDollars;
+                                sessionMetadata['crew_cash_used'] = crewCashUsed.toFixed(2);
                             }
                         } catch (err) {
-                            console.warn('Spin prize reservation failed, proceeding without it:', err.message);
+                            console.warn('Crew Cash reservation failed, proceeding without it:', err.message);
                         }
                     }
                 }
-            } else {
+            }
+        } else {
+            // EXPLICIT CHOICE: attempt ONLY the one discount-slot item the shopper actually
+            // picked, instead of the value-comparison cascade above. Never trust discountChoice
+            // blindly, though -- eligibility is re-checked here against the same server-side
+            // profile data (never the client's say-so), and the RPCs themselves are the same
+            // ones the auto path uses, so a stale/ineligible choice (e.g. a reward that got used
+            // in another tab a moment ago) just safely no-ops rather than granting anything.
+            if (referralProfile && supabaseAdmin) {
+                if (discountChoice === 'referral_reward' && referralProfile.referral_reward_pending > 0) {
+                    try {
+                        const { data: reserved } = await supabaseAdmin.rpc('reserve_referral_reward', {
+                            p_user_id: supabaseUserId,
+                        });
+                        if (reserved) {
+                            discountPct = 15;
+                            referralDiscountType = 'reward';
+                        }
+                    } catch (err) {
+                        console.warn('Referral reward reservation failed, falling back to tier discount:', err.message);
+                    }
+                } else if (discountChoice === 'referral_signup'
+                    && referralProfile.referred_by
+                    && !referralProfile.referral_signup_discount_used
+                    && referralProfile.order_count === 0) {
+                    try {
+                        const { data: reserved } = await supabaseAdmin.rpc('reserve_referee_discount', {
+                            p_user_id: supabaseUserId,
+                        });
+                        if (reserved) {
+                            discountPct = 15;
+                            referralDiscountType = 'signup';
+                        }
+                    } catch (err) {
+                        console.warn('Referral signup discount reservation failed, falling back to tier discount:', err.message);
+                    }
+                } else if (discountChoice === 'spin_percent'
+                    && referralProfile.spin_prize_type === 'percent'
+                    && !referralProfile.spin_prize_used) {
+                    try {
+                        const { data: reserved } = await supabaseAdmin.rpc('reserve_spin_prize', {
+                            p_user_id: supabaseUserId,
+                        });
+                        if (reserved) {
+                            discountPct = referralProfile.spin_prize_pct;
+                            spinPrizeClaimed = true;
+                            spinDiscountApplied = true;
+                        }
+                    } catch (err) {
+                        console.warn('Spin prize reservation failed, falling back to tier discount:', err.message);
+                    }
+                } else if (discountChoice === 'crew_cash') {
+                    const creditBalance = parseFloat(referralProfile.credit_balance) || 0;
+                    if (creditBalance > 0) {
+                        const creditValueDollars = Math.min(creditBalance, subtotalDollars);
+                        try {
+                            const { data: applied } = await supabaseAdmin.rpc('use_crew_cash', {
+                                p_user_id: supabaseUserId,
+                                p_amount: creditValueDollars,
+                            });
+                            if (applied) {
+                                crewCashUsed = creditValueDollars;
+                                sessionMetadata['crew_cash_used'] = crewCashUsed.toFixed(2);
+                            }
+                        } catch (err) {
+                            console.warn('Crew Cash reservation failed, proceeding without it:', err.message);
+                        }
+                    }
+                } else if (discountChoice === 'none') {
+                    // Shopper explicitly declined every automatic discount -- e.g. to use their
+                    // own manual promo code instead, which Stripe can't combine with a pre-
+                    // applied coupon. Falls through with discountPct forced to 0 below.
+                    discountPct = 0;
+                }
+                // 'standing' (or an unrecognized/stale value) needs no action here -- discountPct
+                // already defaults to perks.standingDiscountPct above, and it's never "consumed,"
+                // so there's nothing to reserve.
+
+                if (referralDiscountType) sessionMetadata['referral_discount_type'] = referralDiscountType;
+                if (spinPrizeClaimed) sessionMetadata['spin_prize_used'] = 'true';
+            }
+
+            // PHYSICAL spin prize (non-percent) never competes for the discount slot, so it's
+            // always handled here regardless of which discount (if any) was just chosen above --
+            // same as the auto path's own physical-prize branch.
+            if (referralProfile && supabaseAdmin && referralProfile.spin_prize_type
+                && referralProfile.spin_prize_type !== 'percent' && !referralProfile.spin_prize_used) {
                 try {
                     const { data: reserved } = await supabaseAdmin.rpc('reserve_spin_prize', {
                         p_user_id: supabaseUserId,
                     });
                     if (reserved) {
-                        spinPrizeClaimed = true;
                         sessionMetadata['Include_Spin_Prize'] = SPIN_PRIZE_LABELS[referralProfile.spin_prize_type] || referralProfile.spin_prize_type;
+                        sessionMetadata['spin_prize_used'] = 'true';
                     }
                 } catch (err) {
                     console.warn('Spin prize reservation failed, proceeding without it:', err.message);
-                }
-            }
-        }
-        if (spinPrizeClaimed) sessionMetadata['spin_prize_used'] = 'true';
-
-        // CREW CASH: the shopper's own stored balance (manually granted by an admin via Customer
-        // Lookup), spendable like a gift card. It's a fixed dollar amount, not a percentage, so it
-        // can't just stack on top of a percent_off coupon -- same single discounts-per-session
-        // slot as everything above. Gated on !referralDiscountType && !spinDiscountApplied rather
-        // than a value comparison against those two specifically (unlike the plain tier standing
-        // discount, which is compared by value): a referral reward/signup discount and a spin
-        // percent prize were already RESERVED above (their RPCs already ran and consumed/marked-
-        // used the reward) by the time this runs, so if Crew Cash won by value and took the
-        // discount slot instead, that already-committed reservation would be silently burned with
-        // the reward never actually applied to any order. The plain standing discount never
-        // consumes anything to "earn" it, so overriding that one by value is always safe -- and a
-        // physical spin prize (spinPrizeClaimed but NOT spinDiscountApplied) never touches this
-        // slot at all, so Crew Cash can still apply right alongside one of those.
-        const subtotalDollars = subtotalCents / 100;
-        let crewCashUsed = 0;
-        if (!referralDiscountType && !spinDiscountApplied && referralProfile && supabaseAdmin) {
-            const creditBalance = parseFloat(referralProfile.credit_balance) || 0;
-            if (creditBalance > 0) {
-                const currentDiscountValueDollars = subtotalDollars * (discountPct / 100);
-                const creditValueDollars = Math.min(creditBalance, subtotalDollars);
-                if (creditValueDollars > currentDiscountValueDollars) {
-                    try {
-                        const { data: applied } = await supabaseAdmin.rpc('use_crew_cash', {
-                            p_user_id: supabaseUserId,
-                            p_amount: creditValueDollars,
-                        });
-                        if (applied) {
-                            crewCashUsed = creditValueDollars;
-                            sessionMetadata['crew_cash_used'] = crewCashUsed.toFixed(2);
-                        }
-                    } catch (err) {
-                        console.warn('Crew Cash reservation failed, proceeding without it:', err.message);
-                    }
                 }
             }
         }
@@ -374,8 +484,8 @@ export default async function handler(req, res) {
         // Stripe Checkout can't combine a pre-applied `discounts` coupon with customer-entered
         // `allow_promotion_codes` on the same session -- so whenever an automatic discount
         // (Crew Cash, referral, standing, or spin) applies, manual promo-code entry is disabled
-        // for that one checkout. Everyone else (Bronze/Silver with no referral reward/guests)
-        // keeps the ability to enter a promo code as before.
+        // for that one checkout. Everyone else (Bronze/Silver with no referral reward/guests, or
+        // anyone who explicitly chose "none") keeps the ability to enter a promo code as before.
         if (crewCashUsed > 0) {
             // Unlike the standing-discount coupons, this amount is unique to this shopper's
             // balance and this cart -- created fresh each time rather than looked up/reused.

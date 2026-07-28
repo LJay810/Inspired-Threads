@@ -1580,6 +1580,19 @@
         }
         .guest-cart-save-close:hover { color: var(--accent-pink); }
 
+        .discount-choice-box {
+            align-items: center; gap: 10px; margin-bottom: 20px;
+        }
+        .discount-choice-box label {
+            font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;
+            letter-spacing: 0.08em; flex-shrink: 0;
+        }
+        .discount-choice-box select {
+            flex: 1; min-width: 0; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle);
+            color: var(--text-pure); padding: 9px 10px; border-radius: 6px; font-size: 0.8rem; font-family: var(--font-sans);
+        }
+        .discount-choice-box select:focus { border-color: var(--accent-pink); outline: none; }
+
         .fulfillment-box {
             background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px;
             padding: 15px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;
@@ -1851,6 +1864,17 @@
                 <button type="button" class="guest-cart-save-close hover-target" onclick="dismissGuestCartBanner()" aria-label="Dismiss">✕</button>
                 <span>🔒 Sign in so this cart follows you to any device.</span>
                 <button type="button" class="guest-cart-save-btn hover-target" onclick="closeAllDrawers(); openAuthModal();">Sign In</button>
+            </div>
+
+            <!-- Hidden by default (see renderDiscountChoiceOptions) -- only shown once there's
+                 genuinely more than one discount to pick between (a spin prize, standing
+                 discount, referral reward, or Crew Cash all competing for Stripe's single
+                 discount-per-session slot), so a shopper with nothing to choose between never
+                 sees an unnecessary control. "Best deal" stays the default so nobody who doesn't
+                 touch this gets any different result than before this existed. -->
+            <div class="discount-choice-box" id="discountChoiceBox" style="display:none;">
+                <label for="discountChoiceSelect">Discount</label>
+                <select id="discountChoiceSelect" class="hover-target"></select>
             </div>
 
             <div class="fulfillment-box">
@@ -5572,12 +5596,16 @@ Thank you for supporting my small business and understanding the handmade nature
                     );
                     const fetchProfile = supabaseClient
                         .from('profiles')
-                        .select('username, tier_spend, grandfathered_tier, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_count, order_count, is_admin, avatar_url, selected_badge, spin_claimed_at, spin_prize_type, spin_prize_pct, spin_prize_used, credit_balance')
+                        .select('username, tier_spend, grandfathered_tier, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_signup_discount_used, referral_count, order_count, is_admin, avatar_url, selected_badge, spin_claimed_at, spin_prize_type, spin_prize_pct, spin_prize_used, credit_balance')
                         .eq('id', session.user.id)
                         .single();
 
                     const { data: profile } = await Promise.race([fetchProfile, timeout]);
                     if (profile) {
+                        // Stored globally so the cart drawer's discount picker can read tier/
+                        // referral/spin/credit-balance eligibility without a second network
+                        // round-trip -- everything it needs was already fetched right here.
+                        window._currentProfile = profile;
                         if (profile.username) displayName = profile.username;
                         renderTierAndBadges(profile.tier_spend || 0, profile.grandfathered_tier, profile.badges || [], profile.birthday_code, profile.birthday_code_expires);
                         document.getElementById('crewCashAmount').textContent = `$${(parseFloat(profile.credit_balance) || 0).toFixed(2)}`;
@@ -5664,6 +5692,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 syncWishlistToSupabase(); // backfill anything wishlisted while logged out
             } else {
                 window._isLoggedIn = false;
+                window._currentProfile = null;
                 updateGuestCartSaveBanner();
                 navBtn.textContent = 'Account';
                 navBtn.classList.remove('account-btn-active');
@@ -5757,6 +5786,76 @@ Thank you for supporting my small business and understanding the handmade nature
         function dismissGuestCartBanner() {
             sessionStorage.setItem('guestCartBannerDismissed', '1');
             updateGuestCartSaveBanner();
+        }
+
+        // Stripe only allows ONE discount coupon per Checkout Session, so api/checkout.js's
+        // 'auto' mode picks the single best-value one automatically -- but that means a shopper
+        // holding an unused spin-wheel prize or a standing tier discount has no way to instead
+        // use their own manual promo code, since Stripe can't combine a pre-applied coupon with
+        // customer-entered code entry. This builds the list of everything THIS shopper is
+        // currently eligible for (mirroring the exact same eligibility checks api/checkout.js
+        // itself re-validates server-side -- this is just what's shown, never trusted as-is) so
+        // they can explicitly pick one instead of always getting whatever "wins" by value.
+        // Returns null (not an empty array) when there's nothing to choose between, so the
+        // picker can hide itself entirely for the common case of a shopper with no competing
+        // discounts -- showing an empty/single-option dropdown to every Bronze member with
+        // nothing to pick between would just be clutter for no benefit.
+        function computeDiscountOptions(subtotalDollars) {
+            const profile = window._currentProfile;
+            if (!profile || subtotalDollars <= 0) return null;
+
+            const options = [];
+            if ((profile.referral_reward_pending || 0) > 0) {
+                options.push({ value: 'referral_reward', label: `Referral Reward — 15% off ($${(subtotalDollars * 0.15).toFixed(2)})` });
+            }
+            if (profile.referred_by && !profile.referral_signup_discount_used && (profile.order_count || 0) === 0) {
+                options.push({ value: 'referral_signup', label: `New Customer Referral — 15% off ($${(subtotalDollars * 0.15).toFixed(2)})` });
+            }
+            if (profile.spin_prize_type === 'percent' && !profile.spin_prize_used) {
+                const pct = profile.spin_prize_pct || 0;
+                options.push({ value: 'spin_percent', label: `🎡 Spin Wheel Prize — ${pct}% off ($${(subtotalDollars * pct / 100).toFixed(2)})` });
+            }
+            const tierName = effectiveTierName(profile.tier_spend || 0, profile.grandfathered_tier);
+            const standingPct = (PERKS[tierName] && PERKS[tierName].standingDiscountPct) || 0;
+            if (standingPct > 0) {
+                options.push({ value: 'standing', label: `⭐ ${tierName} Standing Discount — ${standingPct}% off ($${(subtotalDollars * standingPct / 100).toFixed(2)})` });
+            }
+            const creditBalance = parseFloat(profile.credit_balance) || 0;
+            if (creditBalance > 0) {
+                const creditValue = Math.min(creditBalance, subtotalDollars);
+                options.push({ value: 'crew_cash', label: `💰 Crew Cash — $${creditValue.toFixed(2)} off` });
+            }
+
+            if (options.length === 0) return null; // nothing to choose between -- hide the picker
+            return [
+                { value: 'auto', label: 'Best deal for you (recommended)' },
+                ...options,
+                { value: 'none', label: '🎟️ I have a promo code' },
+            ];
+        }
+
+        // Rebuilds the picker's options (dollar values need to track the current subtotal as the
+        // cart changes) while preserving whatever the shopper already had selected, so changing
+        // quantity or fulfillment method -- which both call this via updateCartUI() -- never
+        // silently resets a deliberate choice back to "auto."
+        function renderDiscountChoiceOptions(subtotalDollars) {
+            const box = document.getElementById('discountChoiceBox');
+            const select = document.getElementById('discountChoiceSelect');
+            if (!box || !select) return;
+
+            const previousValue = select.value;
+            const options = computeDiscountOptions(subtotalDollars);
+
+            if (!options) {
+                box.style.display = 'none';
+                select.innerHTML = '';
+                return;
+            }
+
+            box.style.display = 'flex';
+            select.innerHTML = options.map(o => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join('');
+            const stillValid = options.some(o => o.value === previousValue);
+            select.value = stillValid ? previousValue : 'auto';
         }
 
         // Single choke point for persisting the cart -- localStorage stays the fast, always-
@@ -6175,11 +6274,15 @@ Thank you for supporting my small business and understanding the handmade nature
         function updateCartUI() {
             const cartItemsContainer = document.getElementById('cartItems');
             const cartNavCount = document.getElementById('cartNavCount');
-            // Must run before computeItemsPerPage() -- that function measures the footer's real
-            // rendered height (to decide whether a full 2-item page fits), so the banner's
-            // visibility needs to already be in its final state before that measurement happens,
-            // not toggled afterward.
+            // Both must run before computeItemsPerPage() -- that function measures the footer's
+            // real rendered height (to decide whether a full 2-item page fits), so the banner's
+            // and discount picker's visibility both need to already be in their final state
+            // before that measurement happens, not toggled afterward. Subtotal is computed here
+            // via a quick reduce (rather than waiting for the cart.forEach loop below, which also
+            // computes it) purely so the discount box's dollar values -- and therefore whether it
+            // needs to render at all -- are known this early; it's the same number either way.
             updateGuestCartSaveBanner();
+            renderDiscountChoiceOptions(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0));
             const itemsPerPage = computeItemsPerPage();
 
             let totalItems = 0;
@@ -6495,6 +6598,15 @@ Thank you for supporting my small business and understanding the handmade nature
 
             const fulfillmentMethod = document.querySelector('input[name="fulfillment"]:checked').value;
 
+            // Only present (and only meaningful) when the discount picker is actually visible --
+            // a shopper with nothing to choose between never had a control to touch, so this
+            // naturally falls back to undefined, and api/checkout.js's own `|| 'auto'` default
+            // picks up from there exactly as it always has.
+            const discountChoiceBox = document.getElementById('discountChoiceBox');
+            const discountChoice = (discountChoiceBox && discountChoiceBox.style.display !== 'none' && document.getElementById('discountChoiceSelect'))
+                ? document.getElementById('discountChoiceSelect').value
+                : undefined;
+
             // Logged-in shoppers earn loyalty spend for this order -- the webhook credits it to
             // this id once payment completes. Guests/logged-out checkouts simply earn nothing.
             let supabaseUserId = null;
@@ -6530,7 +6642,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 const response = await fetch('/api/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: cart, fulfillment: fulfillmentMethod, supabaseUserId })
+                    body: JSON.stringify({ items: cart, fulfillment: fulfillmentMethod, supabaseUserId, discountChoice })
                 });
 
                 const session = await response.json();
