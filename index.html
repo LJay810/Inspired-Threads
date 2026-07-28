@@ -1343,23 +1343,35 @@
         .drawer-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); z-index: 1999; backdrop-filter: blur(5px); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .drawer-overlay.open { opacity: 1; pointer-events: all; }
 
-        /* Widened from 450px -- with combo cards (garment + attached design merged into one
-           card, see computeCartRenderGroups) now rendering 2-per-row on desktop (see #cartItems
-           .drawer-item-page's grid-template-columns below), each column needs enough room for an
-           image + full item details without cramping; 680px gives each of the 2 columns a
-           comfortable ~280px.
-           overflow-y:auto here is a deliberate SAFETY NET, not the primary fix -- computeItemsPerPage()
-           already shrinks how many card ROWS render to keep the footer/checkout button on-screen,
-           but that only has 1 row as its floor; a customer with an unusually short browser window
-           (windowed/non-maximized Chrome on a 1080p display loses real estate to tabs/bookmarks
-           bar/OS taskbar that a maximized or fullscreen window doesn't) could still end up with
-           less room than even 1 row + the footer needs. Scrolling the whole panel guarantees the
-           checkout button is ALWAYS reachable regardless of window size -- unlike mobile (which
-           explicitly avoids this, see that media query's own comment), desktop mouse-wheel
-           scrolling over a nested scrollable region is well-supported/expected UX, not a gesture
-           conflict the way touch-swipe is. */
-        .cart-drawer { position: fixed; top: 0; right: 0; width: 680px; max-width: 100%; height: 100vh; background: var(--bg-surface); border-left: 1px solid var(--accent-pink); z-index: 2000; padding: 40px; display: flex; flex-direction: column; overflow-y: auto; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: -10px 0 50px rgba(0,0,0,0.9); }
+        /* Widened from 450px -- with combo cards (garment + attached design merged into one card,
+           see computeCartRenderGroups) rendering 2-per-row on desktop (see #cartItems' grid below),
+           each column needs enough room for an image + full item details without cramping; 680px
+           gives each of the 2 columns a comfortable ~280px.
+           overflow:hidden (not auto) -- the panel itself never scrolls; only its middle .drawer-body
+           region does. This is the single-scroll-region design that makes the whole cart robust on
+           any device: header (checkout) and totals are pinned, everything variable scrolls between
+           them, so nothing is ever clipped off-screen. Because there's exactly ONE scroll region
+           (not the old nested sheet-scroll + item-scroll-snap pair), there's no touch-gesture
+           conflict on mobile either -- the reason the old mobile sheet had to avoid scrolling
+           entirely no longer exists. */
+        .cart-drawer { position: fixed; top: 0; right: 0; width: 680px; max-width: 100%; height: 100vh; background: var(--bg-surface); border-left: 1px solid var(--accent-pink); z-index: 2000; padding: 40px; display: flex; flex-direction: column; overflow: hidden; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: -10px 0 50px rgba(0,0,0,0.9); }
         .cart-drawer.open { transform: translateX(0); }
+
+        /* The three-region layout (see the cart-drawer HTML comment). Header + totals are
+           flex-shrink:0 so they always keep their full height and stay pinned; the body is the
+           only flexible/scrolling region. min-height:0 on the body is REQUIRED -- without it a
+           flex child refuses to shrink below its content's intrinsic height, so it would push the
+           totals off-screen instead of scrolling. */
+        .drawer-body {
+            flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+            padding: 22px 6px 4px 0; margin-top: 15px;
+            border-top: 1px solid var(--border-subtle);
+            overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin; scrollbar-color: var(--border-subtle) transparent;
+        }
+        .drawer-body::-webkit-scrollbar { width: 6px; }
+        .drawer-body::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 10px; }
+        .drawer-totals { flex-shrink: 0; border-top: 1px solid var(--border-subtle); padding-top: 18px; margin-top: 15px; }
         
         /* NEW WISHLIST DRAWER (SLIDES FROM LEFT) */
         .wishlist-drawer { position: fixed; top: 0; left: 0; width: 450px; max-width: 100%; height: 100vh; background: var(--bg-surface); border-right: 1px solid var(--accent-pink); z-index: 2000; padding: 40px; display: flex; flex-direction: column; transform: translateX(-100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: 10px 0 50px rgba(0,0,0,0.9); }
@@ -1371,8 +1383,10 @@
         .close-drawer:hover { color: var(--accent-pink); transform: scale(1.1); }
         /* Cart-only override (ID+class beats the shared .drawer-header class rule above, which
            the wishlist drawer still uses as-is) -- stacks a [close X + title] row above a
-           full-width checkout button, instead of the wishlist's plain single row. */
-        #cartDrawer .drawer-header { flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 14px; }
+           full-width checkout button, instead of the wishlist's plain single row. flex-shrink:0
+           keeps it pinned at the drawer's top (see the three-region-layout comment above);
+           margin-bottom:0 because the .drawer-body below now owns the separator (its border-top). */
+        #cartDrawer .drawer-header { flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 14px; flex-shrink: 0; margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
         .drawer-header-top { display: flex; align-items: center; gap: 14px; }
         .header-checkout-btn {
             display: block; width: 100%; box-sizing: border-box;
@@ -1418,61 +1432,29 @@
         }
         .drawer-item-img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-        /* ===== CART-ONLY: fixed page-of-cards window (see updateCartUI's page-grouping) =====
-           Item height here is a DECLARED CONSTANT, enforced via box-sizing + overflow:hidden +
-           single-line text truncation -- not a measured/guessed value. That's what makes "exactly
-           N cards visible, zero partial peek of the next one" achievable with plain CSS:
-           #cartItems' viewport height is a calc() off this same constant, so it can never drift
-           out of sync with what's actually rendered. 148px (up from the original 104px) accounts
-           for a combo card's 4 text lines (title / size-meta / price / attached-design) instead of
-           the original 3 -- see comboCardInnerHTML/.drawer-item-attached below. Scoped to
-           #cartItems specifically (not the shared .drawer-items/.drawer-item classes) because the
-           wishlist's extra "Move to Cart" button needs more vertical room than this fixed height
-           allows -- forcing the same constraint there would clip that button. */
+        /* ===== CART-ONLY item grid =====
+           Cards render in natural document flow inside the scrolling .drawer-body -- NO fixed
+           container height, NO scroll-snap paging, NO measured "N items per page" math. All of
+           that was removed: it repeatedly clipped content on real devices because it tried to
+           reserve an exact slice of the screen for the item list, which fought with the equally
+           variable footer for the same finite height. Now the whole .drawer-body just scrolls, so
+           the item list simply takes whatever room it needs and the rest scrolls -- unbreakable by
+           construction.
+           Desktop: 2-column grid (pairs with the widened 680px drawer so combo cards sit side by
+           side). Mobile: single column (see the media query override below).
+           --drawer-item-height is still a declared constant so every card is the same height for a
+           clean, aligned grid (a 2-col grid with ragged heights looks messy) -- but it's now
+           purely cosmetic, never load-bearing for any scroll/clip math. */
         :root { --drawer-item-height: 148px; }
         #cartItems {
-            flex-grow: 0; flex-shrink: 0; height: calc(var(--drawer-item-height) * 2 + 20px);
-            scroll-snap-type: y mandatory;
-            /* Classic scroll-snap trap: a trailing partial ROW gets its own page shorter than the
-               fixed 2-row viewport. "mandatory" snap needs to align that short page's TOP with the
-               viewport's top -- but doing so would require scrolling past the actual end of the
-               content, which the browser refuses to do. The practical result is that last row
-               becomes completely unreachable; scrolling just snaps back to the previous (full)
-               page every time. Padding the bottom by one row's worth of height gives the scroll
-               range enough extra room for even the shortest possible trailing page to reach its
-               aligned position, with blank space filling the rest of the viewport below it once it does. */
-            padding-bottom: calc(var(--drawer-item-height) + 20px);
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px;
+            overflow: visible; padding: 0;
         }
-        /* No scroll-margin-top here (deliberately) -- a nonzero value shifts EVERY page after the
-           first by that same amount (page 1's shift just clamps invisibly to 0, since it can't
-           scroll negative, but page 2 onward actually shifts up), which reveals a sliver of the
-           previous inter-page gap at the top of the view while clipping the same amount off the
-           BOTTOM of the current page -- exactly the "bottom item's border cut off" symptom. */
-        /* scroll-snap-stop:always -- without it, a fast/hard swipe can blow straight past a snap
-           point and land two or three pages away in one fling, which feels chaotic on a short
-           list. Forcing a stop at every page makes a fast swipe land on the very next page every
-           time, one deliberate step at a time -- the "smooth, refined" feel of a proper native
-           paged carousel instead of a free-scrolling list that merely has snap points.
-           display:grid + 2 columns here is DESKTOP's default (see the mobile media query below,
-           which switches this back to a single flex column) -- pairs with the widened 680px
-           .cart-drawer so 2 combo cards sit side by side per row instead of stacked, doubling how
-           many are visible without scrolling on the extra horizontal room desktop already has. */
-        #cartItems .drawer-item-page {
-            display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; min-width: 0;
-            scroll-snap-align: start; scroll-snap-stop: always;
-        }
-        /* No overflow:hidden here (deliberately) -- it would clip the image's glow box-shadow,
-           which extends beyond the item's own edges by design. The text-truncation rules below
-           already guarantee each line stays single-line (via white-space:nowrap), which is what
-           actually keeps the content from ever needing more than the declared height anyway. */
-        /* min-width:0 is the actual fix for cards breaking out of their border/overflowing the
-           drawer horizontally -- grid/flex items default to min-width:auto, meaning a card's
-           unwrapped (white-space:nowrap) text sets its OWN intrinsic minimum width, which can be
-           wider than the 1fr column it's supposed to fit in. Without this, the grid track grows
-           to fit that content instead of respecting the even 2-column split, pushing the card (and
-           its border) past the visible edge -- exactly what the ellipsis truncation below is
-           supposed to prevent, but never gets the chance to since the box never actually shrinks
-           down to the width where truncation would kick in. */
+        #cartItems:empty { display: none; }
+        /* min-width:0 stops a card's unwrapped (white-space:nowrap) text from setting its own
+           intrinsic minimum width wider than its 1fr grid column -- without it the grid track
+           grows to fit the text and pushes the card's border past the drawer edge, instead of the
+           text truncating with an ellipsis as intended. */
         #cartItems .drawer-item { height: var(--drawer-item-height); min-width: 0; box-sizing: border-box; }
         #cartItems .drawer-item-details h4,
         #cartItems .drawer-item-meta,
@@ -1522,11 +1504,9 @@
         .remove-item { position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-muted); transition: color 0.2s; font-size: 1.2rem; }
         .remove-item:hover { color: #ef4444; }
 
-        /* .drawer-items no longer flex-grows to fill the drawer (it's a fixed 2-item-tall
-           window now) -- margin-top:auto keeps the footer pinned to the bottom of the drawer
-           instead of riding up right underneath a now-shorter items list. */
-        .drawer-footer { border-top: 1px solid var(--border-subtle); padding-top: 25px; margin-top: auto; }
-        .cart-total-row { display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 800; margin-bottom: 20px; text-transform: uppercase;}
+        /* Total is the last element in the pinned .drawer-totals region now, so no bottom margin
+           (that would just add dead space below it at the very bottom of the drawer). */
+        .cart-total-row { display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 800; margin-bottom: 0; text-transform: uppercase;}
 
         .checkout-btn { background: var(--accent-pink); color: var(--text-pure); border: none; width: 100%; padding: 18px; font-size: 0.9rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.15em; border-radius: 6px; transition: transform 0.2s, box-shadow 0.3s; display: inline-block;}
         .checkout-btn:hover { background: var(--accent-pink-hover); box-shadow: 0 10px 25px rgba(255, 0, 127, 0.3); transform: scale(1.02); }
@@ -1762,14 +1742,13 @@
                    plus any real device's safe-area-inset-bottom, fully clearing the sheet off
                    the bottom of the screen when closed regardless of device. */
                 transform: translateY(calc(100% + 50px));
-                /* No overflow-y:auto on the sheet itself -- the flex-shrink fix on #cartItems
-                   below already guarantees the footer/checkout button fit within max-height by
-                   compressing the items area, so the sheet itself never needs to scroll as a
-                   whole. Two nested scrollable regions (this sheet + #cartItems' own scroll-snap
-                   area) fight over touch scroll gestures on a real device -- that's what was
-                   breaking the smooth 2-item snap-scroll feel, since a swipe could land on the
-                   outer (non-snapping) scroll instead of the inner snap container. */
-                overflow: visible;
+                /* overflow:hidden clips the sheet's content to its 20px rounded corners. The sheet
+                   ITSELF still doesn't scroll -- its inner .drawer-body does (see that rule). There
+                   is exactly ONE scroll region now (the body), so the old worry about two nested
+                   scroll regions fighting over touch gestures no longer applies -- that concern was
+                   what forced the previous non-scrolling-sheet design, which is what let content
+                   get clipped off the bottom in the first place. */
+                overflow: hidden;
             }
             /* #cartDrawer.open (id+class) rather than .cart-drawer.open (class+class) --
                deliberately higher specificity than the desktop ".cart-drawer.open
@@ -1779,29 +1758,12 @@
                slide-up transform wins outright rather than depending on cascade source-order. */
             #cartDrawer.open { transform: translateY(0); }
 
-            /* No flex-shrink override here anymore -- #cartItems keeps the same flex-shrink:0 as
-               desktop. Shrinking the CONTAINER without shrinking its CONTENT was exactly what
-               caused the 2nd item to render cut off mid-card on a short real screen: the
-               container compressed below 2 full items' worth of height, but each item itself
-               still rendered at its full fixed height regardless, so the excess just got clipped
-               instead of gracefully resized. The real fix is computeItemsPerPage() in
-               updateCartUI() above -- it measures the ACTUAL available room and falls back to
-               1-item pages (still fully visible, just one at a time) instead of ever forcing a
-               2nd item into a space that can't fit it. */
-
-            /* Neither .drawer-header nor .drawer-footer declares its own flex-shrink, so both
-               default to flex-shrink:1 like any flex child -- meaning on a genuinely tight real
-               device height, flexbox could shrink/compress the HEADER or FOOTER instead of (or
-               as well as) #cartItems, distorting the header/footer and the "N cards visible"
-               window unpredictably. Pinning both to flex-shrink:0 makes #cartItems the only
-               flexible region, so it's the only thing that ever compresses. */
-            #cartDrawer .drawer-header, #cartDrawer .drawer-footer { flex-shrink: 0; }
-
-            /* Desktop's default (see the base #cartItems .drawer-item-page rule) lays combo cards
-               out 2-per-row now that its drawer is wider -- mobile's sheet is nowhere near wide
-               enough for 2 columns of a full card (image + name + price + attached design), so
-               this reverts back to the original single-column stack here. */
-            #cartItems .drawer-item-page { grid-template-columns: 1fr; }
+            /* Desktop's default lays combo cards out 2-per-row now that its drawer is wider --
+               mobile's sheet is nowhere near wide enough for 2 columns of a full card (image +
+               name + price + attached design), so this reverts to a single-column stack here.
+               (Header/body/totals pinning + the single body scroll region are all breakpoint-
+               agnostic -- they come from the base rules and need no mobile-specific override.) */
+            #cartItems { grid-template-columns: 1fr; }
 
             .wishlist-drawer { width: 100%; padding: 20px; border-right: none; }
 
@@ -1909,35 +1871,41 @@
 
     <div class="drawer-overlay" id="drawerOverlay" onclick="closeAllDrawers()"></div>
     
+    <!-- Cart drawer layout = three regions in a flex column (see .cart-drawer / .drawer-body /
+         .drawer-totals CSS). This is the ROBUST replacement for the old hardcoded-height +
+         computeItemsPerPage()-measurement approach, which kept breaking on real devices whenever
+         the total content (items + guest banner + BOGO banner + discount picker + fulfillment +
+         totals) happened to exceed a specific screen's height and silently clipped the bottom:
+           1. .drawer-header  -- pinned at top, always visible: close button + full-width Checkout.
+           2. .drawer-body    -- the ONE scroll region: items, guest banner, BOGO banner, discount
+                                 picker, fulfillment. Whatever doesn't fit simply scrolls here.
+           3. .drawer-totals  -- pinned at bottom, always visible: subtotal / shipping / TOTAL.
+         Because the two things a shopper must always see (the Checkout button and the Total) are
+         pinned and everything variable-height lives in the single scroll region between them,
+         nothing can ever be clipped off-screen regardless of device height, orientation, browser
+         chrome, PWA mode, or how many banners happen to be showing. No measurement, no fixed
+         item-page heights, no per-device guessing. -->
     <div class="cart-drawer" id="cartDrawer">
         <div class="drawer-header">
             <div class="drawer-header-top">
                 <button class="close-drawer hover-target" onclick="toggleCart()">✕</button>
                 <h2>Your Cart</h2>
             </div>
-            <!-- The ONLY checkout button in the cart now (a full-width footer one used to sit
-                 below the Total row, but mobile's bottom sheet deliberately has no whole-panel
-                 scroll -- see .cart-drawer's mobile media query comment: a 2nd nested scroll
-                 region there fights the item list's own scroll-snap gesture -- so on a tall cart
-                 that footer button could be genuinely unreachable). Always in view up here
-                 instead, full-width so it reads as a real primary action rather than a cramped
-                 pill squeezed next to the title -- loading/disabled state is managed by
+            <!-- Full-width primary action, pinned at the top of the drawer so it's reachable
+                 instantly without scrolling on any device -- loading/disabled state managed by
                  setCheckoutButtonsState(). -->
             <button class="header-checkout-btn hover-target" onclick="processCheckout()">Checkout</button>
         </div>
-        <div class="drawer-items" id="cartItems">
-            <p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>
-        </div>
-        <div class="drawer-footer">
+
+        <div class="drawer-body">
+            <div class="drawer-items" id="cartItems">
+                <p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>
+            </div>
+
             <!-- Guest-only, dismissible-for-this-tab-session reminder that a cart only follows
                  an ACCOUNT across devices/contexts, not a specific browser -- this is exactly
                  the "60+ items lost switching from the PWA to the mobile site" problem
-                 loadAndMergeCartFromSupabase() now solves, but only once someone's signed in.
-                 Lives inside .drawer-footer (not as a new sibling between header and items)
-                 specifically so computeItemsPerPage() -- which measures the footer's real
-                 rendered height to decide whether a full 2-item page still fits -- automatically
-                 accounts for it; a banner floating outside the measured header/footer would
-                 silently break that "never cut off an item" guarantee. -->
+                 loadAndMergeCartFromSupabase() now solves, but only once someone's signed in. -->
             <div class="guest-cart-save-banner" id="guestCartSaveBanner" style="display:none;">
                 <button type="button" class="guest-cart-save-close hover-target" onclick="dismissGuestCartBanner()" aria-label="Dismiss">✕</button>
                 <span>🔒 Sign in so this cart follows you to any device.</span>
@@ -1945,9 +1913,8 @@
             </div>
 
             <!-- Hidden by default (see renderBuy3Get1FreeBanner) -- only shown once the cart has
-                 at least one T-shirt-with-a-design in it, whether or not the deal has kicked in
-                 yet. Same "lives inside .drawer-footer so computeItemsPerPage() measures it"
-                 reasoning as guestCartSaveBanner above. -->
+                 at least one Thread-apparel-with-a-design in it, whether or not the deal has
+                 kicked in yet. -->
             <div class="buy3get1-banner" id="buy3Get1FreeBanner" style="display:none;"></div>
 
             <!-- Hidden by default (see renderDiscountChoiceOptions) -- only shown once there's
@@ -1972,14 +1939,13 @@
                     Local Pickup (Free)
                 </label>
             </div>
+        </div>
 
+        <!-- Pinned at the bottom of the drawer, always visible (never scrolls away) so the shopper
+             can always see what they'll pay, no matter how tall the cart body above gets. -->
+        <div class="drawer-totals">
             <div class="cart-breakdown"><span>Subtotal:</span><span id="cartSubtotal">$0.00</span></div>
-            <div class="cart-breakdown" style="margin-bottom: 15px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;"><span>Shipping:</span><span id="cartShipping">$9.00</span></div>
-
-            <!-- Total is deliberately the LAST thing in the footer now -- the only checkout
-                 button left is header-checkout-btn up in .drawer-header (see that comment for
-                 why: this footer one required scrolling to reach on mobile's non-scrolling sheet,
-                 which defeated the entire point of a quick-access header button). -->
+            <div class="cart-breakdown" style="margin-bottom: 15px;"><span>Shipping:</span><span id="cartShipping">$9.00</span></div>
             <div class="cart-total-row">
                 <span>Total:</span>
                 <span id="cartTotal" style="color: var(--accent-pink);">$0.00</span>
@@ -6443,62 +6409,6 @@ Thank you for supporting my small business and understanding the handmade nature
             return groups;
         }
 
-        // How many full, uncropped cards can actually stack in #cartItems' available room right
-        // now. Used to hardcode desktop to always 2 here, on the assumption its fixed 100vh side
-        // panel always had plenty of room -- that assumption broke the moment the footer grew a
-        // new banner (buy3get1-banner) stacked on top of the guest-cart banner/discount box/
-        // fulfillment box/subtotal/checkout button: on a cart with 2 items showing, the footer
-        // could now genuinely run the drawer's total content past 100vh, pushing the checkout
-        // button below the visible area with no scroll to reach it (desktop has no overflow-y on
-        // .cart-drawer -- see the mobile sheet's own comment below for why that's deliberate).
-        // Measuring for BOTH breakpoints now (drawer's own real rendered height this time, not a
-        // max-height CSS read, since desktop sizes via `height` not `max-height`) means any future
-        // footer growth -- another banner, a longer discount label, whatever -- degrades
-        // gracefully to fewer cards per page instead of silently reintroducing this same bug.
-        function computeItemsPerPage() {
-            const drawer = document.getElementById('cartDrawer');
-            const header = drawer.querySelector('.drawer-header');
-            const footer = drawer.querySelector('.drawer-footer');
-            if (!header || !footer) return 2; // shouldn't happen, safe fallback
-
-            // Mobile's sheet sizes via `height:auto` capped by a fixed `max-height` ceiling (e.g.
-            // 95dvh) -- that CSS max-height value stays constant no matter how much content is
-            // CURRENTLY rendered, so it has to be read directly; the box's own getBoundingClientRect
-            // height at this point is still whatever #cartItems was left at by the PREVIOUS render
-            // (this runs before that height gets updated for the new item count), so measuring
-            // against it instead of the true ceiling would just be circular -- always roughly
-            // matching whatever #cartItems already was, never actually testing whether 2 items fit.
-            // Desktop's panel instead sizes via a fixed `height:100vh` with no max-height set at
-            // all (getComputedStyle().maxHeight reads 'none' there), so its own rendered height IS
-            // the true, content-independent ceiling and is safe to use directly.
-            const maxHeightPx = parseFloat(getComputedStyle(drawer).maxHeight);
-            const ceilingPx = maxHeightPx || drawer.getBoundingClientRect().height;
-            if (!ceilingPx) return 2; // shouldn't happen, safe fallback
-
-            const cs = getComputedStyle(drawer);
-            const verticalChrome = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
-                + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-            const safetyMargin = 8; // a few px of slack for sub-pixel layout rounding
-            const available = ceilingPx - verticalChrome - header.getBoundingClientRect().height
-                - footer.getBoundingClientRect().height - safetyMargin;
-
-            // How many full ROWS actually fit in the real available room, instead of a hardcoded
-            // "always 2" -- previously this capped at 2 regardless of genuinely spare space (e.g.
-            // a tall iPhone with a short cart left visible slack above the mobile sheet's own top
-            // edge, since the sheet only grows to fit its content). Capped at 3 rows purely so an
-            // unusually tall viewport doesn't turn the cart into one giant uninterrupted page --
-            // not a real technical limit, just a sane ceiling. Desktop lays cards out 2-per-row
-            // (see #cartItems .drawer-item-page's grid-template-columns), so its returned count is
-            // double a single row's worth; mobile stays single-column.
-            const rowHeight = 148; // matches --drawer-item-height
-            const gap = 20;
-            const MAX_ROWS = 3;
-            let rows = 1;
-            while (rows < MAX_ROWS && (rows + 1) * rowHeight + rows * gap <= available) rows++;
-            const columnsPerRow = window.matchMedia('(min-width: 901px)').matches ? 2 : 1;
-            return rows * columnsPerRow;
-        }
-
         function simpleCardInnerHTML(item) {
             const metaText = item.resurrection
                 ? '🪦 Resurrection Pre-Order'
@@ -6546,15 +6456,9 @@ Thank you for supporting my small business and understanding the handmade nature
         function updateCartUI() {
             const cartItemsContainer = document.getElementById('cartItems');
             const cartNavCount = document.getElementById('cartNavCount');
-            // Both must run before computeItemsPerPage() -- that function measures the footer's
-            // real rendered height (to decide whether a full page fits), so the banner's and
-            // discount picker's visibility both need to already be in their final state before
-            // that measurement happens, not toggled afterward.
             updateGuestCartSaveBanner();
             renderBuy3Get1FreeBanner();
             renderDiscountChoiceOptions(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0));
-            const itemsPerPage = computeItemsPerPage();
-            const columnsPerRow = window.matchMedia('(min-width: 901px)').matches ? 2 : 1;
 
             // Pricing/quantity totals always come from the raw cart array, never from the
             // display-only groups below -- a combo card visually merges a garment + its print into
@@ -6574,15 +6478,18 @@ Thank you for supporting my small business and understanding the handmade nature
             } else {
                 // Reuses each card's existing DOM node (image included), keyed by the underlying
                 // garment/item's stable cart id -- appendChild on a node that's ALREADY in the
-                // document just MOVES it (even into a different .drawer-item-page group when
-                // another item is added/removed around it), it never destroys/recreates it, so
-                // product photos never flicker/reload on every cart mutation.
+                // document just MOVES it into its new position, it never destroys/recreates it, so
+                // product photos never flicker/reload on every cart mutation. Cards now render
+                // directly into #cartItems (a CSS grid); no page-wrapper grouping anymore since the
+                // scroll-snap paging that needed it is gone (the whole .drawer-body just scrolls).
                 window._cartItemNodes = window._cartItemNodes || {};
                 const nextNodes = {};
-                const pageWrappers = [];
-                let currentPage = null;
 
-                groups.forEach((group, pageIndex) => {
+                // Clear the empty-state <p> (only present when the cart WAS empty last render);
+                // real card nodes are moved, not cleared, by the appendChild calls below.
+                cartItemsContainer.querySelectorAll(':scope > p').forEach(p => p.remove());
+
+                groups.forEach((group) => {
                     const primaryItem = group.type === 'combo' ? group.garment : group.item;
 
                     // A cart entry's card TYPE can change between renders even though its id
@@ -6618,43 +6525,16 @@ Thank you for supporting my small business and understanding the handmade nature
                     }
 
                     nextNodes[primaryItem.id] = node;
-
-                    if (pageIndex % itemsPerPage === 0) {
-                        currentPage = document.createElement('div');
-                        currentPage.className = 'drawer-item-page';
-                        pageWrappers.push(currentPage);
-                    }
-                    currentPage.appendChild(node);
+                    cartItemsContainer.appendChild(node); // moves-or-inserts into correct order
                 });
 
+                // Remove any leftover nodes from the previous render whose cart entry is now gone.
+                Object.keys(window._cartItemNodes).forEach(id => {
+                    if (!nextNodes[id] && window._cartItemNodes[id].parentNode === cartItemsContainer) {
+                        cartItemsContainer.removeChild(window._cartItemNodes[id]);
+                    }
+                });
                 window._cartItemNodes = nextNodes;
-
-                while (cartItemsContainer.firstChild) cartItemsContainer.removeChild(cartItemsContainer.firstChild);
-                pageWrappers.forEach(p => cartItemsContainer.appendChild(p));
-            }
-
-            // #cartItems' CSS otherwise defaults to a fixed page-tall window (see the "CART-ONLY"
-            // comment near --drawer-item-height) so a cart with more cards than fit on one page can
-            // scroll-snap page by page without the trailing-odd-item bug. That fixed height only
-            // makes sense once there's actually enough cards to need scrolling -- with fewer cards
-            // than one page holds, everything already fits, so a hardcoded height just leaves an
-            // empty gap under a shorter cart. Sized in ROWS, not raw card count, since desktop lays
-            // 2 cards per row (see computeItemsPerPage's columnsPerRow) -- 4 cards on desktop is
-            // still only 2 rows tall, not 4.
-            if (groups.length === 0) {
-                cartItemsContainer.style.height = 'auto';
-                cartItemsContainer.style.paddingBottom = '0';
-            } else if (groups.length <= itemsPerPage) {
-                const rowsNeeded = Math.ceil(groups.length / columnsPerRow);
-                const gapPx = (rowsNeeded - 1) * 20;
-                cartItemsContainer.style.height = `calc(var(--drawer-item-height) * ${rowsNeeded} + ${gapPx}px)`;
-                cartItemsContainer.style.paddingBottom = '0';
-            } else {
-                const rowsPerPage = Math.ceil(itemsPerPage / columnsPerRow);
-                const pageGapPx = (rowsPerPage - 1) * 20;
-                const onePageHeight = `calc(var(--drawer-item-height) * ${rowsPerPage} + ${pageGapPx}px)`;
-                cartItemsContainer.style.height = onePageHeight;
-                cartItemsContainer.style.paddingBottom = onePageHeight;
             }
 
             // FULFILLMENT MATH
