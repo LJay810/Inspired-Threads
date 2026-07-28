@@ -1416,7 +1416,13 @@
            scroll negative, but page 2 onward actually shifts up), which reveals a sliver of the
            previous inter-page gap at the top of the view while clipping the same amount off the
            BOTTOM of the current page -- exactly the "bottom item's border cut off" symptom. */
-        #cartItems .drawer-item-page { display: flex; flex-direction: column; gap: 20px; scroll-snap-align: start; }
+        /* scroll-snap-stop:always -- without it, a fast/hard swipe can blow straight past a snap
+           point and land two or three pages away in one fling, which feels chaotic on a
+           short 1-2-item-per-page list. Forcing a stop at every page makes a fast swipe land on
+           the very next page every time, one deliberate step at a time -- the "smooth, refined"
+           feel of a proper native paged carousel instead of a free-scrolling list that merely
+           has snap points. */
+        #cartItems .drawer-item-page { display: flex; flex-direction: column; gap: 20px; scroll-snap-align: start; scroll-snap-stop: always; }
         /* No overflow:hidden here (deliberately) -- it would clip the image's glow box-shadow,
            which extends beyond the item's own edges by design. The text-truncation rules below
            already guarantee each line stays single-line (via white-space:nowrap), which is what
@@ -1682,17 +1688,15 @@
                slide-up transform wins outright rather than depending on cascade source-order. */
             #cartDrawer.open { transform: translateY(0); }
 
-            /* On a short phone screen, header + a full 2-item items-window + footer can add up
-               to more than the 85dvh cap allows -- without this, the items area's desktop-only
-               flex-shrink:0 (see the "CART-ONLY" fixed-window rule above) would hold its full
-               size regardless, pushing the checkout button below the visible sheet instead of
-               shrinking to make room. flex-shrink:1 here lets the items area compress (and it
-               already scrolls internally via its own overflow-y:auto) so the fulfillment box,
-               totals, and checkout button in the footer always stay on-screen without needing to
-               scroll the whole sheet just to find the button. Desktop keeps flex-shrink:0 for its
-               guaranteed-exact "2 items visible" precision, since a 100vh drawer always has room
-               regardless of item count. */
-            #cartItems { flex-shrink: 1; min-height: 60px; }
+            /* No flex-shrink override here anymore -- #cartItems keeps the same flex-shrink:0 as
+               desktop. Shrinking the CONTAINER without shrinking its CONTENT was exactly what
+               caused the 2nd item to render cut off mid-card on a short real screen: the
+               container compressed below 2 full items' worth of height, but each item itself
+               still rendered at its full fixed height regardless, so the excess just got clipped
+               instead of gracefully resized. The real fix is computeItemsPerPage() in
+               updateCartUI() above -- it measures the ACTUAL available room and falls back to
+               1-item pages (still fully visible, just one at a time) instead of ever forcing a
+               2nd item into a space that can't fit it. */
 
             /* Neither .drawer-header nor .drawer-footer declares its own flex-shrink, so both
                default to flex-shrink:1 like any flex child -- meaning on a genuinely tight real
@@ -5943,10 +5947,41 @@ Thank you for supporting my small business and understanding the handmade nature
             updateBodyScrollLock();
         }
 
+        // How many full, uncropped items can actually stack in #cartItems' available room right
+        // now. Desktop's drawer is a fixed 100vh side panel with always-plenty of room, so it's
+        // always 2 there. Mobile's bottom sheet is capped at a max-height that varies by real
+        // device (status bar / home-indicator reservations aren't identical to a synthetic
+        // viewport size), so on a shorter real screen, forcing 2 full-height items into less
+        // room than that needs would previously just render the 2nd one cut off mid-card instead
+        // of shrinking gracefully. Measuring the ACTUAL leftover room (drawer's own max-height,
+        // minus its padding/border, minus the header/footer's real rendered height) and choosing
+        // 1-per-page instead of 2 when there isn't room guarantees every item shown is always
+        // fully visible -- never a partial card -- while still using the smooth 2-item snap
+        // grouping whenever there's genuinely room for it.
+        function computeItemsPerPage() {
+            const isMobileNow = window.matchMedia('(max-width: 900px)').matches;
+            if (!isMobileNow) return 2;
+
+            const drawer = document.getElementById('cartDrawer');
+            const header = drawer.querySelector('.drawer-header');
+            const footer = drawer.querySelector('.drawer-footer');
+            const maxHeightPx = parseFloat(getComputedStyle(drawer).maxHeight);
+            if (!maxHeightPx || !header || !footer) return 2; // shouldn't happen, safe fallback
+
+            const drawerPaddingAndBorder = 42; // 20px top + 20px bottom padding, 1px top + 1px bottom border
+            const safetyMargin = 8; // a few px of slack for sub-pixel layout rounding
+            const available = maxHeightPx - drawerPaddingAndBorder - header.getBoundingClientRect().height
+                - footer.getBoundingClientRect().height - safetyMargin;
+
+            const twoItemPageHeight = 228; // matches --drawer-item-height*2 + 20px gap
+            return available >= twoItemPageHeight ? 2 : 1;
+        }
+
         function updateCartUI() {
             const cartItemsContainer = document.getElementById('cartItems');
             const cartNavCount = document.getElementById('cartNavCount');
-            
+            const itemsPerPage = computeItemsPerPage();
+
             let totalItems = 0;
             let subTotalPrice = 0;
 
@@ -6006,7 +6041,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
                     nextNodes[item.id] = node;
 
-                    if (index % 2 === 0) {
+                    if (index % itemsPerPage === 0) {
                         currentPage = document.createElement('div');
                         currentPage.className = 'drawer-item-page';
                         pageWrappers.push(currentPage);
@@ -6020,24 +6055,30 @@ Thank you for supporting my small business and understanding the handmade nature
                 pageWrappers.forEach(p => cartItemsContainer.appendChild(p));
             }
 
-            // #cartItems' CSS gives it a fixed 2-item-tall window (see the "CART-ONLY" comment
-            // near --drawer-item-height) so a 3+ item cart can scroll-snap page by page without
-            // the trailing-odd-item bug. That fixed height only makes sense once there's actually
-            // enough items to need scrolling -- with 0/1/2 items everything already fits, so a
-            // hardcoded 2-item height just leaves an empty gap under a shorter cart (exactly what
-            // was reported on a 1-item cart). Size it to the real content instead: empty/auto for
-            // 0 items, exactly N items tall for 1-2, and only fall back to the fixed 2-item
-            // scrolling window (with its matching padding-bottom fix) once there's a 3rd item.
+            // #cartItems' CSS otherwise defaults to a fixed 2-item-tall window (see the
+            // "CART-ONLY" comment near --drawer-item-height) so a cart with more items than fit
+            // on one page can scroll-snap page by page without the trailing-odd-item bug. That
+            // fixed height only makes sense once there's actually enough items to need
+            // scrolling -- with fewer items than one page holds, everything already fits, so a
+            // hardcoded height just leaves an empty gap under a shorter cart. Size it to the
+            // real content instead: empty/auto for 0 items, exactly N items tall for up to one
+            // full page, and only fall back to the fixed one-page-tall scrolling window (with
+            // its matching padding-bottom fix) once there's more than a page's worth. Every
+            // height here is expressed in terms of itemsPerPage (1 or 2, from
+            // computeItemsPerPage() above) instead of a hardcoded 2, so it's never taller than
+            // what actually, fully fits -- no item is ever rendered partially cut off.
             if (cart.length === 0) {
                 cartItemsContainer.style.height = 'auto';
                 cartItemsContainer.style.paddingBottom = '0';
-            } else if (cart.length <= 2) {
+            } else if (cart.length <= itemsPerPage) {
                 const gapPx = (cart.length - 1) * 20;
                 cartItemsContainer.style.height = `calc(var(--drawer-item-height) * ${cart.length} + ${gapPx}px)`;
                 cartItemsContainer.style.paddingBottom = '0';
             } else {
-                cartItemsContainer.style.height = 'calc(var(--drawer-item-height) * 2 + 20px)';
-                cartItemsContainer.style.paddingBottom = 'calc(var(--drawer-item-height) + 20px)';
+                const pageGapPx = (itemsPerPage - 1) * 20;
+                const onePageHeight = `calc(var(--drawer-item-height) * ${itemsPerPage} + ${pageGapPx}px)`;
+                cartItemsContainer.style.height = onePageHeight;
+                cartItemsContainer.style.paddingBottom = onePageHeight;
             }
 
             // FULFILLMENT MATH
