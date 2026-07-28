@@ -1369,6 +1369,17 @@
         .drawer-header h2 { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
         .close-drawer { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: var(--transition-snappy); }
         .close-drawer:hover { color: var(--accent-pink); transform: scale(1.1); }
+        .drawer-header-actions { display: flex; align-items: center; gap: 14px; }
+        .header-checkout-btn {
+            background: linear-gradient(135deg, var(--accent-pink), var(--accent-pink-hover));
+            color: #fff; border: none; padding: 9px 20px; border-radius: 999px;
+            font-family: var(--font-mono); font-size: 0.72rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; cursor: pointer;
+            box-shadow: 0 4px 14px rgba(255,0,127,0.35);
+            transition: transform 0.2s ease, box-shadow 0.3s ease;
+        }
+        .header-checkout-btn:hover { transform: scale(1.06); box-shadow: 0 6px 20px rgba(255,0,127,0.5); }
+        .header-checkout-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
         /* overscroll-behavior stops scroll momentum "leaking" into the page behind the drawer
            once you hit the top/bottom of the item list (a common mobile papercut); -webkit-
@@ -1789,12 +1800,13 @@
 
             .wishlist-drawer { width: 100%; padding: 20px; border-right: none; }
 
-            /* Desktop's letter-spacing (0.15em) comfortably fits "SECURE CHECKOUT VIA STRIPE" in
-               a 450px-wide drawer; squeezed into mobile's ~335px content width the same spacing
-               crowds the text toward wrapping and reads cramped rather than confidently bold.
-               Tightening spacing/size (not the vertical padding, so the tap target stays the
-               same height) keeps every pink CTA button (cart, TikTok claim, spin wheel,
-               resurrect) single-line and easier to read on a phone screen. */
+            /* .checkout-btn is shared by several full-width pink CTAs (TikTok claim, spin wheel,
+               resurrect -- the cart's own footer button that originally motivated this rule has
+               since been removed in favor of the header-checkout-btn). Desktop's letter-spacing
+               (0.15em) reads fine at desktop widths; squeezed into mobile's ~335px content width
+               the same spacing crowds longer button text toward wrapping. Tightening spacing/size
+               (not the vertical padding, so the tap target stays the same height) keeps these
+               single-line and easier to read on a phone screen. */
             .checkout-btn { font-size: 0.78rem; letter-spacing: 0.08em; }
             
             .contact-layout { gap: 25px; }
@@ -1895,7 +1907,16 @@
     <div class="cart-drawer" id="cartDrawer">
         <div class="drawer-header">
             <h2>Your Cart</h2>
-            <button class="close-drawer hover-target" onclick="toggleCart()">✕</button>
+            <!-- The ONLY checkout button in the cart now (a full-width footer one used to sit
+                 below the Total row, but mobile's bottom sheet deliberately has no whole-panel
+                 scroll -- see .cart-drawer's mobile media query comment: a 2nd nested scroll
+                 region there fights the item list's own scroll-snap gesture -- so on a tall cart
+                 that footer button could be genuinely unreachable). Always in view up here
+                 instead; loading/disabled state is managed by setCheckoutButtonsState(). -->
+            <div class="drawer-header-actions">
+                <button class="header-checkout-btn hover-target" onclick="processCheckout()">Checkout</button>
+                <button class="close-drawer hover-target" onclick="toggleCart()">✕</button>
+            </div>
         </div>
         <div class="drawer-items" id="cartItems">
             <p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>
@@ -1948,11 +1969,14 @@
             <div class="cart-breakdown"><span>Subtotal:</span><span id="cartSubtotal">$0.00</span></div>
             <div class="cart-breakdown" style="margin-bottom: 15px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;"><span>Shipping:</span><span id="cartShipping">$9.00</span></div>
 
+            <!-- Total is deliberately the LAST thing in the footer now -- the only checkout
+                 button left is header-checkout-btn up in .drawer-header (see that comment for
+                 why: this footer one required scrolling to reach on mobile's non-scrolling sheet,
+                 which defeated the entire point of a quick-access header button). -->
             <div class="cart-total-row">
                 <span>Total:</span>
                 <span id="cartTotal" style="color: var(--accent-pink);">$0.00</span>
             </div>
-            <button class="checkout-btn magnetic-btn hover-target" onclick="processCheckout()">Secure Checkout via Stripe</button>
         </div>
     </div>
 
@@ -6852,12 +6876,24 @@ Thank you for supporting my small business and understanding the handmade nature
             toggleCart();
         }
 
+        // header-checkout-btn is now the ONLY checkout button in the cart drawer (the old
+        // full-width footer one was removed -- Total is the last thing in the footer now). Note
+        // this deliberately does NOT query '.checkout-btn' -- that class is shared by several
+        // other unrelated pink CTAs (TikTok claim, spin wheel, resurrect), so querying it here
+        // post-removal would grab whichever of THOSE happens to be first in the DOM instead of
+        // doing nothing, silently corrupting an unrelated button's label/disabled state.
+        function setCheckoutButtonsState(loading) {
+            const headerBtn = document.querySelector('.header-checkout-btn');
+            if (headerBtn) {
+                headerBtn.disabled = loading;
+                headerBtn.innerText = loading ? '...' : 'Checkout';
+            }
+        }
+
         async function processCheckout() {
             if(cart.length === 0) return alert("Please add items to your cart before checking out.");
-            
-            const checkoutBtn = document.querySelector('.checkout-btn');
-            checkoutBtn.innerText = "INITIALIZING SECURE LINK...";
-            checkoutBtn.disabled = true;
+
+            setCheckoutButtonsState(true);
 
             const fulfillmentMethod = document.querySelector('input[name="fulfillment"]:checked').value;
 
@@ -6945,10 +6981,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
                 showPaymentStatusModal('fail', 'Checkout Failed', error.message);
 
-                checkoutBtn.innerText = "Secure Checkout via Stripe";
-                checkoutBtn.disabled = false;
-                checkoutBtn.style.background = "";
-                checkoutBtn.style.fontSize = "0.9rem";
+                setCheckoutButtonsState(false);
             }
         }
 
@@ -7229,13 +7262,7 @@ Thank you for supporting my small business and understanding the handmade nature
         // --- NEW: BFCache Checkout Button Reset ---
         window.addEventListener('pageshow', (event) => {
             if (event.persisted) {
-                const checkoutBtn = document.querySelector('.checkout-btn');
-                if (checkoutBtn) {
-                    checkoutBtn.innerText = "Secure Checkout via Stripe";
-                    checkoutBtn.disabled = false;
-                    checkoutBtn.style.background = "";
-                    checkoutBtn.style.fontSize = "0.9rem";
-                }
+                setCheckoutButtonsState(false);
             }
         });
 
