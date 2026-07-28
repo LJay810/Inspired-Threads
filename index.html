@@ -6227,8 +6227,16 @@ Thank you for supporting my small business and understanding the handmade nature
             } else {
                 document.getElementById('drawerOverlay').classList.toggle('open');
             }
-            document.getElementById('cartDrawer').classList.toggle('open');
+            const cartDrawer = document.getElementById('cartDrawer');
+            cartDrawer.classList.toggle('open');
             updateBodyScrollLock();
+            // Forces a fresh render every time the drawer is actually opened (not needed on
+            // close) -- otherwise simply reopening an already-populated cart just shows whatever
+            // was last rendered, which could predate window._currentProfile finishing its async
+            // load (or any other state that changed since). Every other cart entry point already
+            // calls updateCartUI() as part of the mutation itself; opening the drawer with
+            // nothing added/removed was the one gap.
+            if (cartDrawer.classList.contains('open')) updateCartUI();
         }
 
         function toggleWishlist() {
