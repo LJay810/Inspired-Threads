@@ -1620,12 +1620,49 @@
             .tiktok-btn { padding: 16px 45px; font-size: 1.15rem; }
             .filter-bar { justify-content: center; }
             
-            /* border-left/-right on the desktop version marks the seam between the sliding
-               panel and the dimmed backdrop still visible beside it. At full width on mobile
-               there's no backdrop left showing next to it, so that single-edge hairline reads as
-               a stray rendering artifact rather than a deliberate frame -- dropped here, the
-               existing box-shadow already does the "lifted panel" separation on its own. */
-            .cart-drawer { width: 100%; padding: 20px; border-left: none; }
+            /* Bottom sheet instead of a side panel on mobile: slides up from the bottom edge,
+               sized to fit its own content (not a full 100vh side panel that pins the footer to
+               the bottom via margin-top:auto, leaving a big gap above it on a short cart) up to
+               a max-height, with a full pink frame all the way around since there's no adjacent
+               backdrop sliver left for a partial border to "join" onto anymore.
+               "85vh" as a fallback then "85dvh" overriding it on browsers that support dynamic
+               viewport units -- dvh is what actually fixes the classic mobile-Safari bug where a
+               bottom-pinned fixed element ends up hidden behind Safari's own collapsed toolbar,
+               which is exactly the "checkout button cut off" symptom this replaces.
+               env(safe-area-inset-bottom) keeps the checkout button clear of the home-indicator
+               area on notched devices. Same CSS renders identically in the installed PWA and in
+               a regular mobile browser tab (there's no separate PWA stylesheet), so this fixes
+               both at once without any PWA-specific code. */
+            .cart-drawer {
+                top: auto; bottom: 0; left: 0; right: 0;
+                width: 100%; height: auto;
+                max-height: 85vh; max-height: 85dvh;
+                padding: 20px; padding-bottom: max(20px, env(safe-area-inset-bottom));
+                border: 1px solid var(--accent-pink);
+                border-radius: 20px 20px 0 0;
+                transform: translateY(100%);
+                overflow-y: auto;
+            }
+            /* #cartDrawer.open (id+class) rather than .cart-drawer.open (class+class) --
+               deliberately higher specificity than the desktop ".cart-drawer.open
+               {translateX(0)}" rule above, since that rule ties on specificity with a plain
+               class-only mobile override and doesn't reliably lose the tiebreak the way a media
+               query override normally does elsewhere in this file. This guarantees the mobile
+               slide-up transform wins outright rather than depending on cascade source-order. */
+            #cartDrawer.open { transform: translateY(0); }
+
+            /* On a short phone screen, header + a full 2-item items-window + footer can add up
+               to more than the 85dvh cap allows -- without this, the items area's desktop-only
+               flex-shrink:0 (see the "CART-ONLY" fixed-window rule above) would hold its full
+               size regardless, pushing the checkout button below the visible sheet instead of
+               shrinking to make room. flex-shrink:1 here lets the items area compress (and it
+               already scrolls internally via its own overflow-y:auto) so the fulfillment box,
+               totals, and checkout button in the footer always stay on-screen without needing to
+               scroll the whole sheet just to find the button. Desktop keeps flex-shrink:0 for its
+               guaranteed-exact "2 items visible" precision, since a 100vh drawer always has room
+               regardless of item count. */
+            #cartItems { flex-shrink: 1; min-height: 60px; }
+
             .wishlist-drawer { width: 100%; padding: 20px; border-right: none; }
 
             /* Desktop's letter-spacing (0.15em) comfortably fits "SECURE CHECKOUT VIA STRIPE" in
