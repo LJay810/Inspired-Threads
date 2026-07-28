@@ -1562,9 +1562,27 @@
         }
         .dtf-search-input:focus { border-color: var(--accent-pink); box-shadow: 0 0 15px rgba(255, 0, 127, 0.2); }
         .hidden-search { display: none !important; opacity: 0; }
-        .fulfillment-box { 
-            background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px; 
-            padding: 15px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; 
+        .guest-cart-save-banner {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 10px 34px 10px 12px;
+            border-radius: 8px; font-size: 0.75rem; line-height: 1.4; position: relative;
+            background: rgba(255,0,127,0.1); border: 1px solid var(--accent-pink); color: var(--text-pure);
+        }
+        .guest-cart-save-banner span { flex: 1; }
+        .guest-cart-save-btn {
+            background: var(--accent-pink); color: #fff; border: none; padding: 6px 12px; border-radius: 5px;
+            font-family: var(--font-mono); font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.05em; white-space: nowrap; cursor: pointer; flex-shrink: 0; transition: background 0.2s;
+        }
+        .guest-cart-save-btn:hover { background: var(--accent-pink-hover); }
+        .guest-cart-save-close {
+            position: absolute; top: 6px; right: 8px; background: none; border: none; color: var(--text-muted);
+            font-size: 0.9rem; cursor: pointer; line-height: 1; padding: 2px; transition: color 0.2s;
+        }
+        .guest-cart-save-close:hover { color: var(--accent-pink); }
+
+        .fulfillment-box {
+            background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px;
+            padding: 15px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;
         }
         .fulfill-option { 
             display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.95rem; 
@@ -1820,7 +1838,21 @@
             <p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>
         </div>
         <div class="drawer-footer">
-            
+            <!-- Guest-only, dismissible-for-this-tab-session reminder that a cart only follows
+                 an ACCOUNT across devices/contexts, not a specific browser -- this is exactly
+                 the "60+ items lost switching from the PWA to the mobile site" problem
+                 loadAndMergeCartFromSupabase() now solves, but only once someone's signed in.
+                 Lives inside .drawer-footer (not as a new sibling between header and items)
+                 specifically so computeItemsPerPage() -- which measures the footer's real
+                 rendered height to decide whether a full 2-item page still fits -- automatically
+                 accounts for it; a banner floating outside the measured header/footer would
+                 silently break that "never cut off an item" guarantee. -->
+            <div class="guest-cart-save-banner" id="guestCartSaveBanner" style="display:none;">
+                <button type="button" class="guest-cart-save-close hover-target" onclick="dismissGuestCartBanner()" aria-label="Dismiss">✕</button>
+                <span>🔒 Sign in so this cart follows you to any device.</span>
+                <button type="button" class="guest-cart-save-btn hover-target" onclick="closeAllDrawers(); openAuthModal();">Sign In</button>
+            </div>
+
             <div class="fulfillment-box">
                 <h4 style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-pure); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 5px;">Fulfillment Method</h4>
                 <label class="fulfill-option hover-target">
@@ -3106,7 +3138,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     image: pending.imageUrl,
                 });
             }
-            localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+            saveCart();
             updateCartUI();
 
             closeResurrectModal();
@@ -4172,8 +4204,8 @@ Thank you for supporting my small business and understanding the handmade nature
                             cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(attachedDtf.price), priceId: attachedDtf.priceId, size: null, color: null, quantity: 1, image: attachedDtf.image, isDtf: true });
                         }
                     }
-                    
-                    localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+
+                    saveCart();
                     updateCartUI();
                     if(!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
                 });
@@ -5520,6 +5552,8 @@ Thank you for supporting my small business and understanding the handmade nature
             const loggedInView = document.getElementById('authLoggedInView');
 
             if (session && session.user) {
+                window._isLoggedIn = true;
+                updateGuestCartSaveBanner();
                 loggedOutView.style.display = 'none';
                 loggedInView.style.display = 'block';
                 document.getElementById('settingsEmailDisplay').textContent = session.user.email;
@@ -5607,6 +5641,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
                         renderReferralPanel(referralCode, profile.referral_reward_pending || 0, profile.referral_count || 0);
                         loadMyOrders();
+                        loadAndMergeCartFromSupabase(session.user.id);
                         // Tracked globally (not just used to update the teaser button text) so
                         // openSpinWheel() can lock the modal immediately on open -- without this,
                         // a page refresh reset the modal's DOM to its default enabled state and
@@ -5628,6 +5663,8 @@ Thank you for supporting my small business and understanding the handmade nature
                 navBtn.classList.add('account-btn-active');
                 syncWishlistToSupabase(); // backfill anything wishlisted while logged out
             } else {
+                window._isLoggedIn = false;
+                updateGuestCartSaveBanner();
                 navBtn.textContent = 'Account';
                 navBtn.classList.remove('account-btn-active');
                 loggedOutView.style.display = 'block';
@@ -5677,9 +5714,112 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         // --- 7. CART & WISHLIST ENGINES ---
-        
+
         let cart = JSON.parse(localStorage.getItem('inspiredThreadsCart')) || [];
         window.wishlist = JSON.parse(localStorage.getItem('inspiredThreadsWishlist')) || [];
+
+        // Set by refreshAuthUI on every auth-state change; read synchronously by
+        // updateGuestCartSaveBanner() below so updateCartUI() doesn't need to become async just
+        // to check login state. Defaults to false (safe: worst case a genuinely logged-in user
+        // sees the banner very briefly before the first refreshAuthUI resolves, never the other
+        // way around).
+        window._isLoggedIn = false;
+
+        function updateGuestCartSaveBanner() {
+            const banner = document.getElementById('guestCartSaveBanner');
+            if (!banner) return;
+            const shouldShow = cart.length > 0 && !window._isLoggedIn && !sessionStorage.getItem('guestCartBannerDismissed');
+            banner.style.display = shouldShow ? 'flex' : 'none';
+        }
+
+        // sessionStorage (not localStorage) -- dismissing is a "not right now" for this one tab
+        // session, not a permanent opt-out; it'll show again next time they load the site fresh,
+        // since losing 60+ items is exactly the real failure mode this whole feature exists to
+        // prevent and a one-time dismiss shouldn't silence that reminder forever.
+        function dismissGuestCartBanner() {
+            sessionStorage.setItem('guestCartBannerDismissed', '1');
+            updateGuestCartSaveBanner();
+        }
+
+        // Single choke point for persisting the cart -- localStorage stays the fast, always-
+        // available source of truth (instant first paint, works for guests with no account to
+        // key a Supabase row by), and this ALSO pushes to Supabase for a signed-in shopper so the
+        // same cart follows their account across devices/contexts instead of living only in one
+        // specific browser's storage (see sql/cart_sync_schema.sql for why that mattered enough
+        // to build -- a customer lost 60+ items switching from the installed PWA to the mobile
+        // site because PWA and Safari-tab storage are two separate buckets on iOS).
+        //
+        // Every one of this file's several `cart.push(...)` / cart.splice(...) call sites used to
+        // call localStorage.setItem('inspiredThreadsCart', ...) directly and separately -- routed
+        // through this one function instead so Supabase sync can't be forgotten on any of them.
+        function saveCart() {
+            localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+            syncCartToSupabase();
+        }
+
+        let _cartSyncDebounceTimer = null;
+        async function syncCartToSupabase() {
+            if (!supabaseClient) return;
+            // Debounced -- a rapid string of quantity taps would otherwise fire one network
+            // write per tap; only the last state within a short window actually needs to land.
+            clearTimeout(_cartSyncDebounceTimer);
+            _cartSyncDebounceTimer = setTimeout(async () => {
+                try {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    if (!session) return; // guests: localStorage only, same as before this existed
+                    await supabaseClient.from('carts').upsert({
+                        user_id: session.user.id,
+                        items: cart,
+                        updated_at: new Date().toISOString(),
+                    });
+                } catch (err) {
+                    console.warn('Could not sync cart to your account (still saved locally):', err.message);
+                }
+            }, 500);
+        }
+
+        // Runs once per page load, right after we learn someone's signed in (called from
+        // refreshAuthUI). Merges rather than replaces in either direction -- summing quantities
+        // for a genuine duplicate line item using the exact same identity check this file's own
+        // add-to-cart code already uses everywhere else (priceId + size + color + name +
+        // resurrection flag) -- so neither a guest cart just before logging in nor a cart saved
+        // from a different device/context ever gets silently discarded.
+        async function loadAndMergeCartFromSupabase(userId) {
+            if (window._cartMergedThisSession) return; // guard against re-merging on every
+            window._cartMergedThisSession = true;       // TOKEN_REFRESHED, not just the first login
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient.from('carts').select('items').eq('user_id', userId).maybeSingle();
+                if (error) throw error;
+                const remoteItems = (data && data.items) || [];
+
+                if (remoteItems.length === 0) {
+                    // Nothing saved remotely yet -- if this browser already has a local cart (a
+                    // guest who just logged in, most likely), push it up now so it becomes this
+                    // account's saved cart going forward.
+                    if (cart.length > 0) syncCartToSupabase();
+                    return;
+                }
+
+                remoteItems.forEach(remoteItem => {
+                    const match = cart.find(c =>
+                        c.priceId === remoteItem.priceId && c.size === remoteItem.size && c.color === remoteItem.color &&
+                        c.name === remoteItem.name && !!c.resurrection === !!remoteItem.resurrection
+                    );
+                    if (match) {
+                        match.quantity += remoteItem.quantity;
+                    } else {
+                        cart.push(remoteItem);
+                    }
+                });
+
+                localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+                if (typeof updateCartUI === 'function') updateCartUI();
+                syncCartToSupabase(); // push the merged result back up so both sides now agree
+            } catch (err) {
+                console.warn('Could not load your saved cart:', err.message);
+            }
+        }
 
         // --- STOCK GUARD HELPERS ---
         // Reconstructs the exact Redis/Stripe metadata key format used everywhere else
@@ -5980,6 +6120,11 @@ Thank you for supporting my small business and understanding the handmade nature
         function updateCartUI() {
             const cartItemsContainer = document.getElementById('cartItems');
             const cartNavCount = document.getElementById('cartNavCount');
+            // Must run before computeItemsPerPage() -- that function measures the footer's real
+            // rendered height (to decide whether a full 2-item page fits), so the banner's
+            // visibility needs to already be in its final state before that measurement happens,
+            // not toggled afterward.
+            updateGuestCartSaveBanner();
             const itemsPerPage = computeItemsPerPage();
 
             let totalItems = 0;
@@ -6096,7 +6241,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
         function removeFromCart(index) {
             cart.splice(index, 1);
-            localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+            saveCart();
             updateCartUI();
         }
 
@@ -6273,7 +6418,7 @@ Thank you for supporting my small business and understanding the handmade nature
             // Remove from wishlist array since it's in the cart now
             window.wishlist.splice(index, 1);
             localStorage.setItem('inspiredThreadsWishlist', JSON.stringify(window.wishlist));
-            localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+            saveCart();
             syncWishlistToSupabase();
             
             updateWishlistUI();
@@ -6345,7 +6490,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         } else {
                             cart.splice(session.cartIndex, 1);
                         }
-                        localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+                        saveCart();
                         updateCartUI();
                         pollLiveStock(); // refresh product-card badges immediately, don't wait for the next tick
                     }
@@ -6591,8 +6736,8 @@ Thank you for supporting my small business and understanding the handmade nature
             } else {
                 cart.push({ id: Date.now(), name, price, priceId, size: null, color: null, quantity });
             }
-            
-            localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+
+            saveCart();
             updateCartUI();
             closeTikTokModal();
             if(!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
@@ -6687,8 +6832,11 @@ Thank you for supporting my small business and understanding the handmade nature
 
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('success') === 'true') {
-                localStorage.removeItem('inspiredThreadsCart');
+                // saveCart() (not just a local clear) so a logged-in shopper's Supabase-saved
+                // cart is emptied too -- otherwise the next login's merge would resurrect
+                // whatever they just paid for right back into a fresh cart.
                 cart = [];
+                saveCart();
                 window.history.replaceState(null, '', window.location.pathname);
                 // Grouped behind afterPortalIntro so the payment modal, reward recap toast, and
                 // resurrection celebration (if applicable) all reveal together right after the
