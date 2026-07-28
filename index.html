@@ -5772,6 +5772,14 @@ Thank you for supporting my small business and understanding the handmade nature
                         items: cart,
                         updated_at: new Date().toISOString(),
                     });
+                    // Records this exact cart state as "known to already be reflected on the
+                    // server" for THIS account -- loadAndMergeCartFromSupabase() diffs against
+                    // this on the next login/reload to figure out what's genuinely NEW locally
+                    // (e.g. added while logged out) versus what's already synced, instead of
+                    // re-summing the whole cart every time. Written on every successful sync, not
+                    // just during a merge, so an ordinary cart edit while logged in keeps it
+                    // accurate too.
+                    localStorage.setItem(`cartLastSyncedSnapshotFor_${session.user.id}`, JSON.stringify(cart));
                 } catch (err) {
                     console.warn('Could not sync cart to your account (still saved locally):', err.message);
                 }
@@ -5784,59 +5792,67 @@ Thank you for supporting my small business and understanding the handmade nature
         // add-to-cart code already uses everywhere else (priceId + size + color + name +
         // resurrection flag) -- so neither a guest cart just before logging in nor a cart saved
         // from a different device/context ever gets silently discarded.
+        // Same identity check used everywhere else in this file to decide "is this the same
+        // line item" (priceId + size + color + name + resurrection flag).
+        function cartItemIdentityKey(item) {
+            return `${item.priceId}|${item.size}|${item.color}|${item.name}|${!!item.resurrection}`;
+        }
+
         async function loadAndMergeCartFromSupabase(userId) {
             if (window._cartMergedThisSession) return; // avoid a duplicate run within the SAME
             window._cartMergedThisSession = true;       // page load (e.g. a token-refresh event
             if (!supabaseClient) return;                 // firing shortly after the initial one)
-
-            // localStorage (not just the in-memory guard above) -- a browser REFRESH wipes all
-            // JS state, including window._cartMergedThisSession, so without a persisted flag this
-            // whole function re-ran on every single page reload and treated local+remote as two
-            // never-before-reconciled sources every time, SUMMING quantities together again even
-            // though they'd already been reconciled on a previous load. That's exactly what
-            // turned a real 1-item cart into 2, then 4, on successive refreshes -- doubling
-            // forever. This flag makes the summing merge a genuine one-time event per
-            // account-on-this-device, not a per-page-load event.
-            const mergedOnceKey = `cartMergedOnceFor_${userId}`;
-            const alreadyReconciledOnThisDevice = !!localStorage.getItem(mergedOnceKey);
 
             try {
                 const { data, error } = await supabaseClient.from('carts').select('items').eq('user_id', userId).maybeSingle();
                 if (error) throw error;
                 const remoteItems = (data && data.items) || [];
 
-                if (!alreadyReconciledOnThisDevice) {
-                    // First time THIS device has ever talked to this account's saved cart: merge
-                    // (sum quantities for a genuine duplicate) rather than replace, so whatever
-                    // was sitting locally before this device ever synced -- a guest's pre-login
-                    // cart, most likely -- never gets silently discarded.
-                    if (remoteItems.length === 0) {
-                        if (cart.length > 0) syncCartToSupabase();
+                // What THIS device last knew to already be reflected on the server for this
+                // account (stamped by syncCartToSupabase() on every successful sync, not just
+                // here) -- empty on this device's very first-ever login for this account, which
+                // correctly means "everything in the local cart right now counts as new."
+                //
+                // Diffing the CURRENT local cart against this snapshot -- rather than either (a)
+                // blindly summing local+remote every time, or (b) always replacing local with
+                // remote -- is what makes this safe to run on every login/reload without two
+                // failure modes that both actually happened in testing:
+                //  - Summing every time doubled quantities on every reload (1 -> 2 -> 4 -> 8...),
+                //    since a page refresh reset any in-memory "have I merged already" flag.
+                //  - Always replacing after the first merge silently DISCARDED items added while
+                //    logged out (they were never in `remote` to begin with, so replacing local
+                //    with remote just erased them) -- that's the bug this rewrite fixes.
+                // Comparing against a persisted snapshot means only a genuine local increase
+                // SINCE the last known-synced point ever counts as "new," regardless of how many
+                // times this function runs.
+                const snapshotKey = `cartLastSyncedSnapshotFor_${userId}`;
+                let lastSynced = [];
+                try { lastSynced = JSON.parse(localStorage.getItem(snapshotKey)) || []; } catch (e) { lastSynced = []; }
+                const lastSyncedQtyByKey = new Map(lastSynced.map(item => [cartItemIdentityKey(item), item.quantity]));
+
+                const newSinceLastSync = [];
+                cart.forEach(localItem => {
+                    const previouslySyncedQty = lastSyncedQtyByKey.get(cartItemIdentityKey(localItem)) || 0;
+                    const newQty = localItem.quantity - previouslySyncedQty;
+                    if (newQty > 0) newSinceLastSync.push({ ...localItem, quantity: newQty });
+                });
+
+                if (newSinceLastSync.length === 0 && remoteItems.length === 0 && cart.length === 0) return; // nothing to do
+
+                const merged = remoteItems.map(item => ({ ...item }));
+                newSinceLastSync.forEach(newItem => {
+                    const match = merged.find(m => cartItemIdentityKey(m) === cartItemIdentityKey(newItem));
+                    if (match) {
+                        match.quantity += newItem.quantity;
                     } else {
-                        remoteItems.forEach(remoteItem => {
-                            const match = cart.find(c =>
-                                c.priceId === remoteItem.priceId && c.size === remoteItem.size && c.color === remoteItem.color &&
-                                c.name === remoteItem.name && !!c.resurrection === !!remoteItem.resurrection
-                            );
-                            if (match) {
-                                match.quantity += remoteItem.quantity;
-                            } else {
-                                cart.push(remoteItem);
-                            }
-                        });
-                        localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
-                        if (typeof updateCartUI === 'function') updateCartUI();
-                        syncCartToSupabase(); // push the merged result back up so both sides agree
+                        merged.push(newItem);
                     }
-                    localStorage.setItem(mergedOnceKey, '1');
-                } else {
-                    // Already reconciled once on this device -- Supabase is the live, continuously
-                    // -synced source of truth from here on, so a normal reload just REPLACES the
-                    // local cart with whatever's current instead of summing into it again.
-                    cart = remoteItems;
-                    localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
-                    if (typeof updateCartUI === 'function') updateCartUI();
-                }
+                });
+
+                cart = merged;
+                localStorage.setItem('inspiredThreadsCart', JSON.stringify(cart));
+                if (typeof updateCartUI === 'function') updateCartUI();
+                syncCartToSupabase(); // pushes the reconciled result up and refreshes the snapshot
             } catch (err) {
                 console.warn('Could not load your saved cart:', err.message);
             }
