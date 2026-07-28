@@ -1374,17 +1374,18 @@
         }
         .drawer-item:hover { border-color: var(--accent-pink); box-shadow: 0 4px 18px rgba(255,0,127,0.12); }
 
-        /* Product thumbnail -- object-fit:cover so the image fills the square edge-to-edge with
-           no letterboxed empty space (the shop grid's own cards use contain+padding since they
-           have room to breathe; this thumbnail is small enough that a filled frame reads as more
-           premium than a padded one). The light backdrop is just a loading-state fallback --
-           cover means it's never actually visible once the image loads. */
+        /* Product thumbnail -- object-fit:contain so the full graphic is always visible (a
+           non-square DTF design was getting its top/bottom cropped off under the previous
+           object-fit:cover, which filled the square frame by cropping instead of shrinking to
+           fit). The light background now doubles as the visible letterbox color for
+           non-square art, matching the same contain+background treatment the shop grid's own
+           cards already use elsewhere in this file. */
         .drawer-item-img-wrap {
             flex-shrink: 0; width: 72px; height: 72px; border-radius: 10px; overflow: hidden;
             background: #f5f5f5; border: 1px solid var(--border-subtle);
             transition: border-color 0.25s ease, box-shadow 0.25s ease;
         }
-        .drawer-item-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .drawer-item-img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
         /* ===== CART-ONLY: fixed 2-items-per-page window (see updateCartUI's page-grouping) =====
            Item height here is a DECLARED CONSTANT (104px = 72px image + 15px*2 padding + 1px*2
@@ -1657,7 +1658,14 @@
                    plus any real device's safe-area-inset-bottom, fully clearing the sheet off
                    the bottom of the screen when closed regardless of device. */
                 transform: translateY(calc(100% + 50px));
-                overflow-y: auto;
+                /* No overflow-y:auto on the sheet itself -- the flex-shrink fix on #cartItems
+                   below already guarantees the footer/checkout button fit within max-height by
+                   compressing the items area, so the sheet itself never needs to scroll as a
+                   whole. Two nested scrollable regions (this sheet + #cartItems' own scroll-snap
+                   area) fight over touch scroll gestures on a real device -- that's what was
+                   breaking the smooth 2-item snap-scroll feel, since a swipe could land on the
+                   outer (non-snapping) scroll instead of the inner snap container. */
+                overflow: visible;
             }
             /* #cartDrawer.open (id+class) rather than .cart-drawer.open (class+class) --
                deliberately higher specificity than the desktop ".cart-drawer.open
