@@ -1347,8 +1347,18 @@
            card, see computeCartRenderGroups) now rendering 2-per-row on desktop (see #cartItems
            .drawer-item-page's grid-template-columns below), each column needs enough room for an
            image + full item details without cramping; 680px gives each of the 2 columns a
-           comfortable ~280px. */
-        .cart-drawer { position: fixed; top: 0; right: 0; width: 680px; max-width: 100%; height: 100vh; background: var(--bg-surface); border-left: 1px solid var(--accent-pink); z-index: 2000; padding: 40px; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: -10px 0 50px rgba(0,0,0,0.9); }
+           comfortable ~280px.
+           overflow-y:auto here is a deliberate SAFETY NET, not the primary fix -- computeItemsPerPage()
+           already shrinks how many card ROWS render to keep the footer/checkout button on-screen,
+           but that only has 1 row as its floor; a customer with an unusually short browser window
+           (windowed/non-maximized Chrome on a 1080p display loses real estate to tabs/bookmarks
+           bar/OS taskbar that a maximized or fullscreen window doesn't) could still end up with
+           less room than even 1 row + the footer needs. Scrolling the whole panel guarantees the
+           checkout button is ALWAYS reachable regardless of window size -- unlike mobile (which
+           explicitly avoids this, see that media query's own comment), desktop mouse-wheel
+           scrolling over a nested scrollable region is well-supported/expected UX, not a gesture
+           conflict the way touch-swipe is. */
+        .cart-drawer { position: fixed; top: 0; right: 0; width: 680px; max-width: 100%; height: 100vh; background: var(--bg-surface); border-left: 1px solid var(--accent-pink); z-index: 2000; padding: 40px; display: flex; flex-direction: column; overflow-y: auto; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: -10px 0 50px rgba(0,0,0,0.9); }
         .cart-drawer.open { transform: translateX(0); }
         
         /* NEW WISHLIST DRAWER (SLIDES FROM LEFT) */
@@ -1432,14 +1442,22 @@
            .cart-drawer so 2 combo cards sit side by side per row instead of stacked, doubling how
            many are visible without scrolling on the extra horizontal room desktop already has. */
         #cartItems .drawer-item-page {
-            display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; min-width: 0;
             scroll-snap-align: start; scroll-snap-stop: always;
         }
         /* No overflow:hidden here (deliberately) -- it would clip the image's glow box-shadow,
            which extends beyond the item's own edges by design. The text-truncation rules below
            already guarantee each line stays single-line (via white-space:nowrap), which is what
            actually keeps the content from ever needing more than the declared height anyway. */
-        #cartItems .drawer-item { height: var(--drawer-item-height); box-sizing: border-box; }
+        /* min-width:0 is the actual fix for cards breaking out of their border/overflowing the
+           drawer horizontally -- grid/flex items default to min-width:auto, meaning a card's
+           unwrapped (white-space:nowrap) text sets its OWN intrinsic minimum width, which can be
+           wider than the 1fr column it's supposed to fit in. Without this, the grid track grows
+           to fit that content instead of respecting the even 2-column split, pushing the card (and
+           its border) past the visible edge -- exactly what the ellipsis truncation below is
+           supposed to prevent, but never gets the chance to since the box never actually shrinks
+           down to the width where truncation would kick in. */
+        #cartItems .drawer-item { height: var(--drawer-item-height); min-width: 0; box-sizing: border-box; }
         #cartItems .drawer-item-details h4,
         #cartItems .drawer-item-meta,
         #cartItems .drawer-item-price,
