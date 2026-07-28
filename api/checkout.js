@@ -52,6 +52,7 @@ export default async function handler(req, res) {
         sessionMetadata = { item_count: cartItems.length.toString() };
         let subtotalCents = 0;
         const packSummary = []; // human-readable, for the Stripe Dashboard -- see Order_Summary below
+        const itemCatalogMeta = []; // parallel to cartItems/lineItems -- {categoryId, priceCents, stripeProductId} per index, used by BUY 3 GET 1 FREE below
 
         for (let i = 0; i < cartItems.length; i++) {
             const item = cartItems[i];
@@ -65,13 +66,18 @@ export default async function handler(req, res) {
                 .eq('stripe_price_id', item.priceId)
                 .maybeSingle();
 
-            let product, hasVariants, stripeMetaKey, redisKey, hasStockLimit;
+            let product, hasVariants, stripeMetaKey, redisKey, hasStockLimit, isThreadApparel;
 
             if (dbProduct && dbProduct.published) {
                 product = dbProduct;
                 const { data: productCategory } = await supabaseAdmin
-                    .from('categories').select('card_layout_type').eq('id', product.category_id).single();
+                    .from('categories').select('card_layout_type, filter_group').eq('id', product.category_id).single();
                 hasVariants = productCategory && productCategory.card_layout_type === 'variant-apparel';
+                // Every garment category (T-shirts, Hoodies, Crewnecks, Tank Tops) shares this
+                // filter_group -- checking it here instead of a hardcoded category-id list means
+                // BUY 3 GET 1 FREE below automatically covers any current or future Thread
+                // apparel category, not just T-shirts specifically.
+                isThreadApparel = productCategory && productCategory.filter_group === 'thread';
                 stripeMetaKey = hasVariants ? `stock_${item.size}_${item.color}` : 'stock';
                 redisKey = `stock_${product.id}_${stripeMetaKey}`;
                 hasStockLimit = hasVariants
@@ -125,6 +131,12 @@ export default async function handler(req, res) {
 
             subtotalCents += product.price_cents * item.quantity;
 
+            itemCatalogMeta[i] = {
+                isThreadApparel: !!isThreadApparel,
+                priceCents: product.price_cents,
+                stripeProductId: (dbProduct && dbProduct.published) ? product.stripe_product_id : product.id,
+            };
+
             if (hasStockLimit) {
                 // Atomic check-and-decrement. Redis executes DECRBY as a single operation,
                 // so two simultaneous requests can never both succeed on the last unit.
@@ -173,6 +185,94 @@ export default async function handler(req, res) {
             // is technically still recoverable from item_N above but not readable at a glance.
             const variantLabel = hasVariants ? ` (${item.size}/${item.color})` : '';
             packSummary.push(`${item.quantity}x ${item.name}${variantLabel}`);
+        }
+
+        // BUY 3, GET THE 4TH FREE -- automatic store promo (Mom's idea), deliberately NOT a
+        // Stripe promo code: Stripe's coupon/promo-code system only ever does percent-off or
+        // amount-off the whole order, never "every Nth qualifying item is free." It's also
+        // deliberately NOT a dynamic per-session Stripe coupon -- Stripe allows only ONE
+        // `discounts` entry per Checkout Session (the same limit that's the whole reason the
+        // choose-your-own-discount system above exists), so a coupon-based BOGO would force a
+        // customer to pick between this promo and their own loyalty/spin/promo-code discount.
+        // Instead the free unit(s) are baked directly into the line items below, so this always
+        // stacks with whatever else the customer has going on.
+        //
+        // Qualifies: any Thread apparel garment (T-Shirts, Hoodies, Crewnecks, Tank Tops -- any
+        // category sharing the 'thread' filter_group, see isThreadApparel above) with a DTF
+        // design attached. Attaching a design adds a *separate* "[ATTACHED PRINT] <name>" cart
+        // line alongside the garment (see addToCart() in index.html) -- the garment's name there
+        // is always "<garment name> (w/ <design name>)", which is the only signal available here
+        // for "this garment has a design attached." A plain garment with no design doesn't qualify.
+        {
+            const comboUnits = []; // one entry per qualifying (garment+print) unit, expanded by quantity
+            for (let i = 0; i < cartItems.length; i++) {
+                const meta = itemCatalogMeta[i];
+                if (!meta || !meta.isThreadApparel) continue;
+                const match = /^.* \(w\/ (.+)\)$/.exec(cartItems[i].name || '');
+                if (!match) continue;
+                const printIdx = cartItems.findIndex(ci => ci.name === `[ATTACHED PRINT] ${match[1]}`);
+                if (printIdx === -1) continue; // no matching print line -- shouldn't happen, but never guess
+                const printMeta = itemCatalogMeta[printIdx];
+                const unitPriceCents = meta.priceCents + (printMeta ? printMeta.priceCents : 0);
+                for (let u = 0; u < cartItems[i].quantity; u++) {
+                    comboUnits.push({ garmentIdx: i, printIdx, unitPriceCents });
+                }
+            }
+
+            // One free combo per complete group of 4 (floor division -- 3 qualifying units gets
+            // nothing, 4 gets 1 free, 8 gets 2, etc.), and it's always the CHEAPEST combo(s) that
+            // go free -- standard BOGO practice (the customer keeps paying for their pricier
+            // picks). Sorts a COPY so comboUnits' original order is untouched.
+            const sortedUnits = [...comboUnits].sort((a, b) => a.unitPriceCents - b.unitPriceCents);
+            const freeCount = Math.floor(sortedUnits.length / 4);
+            const freeCountByGarmentIdx = {};
+            for (let k = 0; k < freeCount; k++) {
+                const fu = sortedUnits[k];
+                freeCountByGarmentIdx[fu.garmentIdx] = (freeCountByGarmentIdx[fu.garmentIdx] || 0) + 1;
+            }
+
+            const freeGarmentIndexes = Object.keys(freeCountByGarmentIdx).map(Number);
+            if (freeGarmentIndexes.length > 0) {
+                let totalFreeCents = 0;
+                let totalFreeUnits = 0;
+                const freeUnitsByIdx = new Map(); // lineItems index -> total free quantity on that line
+
+                for (const garmentIdx of freeGarmentIndexes) {
+                    const freeCount = freeCountByGarmentIdx[garmentIdx];
+                    const printIdx = comboUnits.find(cu => cu.garmentIdx === garmentIdx).printIdx;
+                    const garmentMeta = itemCatalogMeta[garmentIdx];
+                    const printMeta = itemCatalogMeta[printIdx];
+
+                    freeUnitsByIdx.set(garmentIdx, (freeUnitsByIdx.get(garmentIdx) || 0) + freeCount);
+                    freeUnitsByIdx.set(printIdx, (freeUnitsByIdx.get(printIdx) || 0) + freeCount);
+
+                    totalFreeCents += freeCount * (garmentMeta.priceCents + printMeta.priceCents);
+                    totalFreeUnits += freeCount;
+                }
+
+                // Peel the free quantity off each affected line item and add it back as its own
+                // $0 line (referencing the SAME underlying Stripe product, so it still shows the
+                // real garment/print name on the receipt) -- never adjustable by the customer at
+                // Stripe's hosted page, or they could bump a $0 line's quantity for more free gear.
+                const removedIndexes = new Set();
+                const extraFreeLineItems = [];
+                for (const [idx, freeQty] of freeUnitsByIdx) {
+                    lineItems[idx].quantity -= freeQty;
+                    if (lineItems[idx].quantity <= 0) removedIndexes.add(idx);
+                    extraFreeLineItems.push({
+                        price_data: { currency: 'usd', product: itemCatalogMeta[idx].stripeProductId, unit_amount: 0 },
+                        quantity: freeQty,
+                        adjustable_quantity: { enabled: false },
+                    });
+                }
+                for (let i = lineItems.length - 1; i >= 0; i--) {
+                    if (removedIndexes.has(i)) lineItems.splice(i, 1);
+                }
+                lineItems.push(...extraFreeLineItems);
+
+                subtotalCents -= totalFreeCents; // keep free-shipping-threshold/discount math below honest
+                sessionMetadata['Buy3Get1Free_Applied'] = `${totalFreeUnits} free item${totalFreeUnits > 1 ? 's' : ''} w/ design ($${(totalFreeCents / 100).toFixed(2)} value)`;
+            }
         }
 
         // One extra key total (not one per item), so this barely touches the 50-key budget the
