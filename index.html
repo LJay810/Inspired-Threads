@@ -1592,6 +1592,10 @@
             color: var(--text-pure); padding: 9px 10px; border-radius: 6px; font-size: 0.8rem; font-family: var(--font-sans);
         }
         .discount-choice-box select:focus { border-color: var(--accent-pink); outline: none; }
+        /* The CLOSED select picks up the color/background above just fine, but the OPEN options
+           list is rendered by the browser/OS natively and ignores styles on the parent <select>
+           for it -- same fix already used by .variant-select option elsewhere in this file. */
+        .discount-choice-box select option { background: var(--bg-card); color: var(--text-pure); }
 
         .fulfillment-box {
             background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 8px;
