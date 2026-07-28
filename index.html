@@ -1369,16 +1369,21 @@
         .drawer-header h2 { font-size: 1.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; }
         .close-drawer { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: var(--transition-snappy); }
         .close-drawer:hover { color: var(--accent-pink); transform: scale(1.1); }
-        .drawer-header-actions { display: flex; align-items: center; gap: 14px; }
+        /* Cart-only override (ID+class beats the shared .drawer-header class rule above, which
+           the wishlist drawer still uses as-is) -- stacks a [close X + title] row above a
+           full-width checkout button, instead of the wishlist's plain single row. */
+        #cartDrawer .drawer-header { flex-direction: column; justify-content: flex-start; align-items: stretch; gap: 14px; }
+        .drawer-header-top { display: flex; align-items: center; gap: 14px; }
         .header-checkout-btn {
+            display: block; width: 100%; box-sizing: border-box;
             background: linear-gradient(135deg, var(--accent-pink), var(--accent-pink-hover));
-            color: #fff; border: none; padding: 9px 20px; border-radius: 999px;
-            font-family: var(--font-mono); font-size: 0.72rem; font-weight: 800;
-            text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; cursor: pointer;
+            color: #fff; border: none; padding: 13px 20px; border-radius: 8px;
+            font-family: var(--font-mono); font-size: 0.85rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer;
             box-shadow: 0 4px 14px rgba(255,0,127,0.35);
             transition: transform 0.2s ease, box-shadow 0.3s ease;
         }
-        .header-checkout-btn:hover { transform: scale(1.06); box-shadow: 0 6px 20px rgba(255,0,127,0.5); }
+        .header-checkout-btn:hover { transform: scale(1.02); box-shadow: 0 6px 20px rgba(255,0,127,0.5); }
         .header-checkout-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
         /* overscroll-behavior stops scroll momentum "leaking" into the page behind the drawer
@@ -1906,17 +1911,19 @@
     
     <div class="cart-drawer" id="cartDrawer">
         <div class="drawer-header">
-            <h2>Your Cart</h2>
+            <div class="drawer-header-top">
+                <button class="close-drawer hover-target" onclick="toggleCart()">✕</button>
+                <h2>Your Cart</h2>
+            </div>
             <!-- The ONLY checkout button in the cart now (a full-width footer one used to sit
                  below the Total row, but mobile's bottom sheet deliberately has no whole-panel
                  scroll -- see .cart-drawer's mobile media query comment: a 2nd nested scroll
                  region there fights the item list's own scroll-snap gesture -- so on a tall cart
                  that footer button could be genuinely unreachable). Always in view up here
-                 instead; loading/disabled state is managed by setCheckoutButtonsState(). -->
-            <div class="drawer-header-actions">
-                <button class="header-checkout-btn hover-target" onclick="processCheckout()">Checkout</button>
-                <button class="close-drawer hover-target" onclick="toggleCart()">✕</button>
-            </div>
+                 instead, full-width so it reads as a real primary action rather than a cramped
+                 pill squeezed next to the title -- loading/disabled state is managed by
+                 setCheckoutButtonsState(). -->
+            <button class="header-checkout-btn hover-target" onclick="processCheckout()">Checkout</button>
         </div>
         <div class="drawer-items" id="cartItems">
             <p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>
