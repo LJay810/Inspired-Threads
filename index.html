@@ -5718,6 +5718,24 @@ Thank you for supporting my small business and understanding the handmade nature
         let cart = JSON.parse(localStorage.getItem('inspiredThreadsCart')) || [];
         window.wishlist = JSON.parse(localStorage.getItem('inspiredThreadsWishlist')) || [];
 
+        // Landing back here with ?success=true (the Stripe redirect after a completed purchase)
+        // means the cart needs to end up empty -- window.onload further down handles the actual
+        // clear + celebration UI, but that only fires once the WHOLE page (images, etc.) has
+        // finished loading, which is often SLOWER than the login/session check completing. If
+        // this is a logged-in shopper, that session check fires refreshAuthUI ->
+        // loadAndMergeCartFromSupabase, which can run BEFORE window.onload's clear does -- and at
+        // that point Supabase still has the pre-checkout item saved (nothing's cleared it there
+        // yet), so the merge reconciles by pulling it right back in, undoing the clear that
+        // hasn't happened yet (or immediately after it does). Setting this guard synchronously,
+        // this early, wins that race unconditionally: no async auth callback can possibly fire
+        // before this line finishes executing, so the merge is already blocked by the time
+        // anything else has a chance to run it. There's nothing to reconcile on a fresh
+        // checkout-success load anyway -- local and remote should both just end up empty.
+        if (new URLSearchParams(window.location.search).get('success') === 'true') {
+            cart = [];
+            window._cartMergedThisSession = true;
+        }
+
         // Set by refreshAuthUI on every auth-state change; read synchronously by
         // updateGuestCartSaveBanner() below so updateCartUI() doesn't need to become async just
         // to check login state. Defaults to false (safe: worst case a genuinely logged-in user
