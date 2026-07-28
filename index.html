@@ -1343,7 +1343,12 @@
         .drawer-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); z-index: 1999; backdrop-filter: blur(5px); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .drawer-overlay.open { opacity: 1; pointer-events: all; }
 
-        .cart-drawer { position: fixed; top: 0; right: 0; width: 450px; max-width: 100%; height: 100vh; background: var(--bg-surface); border-left: 1px solid var(--accent-pink); z-index: 2000; padding: 40px; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: -10px 0 50px rgba(0,0,0,0.9); }
+        /* Widened from 450px -- with combo cards (garment + attached design merged into one
+           card, see computeCartRenderGroups) now rendering 2-per-row on desktop (see #cartItems
+           .drawer-item-page's grid-template-columns below), each column needs enough room for an
+           image + full item details without cramping; 680px gives each of the 2 columns a
+           comfortable ~280px. */
+        .cart-drawer { position: fixed; top: 0; right: 0; width: 680px; max-width: 100%; height: 100vh; background: var(--bg-surface); border-left: 1px solid var(--accent-pink); z-index: 2000; padding: 40px; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); box-shadow: -10px 0 50px rgba(0,0,0,0.9); }
         .cart-drawer.open { transform: translateX(0); }
         
         /* NEW WISHLIST DRAWER (SLIDES FROM LEFT) */
@@ -1387,28 +1392,29 @@
         }
         .drawer-item-img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
-        /* ===== CART-ONLY: fixed 2-items-per-page window (see updateCartUI's page-grouping) =====
-           Item height here is a DECLARED CONSTANT (104px = 72px image + 15px*2 padding + 1px*2
-           border), enforced via box-sizing + overflow:hidden + single-line text truncation --
-           not a measured/guessed value. That's what makes "exactly 2 items visible, zero partial
-           peek of a 3rd" achievable with plain CSS: #cartItems' viewport height is a calc() off
-           this same constant, so it can never drift out of sync with what's actually rendered.
-           Scoped to #cartItems specifically (not the shared .drawer-items/.drawer-item classes)
-           because the wishlist's extra "Move to Cart" button needs more vertical room than this
-           fixed height allows -- forcing the same constraint there would clip that button. */
-        :root { --drawer-item-height: 104px; }
+        /* ===== CART-ONLY: fixed page-of-cards window (see updateCartUI's page-grouping) =====
+           Item height here is a DECLARED CONSTANT, enforced via box-sizing + overflow:hidden +
+           single-line text truncation -- not a measured/guessed value. That's what makes "exactly
+           N cards visible, zero partial peek of the next one" achievable with plain CSS:
+           #cartItems' viewport height is a calc() off this same constant, so it can never drift
+           out of sync with what's actually rendered. 148px (up from the original 104px) accounts
+           for a combo card's 4 text lines (title / size-meta / price / attached-design) instead of
+           the original 3 -- see comboCardInnerHTML/.drawer-item-attached below. Scoped to
+           #cartItems specifically (not the shared .drawer-items/.drawer-item classes) because the
+           wishlist's extra "Move to Cart" button needs more vertical room than this fixed height
+           allows -- forcing the same constraint there would clip that button. */
+        :root { --drawer-item-height: 148px; }
         #cartItems {
             flex-grow: 0; flex-shrink: 0; height: calc(var(--drawer-item-height) * 2 + 20px);
             scroll-snap-type: y mandatory;
-            /* Classic scroll-snap trap: a trailing ODD item (3rd of 3, 5th of 5, etc.) gets its
-               own page shorter than the fixed 2-item viewport. "mandatory" snap needs to align
-               that short page's TOP with the viewport's top -- but doing so would require
-               scrolling past the actual end of the content, which the browser refuses to do. The
-               practical result is that last item becomes completely unreachable; scrolling just
-               snaps back to the previous (full) page every time. Padding the bottom by one item's
-               worth of height gives the scroll range enough extra room for even the shortest
-               possible trailing page to reach its aligned position, with blank space filling
-               the rest of the viewport below it once it does. */
+            /* Classic scroll-snap trap: a trailing partial ROW gets its own page shorter than the
+               fixed 2-row viewport. "mandatory" snap needs to align that short page's TOP with the
+               viewport's top -- but doing so would require scrolling past the actual end of the
+               content, which the browser refuses to do. The practical result is that last row
+               becomes completely unreachable; scrolling just snaps back to the previous (full)
+               page every time. Padding the bottom by one row's worth of height gives the scroll
+               range enough extra room for even the shortest possible trailing page to reach its
+               aligned position, with blank space filling the rest of the viewport below it once it does. */
             padding-bottom: calc(var(--drawer-item-height) + 20px);
         }
         /* No scroll-margin-top here (deliberately) -- a nonzero value shifts EVERY page after the
@@ -1417,20 +1423,27 @@
            previous inter-page gap at the top of the view while clipping the same amount off the
            BOTTOM of the current page -- exactly the "bottom item's border cut off" symptom. */
         /* scroll-snap-stop:always -- without it, a fast/hard swipe can blow straight past a snap
-           point and land two or three pages away in one fling, which feels chaotic on a
-           short 1-2-item-per-page list. Forcing a stop at every page makes a fast swipe land on
-           the very next page every time, one deliberate step at a time -- the "smooth, refined"
-           feel of a proper native paged carousel instead of a free-scrolling list that merely
-           has snap points. */
-        #cartItems .drawer-item-page { display: flex; flex-direction: column; gap: 20px; scroll-snap-align: start; scroll-snap-stop: always; }
+           point and land two or three pages away in one fling, which feels chaotic on a short
+           list. Forcing a stop at every page makes a fast swipe land on the very next page every
+           time, one deliberate step at a time -- the "smooth, refined" feel of a proper native
+           paged carousel instead of a free-scrolling list that merely has snap points.
+           display:grid + 2 columns here is DESKTOP's default (see the mobile media query below,
+           which switches this back to a single flex column) -- pairs with the widened 680px
+           .cart-drawer so 2 combo cards sit side by side per row instead of stacked, doubling how
+           many are visible without scrolling on the extra horizontal room desktop already has. */
+        #cartItems .drawer-item-page {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;
+            scroll-snap-align: start; scroll-snap-stop: always;
+        }
         /* No overflow:hidden here (deliberately) -- it would clip the image's glow box-shadow,
            which extends beyond the item's own edges by design. The text-truncation rules below
            already guarantee each line stays single-line (via white-space:nowrap), which is what
-           actually keeps the content from ever needing more than the declared 104px anyway. */
+           actually keeps the content from ever needing more than the declared height anyway. */
         #cartItems .drawer-item { height: var(--drawer-item-height); box-sizing: border-box; }
         #cartItems .drawer-item-details h4,
         #cartItems .drawer-item-meta,
-        #cartItems .drawer-item-price {
+        #cartItems .drawer-item-price,
+        #cartItems .drawer-item-attached {
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
@@ -1467,7 +1480,11 @@
         .drawer-item-details { flex: 1; min-width: 0; padding-right: 35px; }
         .drawer-item-details h4 { font-size: 0.95rem; text-transform: uppercase; margin-bottom: 5px; overflow-wrap: break-word; }
         .drawer-item-meta { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-pink); margin-bottom: 5px; }
-        .drawer-item-price { font-family: var(--font-mono); font-weight: 700; margin-bottom: 10px;}
+        .drawer-item-price { font-family: var(--font-mono); font-weight: 700; margin-bottom: 6px;}
+        /* Nested "attached DTF design" line on a combo card (see comboCardInnerHTML) -- kept
+           visually subordinate to the garment's own name/meta/price above it (muted, smaller),
+           since the design is a modifier on the garment, not a separate line item to the customer. */
+        .drawer-item-attached { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); }
         .remove-item { position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-muted); transition: color 0.2s; font-size: 1.2rem; }
         .remove-item:hover { color: #ef4444; }
 
@@ -1741,10 +1758,16 @@
             /* Neither .drawer-header nor .drawer-footer declares its own flex-shrink, so both
                default to flex-shrink:1 like any flex child -- meaning on a genuinely tight real
                device height, flexbox could shrink/compress the HEADER or FOOTER instead of (or
-               as well as) #cartItems, distorting the header/footer and the "2 items visible"
+               as well as) #cartItems, distorting the header/footer and the "N cards visible"
                window unpredictably. Pinning both to flex-shrink:0 makes #cartItems the only
                flexible region, so it's the only thing that ever compresses. */
             #cartDrawer .drawer-header, #cartDrawer .drawer-footer { flex-shrink: 0; }
+
+            /* Desktop's default (see the base #cartItems .drawer-item-page rule) lays combo cards
+               out 2-per-row now that its drawer is wider -- mobile's sheet is nowhere near wide
+               enough for 2 columns of a full card (image + name + price + attached design), so
+               this reverts back to the original single-column stack here. */
+            #cartItems .drawer-item-page { grid-template-columns: 1fr; }
 
             .wishlist-drawer { width: 100%; padding: 20px; border-right: none; }
 
@@ -6329,7 +6352,49 @@ Thank you for supporting my small business and understanding the handmade nature
             updateBodyScrollLock();
         }
 
-        // How many full, uncropped items can actually stack in #cartItems' available room right
+        // Groups raw cart ENTRIES into what the drawer actually RENDERS as one card. A garment
+        // with an attached DTF design is stored as two separate cart entries (see PUSH #1/#2 in
+        // the add-to-cart handler) so pricing/stock/BOGO math never has to change -- but showing
+        // those as two full-size cards (one of them just a lone print thumbnail with nothing else
+        // on it) meant a cart of 4 outfits rendered as 8 rows, and with only 1 card visible per
+        // scroll page, a customer could land on a page that's JUST the bare print with no garment
+        // context at all. This merges each garment + its attached print into ONE combo card (the
+        // design shown as a compact nested line -- see comboCardInnerHTML below) purely for
+        // display; `cart` itself is completely untouched, so checkout/stock/BOGO all still see the
+        // exact same two-entry data they always did.
+        //
+        // A print index is only ever REFERENCED, never exclusively "claimed" by one garment --
+        // the same design attached to 2+ differently sized/colored garments aggregates into ONE
+        // print cart entry (see addToCart()'s existingDtf check), and every garment referencing
+        // that shared print still needs to show its own attached-design line, not just whichever
+        // garment happens to come first in the array. The print entry itself is only ever
+        // suppressed from rendering as its OWN standalone card once ANY garment references it.
+        function computeCartRenderGroups() {
+            const referencedPrintIndexes = new Set();
+            const garmentToPrintIndex = new Map();
+            cart.forEach((item, index) => {
+                const match = /^.* \(w\/ (.+)\)$/.exec(item.name || '');
+                if (!match) return;
+                const printIndex = cart.findIndex(ci => ci.name === `[ATTACHED PRINT] ${match[1]}`);
+                if (printIndex === -1) return;
+                referencedPrintIndexes.add(printIndex);
+                garmentToPrintIndex.set(index, printIndex);
+            });
+
+            const groups = [];
+            cart.forEach((item, index) => {
+                if (referencedPrintIndexes.has(index)) return; // rendered nested inside its garment's combo card(s)
+                if (garmentToPrintIndex.has(index)) {
+                    const printIndex = garmentToPrintIndex.get(index);
+                    groups.push({ type: 'combo', garmentIndex: index, printIndex, garment: item, print: cart[printIndex] });
+                } else {
+                    groups.push({ type: 'simple', index, item });
+                }
+            });
+            return groups;
+        }
+
+        // How many full, uncropped cards can actually stack in #cartItems' available room right
         // now. Used to hardcode desktop to always 2 here, on the assumption its fixed 100vh side
         // panel always had plenty of room -- that assumption broke the moment the footer grew a
         // new banner (buy3get1-banner) stacked on top of the guest-cart banner/discount box/
@@ -6340,7 +6405,7 @@ Thank you for supporting my small business and understanding the handmade nature
         // Measuring for BOTH breakpoints now (drawer's own real rendered height this time, not a
         // max-height CSS read, since desktop sizes via `height` not `max-height`) means any future
         // footer growth -- another banner, a longer discount label, whatever -- degrades
-        // gracefully to 1-item pages instead of silently reintroducing this same bug.
+        // gracefully to fewer cards per page instead of silently reintroducing this same bug.
         function computeItemsPerPage() {
             const drawer = document.getElementById('cartDrawer');
             const header = drawer.querySelector('.drawer-header');
@@ -6368,85 +6433,144 @@ Thank you for supporting my small business and understanding the handmade nature
             const available = ceilingPx - verticalChrome - header.getBoundingClientRect().height
                 - footer.getBoundingClientRect().height - safetyMargin;
 
-            const twoItemPageHeight = 228; // matches --drawer-item-height*2 + 20px gap
-            return available >= twoItemPageHeight ? 2 : 1;
+            // How many full ROWS actually fit in the real available room, instead of a hardcoded
+            // "always 2" -- previously this capped at 2 regardless of genuinely spare space (e.g.
+            // a tall iPhone with a short cart left visible slack above the mobile sheet's own top
+            // edge, since the sheet only grows to fit its content). Capped at 3 rows purely so an
+            // unusually tall viewport doesn't turn the cart into one giant uninterrupted page --
+            // not a real technical limit, just a sane ceiling. Desktop lays cards out 2-per-row
+            // (see #cartItems .drawer-item-page's grid-template-columns), so its returned count is
+            // double a single row's worth; mobile stays single-column.
+            const rowHeight = 148; // matches --drawer-item-height
+            const gap = 20;
+            const MAX_ROWS = 3;
+            let rows = 1;
+            while (rows < MAX_ROWS && (rows + 1) * rowHeight + rows * gap <= available) rows++;
+            const columnsPerRow = window.matchMedia('(min-width: 901px)').matches ? 2 : 1;
+            return rows * columnsPerRow;
+        }
+
+        function simpleCardInnerHTML(item) {
+            const metaText = item.resurrection
+                ? '🪦 Resurrection Pre-Order'
+                : item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
+            const itemAccentClass = item.resurrection
+                ? 'drawer-item-img-wrap-graveyard'
+                : (item.isDtf || item.name.includes('[ATTACHED PRINT]')) ? 'drawer-item-img-wrap-dtf' : '';
+            const imageHtml = item.image
+                ? `<div class="drawer-item-img-wrap ${itemAccentClass}"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+                : '';
+            return `
+                ${imageHtml}
+                <div class="drawer-item-details">
+                    <h4 style="color: ${item.resurrection ? 'var(--accent-graveyard)' : item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
+                    <div class="drawer-item-meta">${metaText}</div>
+                    <div class="drawer-item-price"></div>
+                </div>
+                <button type="button" class="remove-item hover-target">✕</button>
+            `;
+        }
+
+        // Combo card = a garment + its attached DTF design, rendered as ONE card (see
+        // computeCartRenderGroups above for why/how these two separate cart entries get paired).
+        function comboCardInnerHTML(garment) {
+            // Strips the "(w/ Design)" suffix for display -- the nested .drawer-item-attached line
+            // below already names the design, so the title would otherwise say it twice. Only the
+            // DISPLAYED name changes; garment.name itself (used by BOGO/checkout matching) is untouched.
+            const displayName = garment.name.replace(/ \(w\/ .+\)$/, '');
+            const metaText = garment.size ? `${garment.size} / ${garment.color}` : 'Standard Specifications';
+            const imageHtml = garment.image
+                ? `<div class="drawer-item-img-wrap"><img class="drawer-item-img" src="${garment.image}" alt="${escapeHtml(displayName)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+                : '';
+            return `
+                ${imageHtml}
+                <div class="drawer-item-details">
+                    <h4>${escapeHtml(displayName)}</h4>
+                    <div class="drawer-item-meta">${metaText}</div>
+                    <div class="drawer-item-price"></div>
+                    <div class="drawer-item-attached"></div>
+                </div>
+                <button type="button" class="remove-item hover-target">✕</button>
+            `;
         }
 
         function updateCartUI() {
             const cartItemsContainer = document.getElementById('cartItems');
             const cartNavCount = document.getElementById('cartNavCount');
             // Both must run before computeItemsPerPage() -- that function measures the footer's
-            // real rendered height (to decide whether a full 2-item page fits), so the banner's
-            // and discount picker's visibility both need to already be in their final state
-            // before that measurement happens, not toggled afterward. Subtotal is computed here
-            // via a quick reduce (rather than waiting for the cart.forEach loop below, which also
-            // computes it) purely so the discount box's dollar values -- and therefore whether it
-            // needs to render at all -- are known this early; it's the same number either way.
+            // real rendered height (to decide whether a full page fits), so the banner's and
+            // discount picker's visibility both need to already be in their final state before
+            // that measurement happens, not toggled afterward.
             updateGuestCartSaveBanner();
             renderBuy3Get1FreeBanner();
             renderDiscountChoiceOptions(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0));
             const itemsPerPage = computeItemsPerPage();
+            const columnsPerRow = window.matchMedia('(min-width: 901px)').matches ? 2 : 1;
 
+            // Pricing/quantity totals always come from the raw cart array, never from the
+            // display-only groups below -- a combo card visually merges a garment + its print into
+            // one card, but both entries still count toward the total exactly as before.
             let totalItems = 0;
             let subTotalPrice = 0;
+            cart.forEach(item => {
+                totalItems += item.quantity;
+                subTotalPrice += (item.price * item.quantity);
+            });
 
-            if (cart.length === 0) {
+            const groups = computeCartRenderGroups();
+
+            if (groups.length === 0) {
                 cartItemsContainer.innerHTML = '<p style="color:var(--text-muted); font-size: 0.9rem;">Your cart is currently empty.</p>';
                 window._cartItemNodes = {};
             } else {
-                // Reuses each item's existing DOM node (image included), keyed by its stable
-                // cart id, across re-renders -- appendChild on a node that's ALREADY in the
+                // Reuses each card's existing DOM node (image included), keyed by the underlying
+                // garment/item's stable cart id -- appendChild on a node that's ALREADY in the
                 // document just MOVES it (even into a different .drawer-item-page group when
-                // another item is added/removed around it), it never destroys/recreates it. The
-                // previous version rebuilt the whole cart's HTML from a string on every single
-                // add/remove, which tore down and recreated every <img> -- even for items that
-                // hadn't changed at all -- visibly "refreshing"/flickering every product photo on
-                // every single cart mutation. Only genuinely new items ever get a fresh <img> now.
+                // another item is added/removed around it), it never destroys/recreates it, so
+                // product photos never flicker/reload on every cart mutation.
                 window._cartItemNodes = window._cartItemNodes || {};
                 const nextNodes = {};
                 const pageWrappers = [];
                 let currentPage = null;
 
-                cart.forEach((item, index) => {
-                    totalItems += item.quantity;
-                    subTotalPrice += (item.price * item.quantity);
+                groups.forEach((group, pageIndex) => {
+                    const primaryItem = group.type === 'combo' ? group.garment : group.item;
 
-                    let node = window._cartItemNodes[item.id];
+                    // A cart entry's card TYPE can change between renders even though its id
+                    // stays the same -- e.g. a garment's attached print gets removed, or (rare,
+                    // but possible with a malformed/legacy cart) two prints sharing a name mean
+                    // only one garment successfully pairs. A stale 'simple' node reused as a
+                    // 'combo' (or vice versa) is missing elements the other type expects (no
+                    // .drawer-item-attached on a simple node, for one), so the cache is only
+                    // trusted when its own recorded type still matches this render's type.
+                    let node = window._cartItemNodes[primaryItem.id];
+                    if (node && node.dataset.cardType !== group.type) node = null;
                     if (!node) {
-                        const metaText = item.resurrection
-                            ? '🪦 Resurrection Pre-Order'
-                            : item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
-                        const itemAccentClass = item.resurrection
-                            ? 'drawer-item-img-wrap-graveyard'
-                            : (item.isDtf || item.name.includes('[ATTACHED PRINT]')) ? 'drawer-item-img-wrap-dtf' : '';
-                        const imageHtml = item.image
-                            ? `<div class="drawer-item-img-wrap ${itemAccentClass}"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
-                            : '';
-
                         node = document.createElement('div');
                         node.className = 'drawer-item';
-                        node.innerHTML = `
-                            ${imageHtml}
-                            <div class="drawer-item-details">
-                                <h4 style="color: ${item.resurrection ? 'var(--accent-graveyard)' : item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
-                                <div class="drawer-item-meta">${metaText}</div>
-                                <div class="drawer-item-price"></div>
-                            </div>
-                            <button type="button" class="remove-item hover-target">✕</button>
-                        `;
+                        node.dataset.cardType = group.type;
+                        node.innerHTML = group.type === 'combo' ? comboCardInnerHTML(group.garment) : simpleCardInnerHTML(primaryItem);
                     }
 
-                    // Quantity/price CAN change on an already-rendered item (e.g. clicking Add to
-                    // Cart again for the same product just increments it) -- always keep this in
-                    // sync regardless of whether the node itself is new or reused. Same for the
-                    // remove button's handler, since its target index shifts whenever an earlier
-                    // item is removed from the array.
-                    node.querySelector('.drawer-item-price').textContent = `$${item.price.toFixed(2)} x ${item.quantity}`;
-                    node.querySelector('.remove-item').onclick = () => removeFromCart(index);
+                    // Quantity/price CAN change on an already-rendered card (e.g. clicking Add to
+                    // Cart again just increments it) -- always keep this in sync regardless of
+                    // whether the node itself is new or reused. Same for the remove button's
+                    // handler, since its target index(es) shift whenever an earlier cart entry is
+                    // removed from the array.
+                    if (group.type === 'combo') {
+                        node.querySelector('.drawer-item-price').textContent = `$${group.garment.price.toFixed(2)} x ${group.garment.quantity}`;
+                        const designLabel = group.print.name.replace('[ATTACHED PRINT] ', '');
+                        const qtySuffix = group.print.quantity > 1 ? ` x ${group.print.quantity}` : '';
+                        node.querySelector('.drawer-item-attached').textContent = `🎨 ${designLabel} — $${group.print.price.toFixed(2)}${qtySuffix}`;
+                        node.querySelector('.remove-item').onclick = () => removeComboFromCart(group.garmentIndex, group.printIndex);
+                    } else {
+                        node.querySelector('.drawer-item-price').textContent = `$${primaryItem.price.toFixed(2)} x ${primaryItem.quantity}`;
+                        node.querySelector('.remove-item').onclick = () => removeFromCart(group.index);
+                    }
 
-                    nextNodes[item.id] = node;
+                    nextNodes[primaryItem.id] = node;
 
-                    if (index % itemsPerPage === 0) {
+                    if (pageIndex % itemsPerPage === 0) {
                         currentPage = document.createElement('div');
                         currentPage.className = 'drawer-item-page';
                         pageWrappers.push(currentPage);
@@ -6460,28 +6584,26 @@ Thank you for supporting my small business and understanding the handmade nature
                 pageWrappers.forEach(p => cartItemsContainer.appendChild(p));
             }
 
-            // #cartItems' CSS otherwise defaults to a fixed 2-item-tall window (see the
-            // "CART-ONLY" comment near --drawer-item-height) so a cart with more items than fit
-            // on one page can scroll-snap page by page without the trailing-odd-item bug. That
-            // fixed height only makes sense once there's actually enough items to need
-            // scrolling -- with fewer items than one page holds, everything already fits, so a
-            // hardcoded height just leaves an empty gap under a shorter cart. Size it to the
-            // real content instead: empty/auto for 0 items, exactly N items tall for up to one
-            // full page, and only fall back to the fixed one-page-tall scrolling window (with
-            // its matching padding-bottom fix) once there's more than a page's worth. Every
-            // height here is expressed in terms of itemsPerPage (1 or 2, from
-            // computeItemsPerPage() above) instead of a hardcoded 2, so it's never taller than
-            // what actually, fully fits -- no item is ever rendered partially cut off.
-            if (cart.length === 0) {
+            // #cartItems' CSS otherwise defaults to a fixed page-tall window (see the "CART-ONLY"
+            // comment near --drawer-item-height) so a cart with more cards than fit on one page can
+            // scroll-snap page by page without the trailing-odd-item bug. That fixed height only
+            // makes sense once there's actually enough cards to need scrolling -- with fewer cards
+            // than one page holds, everything already fits, so a hardcoded height just leaves an
+            // empty gap under a shorter cart. Sized in ROWS, not raw card count, since desktop lays
+            // 2 cards per row (see computeItemsPerPage's columnsPerRow) -- 4 cards on desktop is
+            // still only 2 rows tall, not 4.
+            if (groups.length === 0) {
                 cartItemsContainer.style.height = 'auto';
                 cartItemsContainer.style.paddingBottom = '0';
-            } else if (cart.length <= itemsPerPage) {
-                const gapPx = (cart.length - 1) * 20;
-                cartItemsContainer.style.height = `calc(var(--drawer-item-height) * ${cart.length} + ${gapPx}px)`;
+            } else if (groups.length <= itemsPerPage) {
+                const rowsNeeded = Math.ceil(groups.length / columnsPerRow);
+                const gapPx = (rowsNeeded - 1) * 20;
+                cartItemsContainer.style.height = `calc(var(--drawer-item-height) * ${rowsNeeded} + ${gapPx}px)`;
                 cartItemsContainer.style.paddingBottom = '0';
             } else {
-                const pageGapPx = (itemsPerPage - 1) * 20;
-                const onePageHeight = `calc(var(--drawer-item-height) * ${itemsPerPage} + ${pageGapPx}px)`;
+                const rowsPerPage = Math.ceil(itemsPerPage / columnsPerRow);
+                const pageGapPx = (rowsPerPage - 1) * 20;
+                const onePageHeight = `calc(var(--drawer-item-height) * ${rowsPerPage} + ${pageGapPx}px)`;
                 cartItemsContainer.style.height = onePageHeight;
                 cartItemsContainer.style.paddingBottom = onePageHeight;
             }
@@ -6495,12 +6617,32 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById('cartShipping').innerText = fulfillmentMethod === 'shipping' && cart.length > 0 ? '$9.00' : 'Free';
             document.getElementById('cartTotal').innerText = `$${grandTotal.toFixed(2)}`;
             cartNavCount.innerText = totalItems;
-            
-            if(isDesktop) attachHoverTargets(); 
+
+            if(isDesktop) attachHoverTargets();
         }
 
         function removeFromCart(index) {
             cart.splice(index, 1);
+            saveCart();
+            updateCartUI();
+        }
+
+        // Combo cards remove BOTH the garment and its attached print together (they're shown as
+        // one card, so one remove action should clear both) -- except when the print is a SHARED
+        // design attached to more than one garment (e.g. the same design on two different sizes),
+        // in which case only this garment's share of the print's quantity is released, not the
+        // whole shared line.
+        function removeComboFromCart(garmentIndex, printIndex) {
+            if (printIndex === -1 || !cart[printIndex]) {
+                cart.splice(garmentIndex, 1);
+            } else if (cart[printIndex].quantity > cart[garmentIndex].quantity) {
+                cart[printIndex].quantity -= cart[garmentIndex].quantity;
+                cart.splice(garmentIndex, 1);
+            } else {
+                // Splice the LATER index first so removing it doesn't shift the earlier index out
+                // from under the second splice.
+                [garmentIndex, printIndex].sort((a, b) => b - a).forEach(i => cart.splice(i, 1));
+            }
             saveCart();
             updateCartUI();
         }
