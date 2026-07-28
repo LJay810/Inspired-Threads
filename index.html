@@ -6330,29 +6330,42 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         // How many full, uncropped items can actually stack in #cartItems' available room right
-        // now. Desktop's drawer is a fixed 100vh side panel with always-plenty of room, so it's
-        // always 2 there. Mobile's bottom sheet is capped at a max-height that varies by real
-        // device (status bar / home-indicator reservations aren't identical to a synthetic
-        // viewport size), so on a shorter real screen, forcing 2 full-height items into less
-        // room than that needs would previously just render the 2nd one cut off mid-card instead
-        // of shrinking gracefully. Measuring the ACTUAL leftover room (drawer's own max-height,
-        // minus its padding/border, minus the header/footer's real rendered height) and choosing
-        // 1-per-page instead of 2 when there isn't room guarantees every item shown is always
-        // fully visible -- never a partial card -- while still using the smooth 2-item snap
-        // grouping whenever there's genuinely room for it.
+        // now. Used to hardcode desktop to always 2 here, on the assumption its fixed 100vh side
+        // panel always had plenty of room -- that assumption broke the moment the footer grew a
+        // new banner (buy3get1-banner) stacked on top of the guest-cart banner/discount box/
+        // fulfillment box/subtotal/checkout button: on a cart with 2 items showing, the footer
+        // could now genuinely run the drawer's total content past 100vh, pushing the checkout
+        // button below the visible area with no scroll to reach it (desktop has no overflow-y on
+        // .cart-drawer -- see the mobile sheet's own comment below for why that's deliberate).
+        // Measuring for BOTH breakpoints now (drawer's own real rendered height this time, not a
+        // max-height CSS read, since desktop sizes via `height` not `max-height`) means any future
+        // footer growth -- another banner, a longer discount label, whatever -- degrades
+        // gracefully to 1-item pages instead of silently reintroducing this same bug.
         function computeItemsPerPage() {
-            const isMobileNow = window.matchMedia('(max-width: 900px)').matches;
-            if (!isMobileNow) return 2;
-
             const drawer = document.getElementById('cartDrawer');
             const header = drawer.querySelector('.drawer-header');
             const footer = drawer.querySelector('.drawer-footer');
-            const maxHeightPx = parseFloat(getComputedStyle(drawer).maxHeight);
-            if (!maxHeightPx || !header || !footer) return 2; // shouldn't happen, safe fallback
+            if (!header || !footer) return 2; // shouldn't happen, safe fallback
 
-            const drawerPaddingAndBorder = 42; // 20px top + 20px bottom padding, 1px top + 1px bottom border
+            // Mobile's sheet sizes via `height:auto` capped by a fixed `max-height` ceiling (e.g.
+            // 95dvh) -- that CSS max-height value stays constant no matter how much content is
+            // CURRENTLY rendered, so it has to be read directly; the box's own getBoundingClientRect
+            // height at this point is still whatever #cartItems was left at by the PREVIOUS render
+            // (this runs before that height gets updated for the new item count), so measuring
+            // against it instead of the true ceiling would just be circular -- always roughly
+            // matching whatever #cartItems already was, never actually testing whether 2 items fit.
+            // Desktop's panel instead sizes via a fixed `height:100vh` with no max-height set at
+            // all (getComputedStyle().maxHeight reads 'none' there), so its own rendered height IS
+            // the true, content-independent ceiling and is safe to use directly.
+            const maxHeightPx = parseFloat(getComputedStyle(drawer).maxHeight);
+            const ceilingPx = maxHeightPx || drawer.getBoundingClientRect().height;
+            if (!ceilingPx) return 2; // shouldn't happen, safe fallback
+
+            const cs = getComputedStyle(drawer);
+            const verticalChrome = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
+                + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
             const safetyMargin = 8; // a few px of slack for sub-pixel layout rounding
-            const available = maxHeightPx - drawerPaddingAndBorder - header.getBoundingClientRect().height
+            const available = ceilingPx - verticalChrome - header.getBoundingClientRect().height
                 - footer.getBoundingClientRect().height - safetyMargin;
 
             const twoItemPageHeight = 228; // matches --drawer-item-height*2 + 20px gap
