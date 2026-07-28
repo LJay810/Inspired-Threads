@@ -5909,7 +5909,27 @@ Thank you for supporting my small business and understanding the handmade nature
                 while (cartItemsContainer.firstChild) cartItemsContainer.removeChild(cartItemsContainer.firstChild);
                 pageWrappers.forEach(p => cartItemsContainer.appendChild(p));
             }
-            
+
+            // #cartItems' CSS gives it a fixed 2-item-tall window (see the "CART-ONLY" comment
+            // near --drawer-item-height) so a 3+ item cart can scroll-snap page by page without
+            // the trailing-odd-item bug. That fixed height only makes sense once there's actually
+            // enough items to need scrolling -- with 0/1/2 items everything already fits, so a
+            // hardcoded 2-item height just leaves an empty gap under a shorter cart (exactly what
+            // was reported on a 1-item cart). Size it to the real content instead: empty/auto for
+            // 0 items, exactly N items tall for 1-2, and only fall back to the fixed 2-item
+            // scrolling window (with its matching padding-bottom fix) once there's a 3rd item.
+            if (cart.length === 0) {
+                cartItemsContainer.style.height = 'auto';
+                cartItemsContainer.style.paddingBottom = '0';
+            } else if (cart.length <= 2) {
+                const gapPx = (cart.length - 1) * 20;
+                cartItemsContainer.style.height = `calc(var(--drawer-item-height) * ${cart.length} + ${gapPx}px)`;
+                cartItemsContainer.style.paddingBottom = '0';
+            } else {
+                cartItemsContainer.style.height = 'calc(var(--drawer-item-height) * 2 + 20px)';
+                cartItemsContainer.style.paddingBottom = 'calc(var(--drawer-item-height) + 20px)';
+            }
+
             // FULFILLMENT MATH
             const fulfillmentMethod = document.querySelector('input[name="fulfillment"]:checked').value;
             const shippingCost = (fulfillmentMethod === 'shipping' && cart.length > 0) ? 9.00 : 0.00;
@@ -6136,15 +6156,23 @@ Thank you for supporting my small business and understanding the handmade nature
             // (spend gained, new badges) by diffing against this later -- taken here, right
             // before checkout, not on page load, so it reflects their state at the moment
             // this specific order started.
+            //
+            // Deliberately NOT awaited: this is a nice-to-have for the post-purchase reward
+            // recap toast, not something checkout itself depends on. Every extra awaited call
+            // between the tap and the actual redirect below adds delay that risks iOS treating
+            // the eventual redirectToCheckout/location change as no longer tied to the original
+            // user gesture -- which matters a lot more for a standalone PWA breaking out to an
+            // external origin (checkout.stripe.com) than for a normal in-tab navigation. If this
+            // fails or is slow, the only cost is a skipped reward-recap toast later, never a
+            // broken checkout.
             if (supabaseUserId) {
-                try {
-                    const { data: preProfile } = await supabaseClient.from('profiles').select('total_spent, badges').eq('id', supabaseUserId).single();
-                    if (preProfile) {
-                        localStorage.setItem('preCheckoutSnapshot', JSON.stringify({ total_spent: preProfile.total_spent || 0, badges: preProfile.badges || [] }));
-                    }
-                } catch (err) {
-                    console.warn('Could not snapshot pre-checkout profile (reward recap will just be skipped):', err.message);
-                }
+                supabaseClient.from('profiles').select('total_spent, badges').eq('id', supabaseUserId).single()
+                    .then(({ data: preProfile }) => {
+                        if (preProfile) {
+                            localStorage.setItem('preCheckoutSnapshot', JSON.stringify({ total_spent: preProfile.total_spent || 0, badges: preProfile.badges || [] }));
+                        }
+                    })
+                    .catch(err => console.warn('Could not snapshot pre-checkout profile (reward recap will just be skipped):', err.message));
             }
 
             try {
@@ -6180,8 +6208,12 @@ Thank you for supporting my small business and understanding the handmade nature
                     localStorage.setItem('pendingResurrectionSessionId', session.id);
                 }
 
-                await stripe.redirectToCheckout({ sessionId: session.id });
-                
+                // Plain top-level redirect (not stripe.js's redirectToCheckout) -- the simplest
+                // navigation a browser can do, and what iOS's standalone-PWA-to-external-origin
+                // scope breakout handles most reliably. Also Stripe's own currently recommended
+                // approach over the older client-side redirectToCheckout method.
+                window.location.href = session.url;
+
             } catch (error) {
                 console.error("Checkout Error:", error);
 

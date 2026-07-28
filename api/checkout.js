@@ -444,7 +444,11 @@ export default async function handler(req, res) {
         const session = await stripe.checkout.sessions.create(sessionConfig);
         sessionCreated = true;
 
-        res.status(200).json({ id: session.id });
+        // url (not just id) so the browser can do a plain top-level redirect instead of routing
+        // through stripe.js's redirectToCheckout -- the plain redirect is what iOS's standalone
+        // PWA scope-breakout (navigating an installed home-screen app to an external origin)
+        // handles most reliably.
+        res.status(200).json({ id: session.id, url: session.url });
     } catch (error) {
         console.error(error);
 
