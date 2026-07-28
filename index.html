@@ -1626,28 +1626,35 @@
                the bottom via margin-top:auto, leaving a big gap above it on a short cart) up to
                a max-height, with a full pink frame all the way around since there's no adjacent
                backdrop sliver left for a partial border to "join" onto anymore.
-               "90vh" as a fallback then "90dvh" overriding it on browsers that support dynamic
+               "95vh" as a fallback then "95dvh" overriding it on browsers that support dynamic
                viewport units -- dvh is what actually fixes the classic mobile-Safari bug where a
                bottom-pinned fixed element ends up hidden behind Safari's own collapsed toolbar,
-               which is exactly the earlier "checkout button cut off" symptom. 90 (not 85) gives
-               the fixed 2-item scroll-snap window enough headroom to stay at its full smooth
-               2-item size on ordinary phones instead of needing to shrink (see #cartItems below).
-               bottom: max(10px, env(safe-area-inset-bottom)) -- instead of a flush bottom:0 --
-               floats the sheet a small gap above the literal screen edge. A standalone PWA
-               renders truly edge-to-edge with no browser chrome to buffer it, so a flush bottom
-               edge gets its corners visually clipped by the device's own rounded-corner mask;
-               this same gap also keeps the checkout button clear of the home-indicator area, so
-               the separate padding-bottom safe-area reservation from before is no longer needed.
-               border-radius is now a full 20px on all four corners (not just the top two) to
-               match "a small gap on every side" -- a bottom-flush sheet reads fine with square
-               bottom corners, but a floating one with a gap needs them rounded to still look
+               which is exactly the earlier "checkout button cut off" symptom. 95 gives the sheet
+               (and the fixed 2-item scroll-snap window inside it) more room to actually fill the
+               screen instead of stopping short, while still capping out relative to whatever the
+               real device's own visible height is -- it never overflows past that.
+               bottom/left/right all use max(10px, env(safe-area-inset-*)) -- instead of flush 0 on
+               every edge -- floating the sheet a small gap in from EVERY edge, not just the
+               bottom. A standalone PWA renders truly edge-to-edge with no browser chrome to
+               buffer it, so a sheet flush on multiple sides gets its corners visually clipped by
+               the device's own rounded-corner mask wherever two flush edges meet -- fixing only
+               the bottom edge earlier still left the bottom-left/bottom-right corners clipped
+               since left/right were still flush. width:auto (not 100%) lets the left/right insets
+               actually define the rendered width, instead of insetting AND being 100% wide, which
+               would push it back out past the viewport again.
+               border-radius is a full 20px on all four corners to match "a small gap on every
+               side" -- a sheet flush against the edges reads fine with square corners on that
+               side, but a floating one with a gap on every side needs rounding everywhere to look
                deliberate. Same CSS renders identically in the installed PWA and in a regular
                mobile browser tab (there's no separate PWA stylesheet), so this fixes both at
                once without any PWA-specific code. */
             .cart-drawer {
-                top: auto; bottom: max(10px, env(safe-area-inset-bottom)); left: 0; right: 0;
-                width: 100%; height: auto;
-                max-height: 90vh; max-height: 90dvh;
+                top: auto;
+                bottom: max(10px, env(safe-area-inset-bottom));
+                left: max(10px, env(safe-area-inset-left));
+                right: max(10px, env(safe-area-inset-right));
+                width: auto; height: auto;
+                max-height: 95vh; max-height: 95dvh;
                 padding: 20px;
                 border: 1px solid var(--accent-pink);
                 border-radius: 20px;
@@ -1686,6 +1693,14 @@
                guaranteed-exact "2 items visible" precision, since a 100vh drawer always has room
                regardless of item count. */
             #cartItems { flex-shrink: 1; min-height: 60px; }
+
+            /* Neither .drawer-header nor .drawer-footer declares its own flex-shrink, so both
+               default to flex-shrink:1 like any flex child -- meaning on a genuinely tight real
+               device height, flexbox could shrink/compress the HEADER or FOOTER instead of (or
+               as well as) #cartItems, distorting the header/footer and the "2 items visible"
+               window unpredictably. Pinning both to flex-shrink:0 makes #cartItems the only
+               flexible region, so it's the only thing that ever compresses. */
+            #cartDrawer .drawer-header, #cartDrawer .drawer-footer { flex-shrink: 0; }
 
             .wishlist-drawer { width: 100%; padding: 20px; border-right: none; }
 
@@ -5867,16 +5882,37 @@ Thank you for supporting my small business and understanding the handmade nature
         // scroll "conflict" between the two) -- otherwise a touch-scroll starting outside the
         // drawer's own item list (its header/footer/padding) can scroll the Home page behind it
         // instead, which feels like the two are fighting each other.
+        //
+        // Pinning body via position:fixed (not just overflow:hidden) -- plain overflow:hidden on
+        // html/body is well-known to NOT reliably stop iOS Safari's own rubber-band/bounce
+        // scrolling, and that leaking bounce gesture is exactly what was fighting #cartItems' own
+        // scroll-snap for the touch gesture on a real iPhone (never showed up in desktop/automated
+        // testing, which doesn't reproduce iOS's real touch/bounce behavior). Fixing body in place
+        // at its current scroll offset is the standard iOS-safe lock; scroll position is restored
+        // on unlock so the page doesn't jump.
         function updateBodyScrollLock() {
             const isMobile = window.matchMedia('(max-width: 900px)').matches;
             const anyDrawerOpen = document.getElementById('cartDrawer').classList.contains('open')
                 || document.getElementById('wishlistDrawer').classList.contains('open');
             if (isMobile && anyDrawerOpen) {
-                document.documentElement.style.overflow = 'hidden';
-                document.body.style.overflow = 'hidden';
-            } else {
-                document.documentElement.style.overflow = '';
-                document.body.style.overflow = '';
+                if (document.body.style.position !== 'fixed') {
+                    const scrollY = window.scrollY || window.pageYOffset || 0;
+                    document.body.dataset.scrollLockY = String(scrollY);
+                    document.body.style.position = 'fixed';
+                    document.body.style.top = `-${scrollY}px`;
+                    document.body.style.left = '0';
+                    document.body.style.right = '0';
+                    document.body.style.width = '100%';
+                }
+            } else if (document.body.style.position === 'fixed') {
+                const scrollY = parseInt(document.body.dataset.scrollLockY || '0', 10);
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.width = '';
+                delete document.body.dataset.scrollLockY;
+                window.scrollTo(0, scrollY);
             }
         }
 
