@@ -1620,8 +1620,21 @@
             .tiktok-btn { padding: 16px 45px; font-size: 1.15rem; }
             .filter-bar { justify-content: center; }
             
-            .cart-drawer { width: 100%; padding: 20px;}
-            .wishlist-drawer { width: 100%; padding: 20px;} 
+            /* border-left/-right on the desktop version marks the seam between the sliding
+               panel and the dimmed backdrop still visible beside it. At full width on mobile
+               there's no backdrop left showing next to it, so that single-edge hairline reads as
+               a stray rendering artifact rather than a deliberate frame -- dropped here, the
+               existing box-shadow already does the "lifted panel" separation on its own. */
+            .cart-drawer { width: 100%; padding: 20px; border-left: none; }
+            .wishlist-drawer { width: 100%; padding: 20px; border-right: none; }
+
+            /* Desktop's letter-spacing (0.15em) comfortably fits "SECURE CHECKOUT VIA STRIPE" in
+               a 450px-wide drawer; squeezed into mobile's ~335px content width the same spacing
+               crowds the text toward wrapping and reads cramped rather than confidently bold.
+               Tightening spacing/size (not the vertical padding, so the tap target stays the
+               same height) keeps every pink CTA button (cart, TikTok claim, spin wheel,
+               resurrect) single-line and easier to read on a phone screen. */
+            .checkout-btn { font-size: 0.78rem; letter-spacing: 0.08em; }
             
             .contact-layout { gap: 25px; }
             .lightbox-close { top: 20px; right: 20px; }
