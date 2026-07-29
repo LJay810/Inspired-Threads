@@ -153,6 +153,7 @@
         <button class="admin-nav-btn active" data-tab="categories" onclick="switchTab('categories')">Categories</button>
         <button class="admin-nav-btn" data-tab="products" onclick="switchTab('products')">Products</button>
         <button class="admin-nav-btn" data-tab="promocodes" onclick="switchTab('promocodes')">Promo Codes</button>
+        <button class="admin-nav-btn" data-tab="cartaddons" onclick="switchTab('cartaddons')">Cart Addons</button>
         <div class="admin-nav-divider"></div>
         <a class="admin-nav-link" href="/#account">← Restock / Customers / Reviews (existing tools)</a>
         <a class="admin-nav-link" href="/">← Back to storefront</a>
@@ -240,6 +241,22 @@
                 <table class="admin-table">
                     <thead><tr><th>Code</th><th>Discount</th><th>Duration</th><th>Redemptions</th><th>Expires</th><th>Active</th><th></th></tr></thead>
                     <tbody id="promoCodesTableBody"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ===================== CART ADDONS TAB ===================== -->
+        <section class="admin-tab-panel" id="tab-cartaddons">
+            <div class="settings-field-hint" style="margin-bottom:14px;">
+                Small extra items shown in a popup right before checkout ("Wait! Your cart wants 1 more cute thing"). Just an image, price, and stock -- no sizes, colors, or DTF designs. Never shown in the regular shop grid.
+            </div>
+            <div class="admin-toolbar">
+                <button class="admin-btn" onclick="openAddonModal()">+ Add Cart Addon</button>
+            </div>
+            <div class="admin-table-scroll">
+                <table class="admin-table">
+                    <thead><tr><th></th><th>Name</th><th>Price</th><th>Stock</th><th>Published</th><th></th></tr></thead>
+                    <tbody id="cartAddonsTableBody"><tr><td colspan="6" class="empty-state">Loading...</td></tr></tbody>
                 </table>
             </div>
         </section>
@@ -377,6 +394,30 @@
     </div>
 </div>
 
+<!-- ===================== CART ADDON MODAL ===================== -->
+<div class="admin-modal-overlay" id="addonModalOverlay">
+    <div class="admin-modal">
+        <h2 id="addonModalTitle">Add Cart Addon</h2>
+        <div id="addonModalError"></div>
+        <form id="addonForm" onsubmit="saveAddon(event)">
+            <input type="hidden" id="addon_id">
+            <div class="admin-field"><label>Name</label><input type="text" id="addon_name" required></div>
+            <div class="admin-field"><label>Price (USD)</label><input type="number" id="addon_price" step="0.01" min="0.01" required></div>
+            <div class="admin-field"><label>Stock (leave blank for unlimited)</label><input type="number" id="addon_stock" min="0"></div>
+            <div class="admin-field"><label><input type="checkbox" id="addon_published" checked style="width:auto;"> Published</label></div>
+            <div class="admin-field">
+                <label>Image</label>
+                <input type="file" accept="image/*" onchange="uploadAddonImage(event)">
+                <div class="image-strip" id="addon_images_strip"></div>
+            </div>
+            <div class="admin-modal-actions">
+                <button type="button" class="admin-btn secondary" onclick="closeAddonModal()">Cancel</button>
+                <button type="submit" class="admin-btn">Save Addon</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script src="shared/admin-auth.js"></script>
 <script>
 let session = null;
@@ -400,6 +441,7 @@ function switchTab(tab) {
     document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
     if (tab === 'products') loadProducts();
     if (tab === 'promocodes') loadPromoCodes();
+    if (tab === 'cartaddons') loadCartAddons();
 }
 
 async function adminApi(endpoint, body) {
@@ -978,6 +1020,139 @@ async function saveProduct(evt) {
     } catch (err) {
         document.getElementById('productModalError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
     }
+}
+
+// ===================== CART ADDONS =====================
+// Simple image + price + stock products, filed under a dedicated 'cart-addons' category
+// (card_layout_type 'simple') so they never appear in the regular shop grid/filter bar --
+// index.html excludes that category id explicitly when building the shop. They're read
+// directly from cart.js's already-fetched /api/products response for the pre-checkout popup.
+
+const CART_ADDONS_CATEGORY_ID = 'cart-addons';
+let cartAddonsCache = [];
+let currentAddonImages = [];
+
+async function ensureCartAddonsCategory() {
+    if (categories.find(c => c.id === CART_ADDONS_CATEGORY_ID)) return;
+    await adminApi('/api/admin-categories', {
+        action: 'create',
+        id: CART_ADDONS_CATEGORY_ID,
+        label: 'Cart Addons',
+        parent_id: null,
+        filter_group: null,
+        card_layout_type: 'simple',
+        config: {},
+    });
+    await loadCategories();
+}
+
+async function loadCartAddons() {
+    try {
+        await ensureCartAddonsCategory();
+        const { products } = await adminApi('/api/admin-products', { action: 'list', category_id: CART_ADDONS_CATEGORY_ID });
+        cartAddonsCache = products;
+        renderCartAddonsTable();
+    } catch (err) {
+        document.getElementById('cartAddonsTableBody').innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+function renderCartAddonsTable() {
+    const body = document.getElementById('cartAddonsTableBody');
+    if (cartAddonsCache.length === 0) { body.innerHTML = '<tr><td colspan="6" class="empty-state">No cart addons yet.</td></tr>'; return; }
+    body.innerHTML = cartAddonsCache.map(p => {
+        const publishedCell = p.published ? 'Yes' : '<span class="badge error">No -- Archived</span>';
+        const archiveOrRestoreBtn = p.published
+            ? `<button class="admin-btn small danger" onclick='deleteAddon(${JSON.stringify(p.id)})'>Archive</button>`
+            : `<button class="admin-btn small" onclick='restoreAddon(${JSON.stringify(p.id)})'>Restore</button>`;
+        return `
+        <tr>
+            <td data-label=""><img class="admin-thumb" src="${p.images && p.images[0] || ''}" loading="lazy" onerror="this.style.opacity=0"></td>
+            <td data-label="Name">${escapeHtml(p.name)}</td>
+            <td data-label="Price">$${(p.price_cents / 100).toFixed(2)}</td>
+            <td data-label="Stock">${p.stock === null ? 'Unlimited' : p.stock}</td>
+            <td data-label="Published">${publishedCell}</td>
+            <td data-label="">
+                <button class="admin-btn small secondary" onclick='openAddonModal(${JSON.stringify(p.id)})'>Edit</button>
+                ${archiveOrRestoreBtn}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function openAddonModal(id) {
+    document.getElementById('addonModalError').innerHTML = '';
+    document.getElementById('addonForm').reset();
+    document.getElementById('addon_id').value = '';
+    currentAddonImages = [];
+    if (id) {
+        const p = cartAddonsCache.find(x => x.id === id);
+        document.getElementById('addonModalTitle').textContent = 'Edit Cart Addon';
+        document.getElementById('addon_id').value = p.id;
+        document.getElementById('addon_name').value = p.name;
+        document.getElementById('addon_price').value = (p.price_cents / 100).toFixed(2);
+        document.getElementById('addon_stock').value = p.stock ?? '';
+        document.getElementById('addon_published').checked = p.published;
+        currentAddonImages = (p.images || []).slice();
+    } else {
+        document.getElementById('addonModalTitle').textContent = 'Add Cart Addon';
+    }
+    renderAddonImageStrip();
+    document.getElementById('addonModalOverlay').classList.add('open');
+}
+function closeAddonModal() { document.getElementById('addonModalOverlay').classList.remove('open'); }
+
+function renderAddonImageStrip() {
+    const strip = document.getElementById('addon_images_strip');
+    strip.innerHTML = currentAddonImages.map((url, i) => `
+        <div class="img-slot"><img src="${url}" loading="lazy"><button type="button" onclick="removeAddonImage(${i})">✕</button></div>
+    `).join('');
+}
+function removeAddonImage(i) { currentAddonImages.splice(i, 1); renderAddonImageStrip(); }
+
+async function uploadAddonImage(evt) {
+    const file = evt.target.files[0];
+    if (!file) return;
+    try {
+        const url = await uploadToStorage(file);
+        currentAddonImages.push(url);
+        renderAddonImageStrip();
+    } catch (err) {
+        document.getElementById('addonModalError').innerHTML = `<div class="admin-error-banner">Image upload failed: ${escapeHtml(err.message)}</div>`;
+    }
+    evt.target.value = '';
+}
+
+async function saveAddon(evt) {
+    evt.preventDefault();
+    const id = document.getElementById('addon_id').value;
+    const payload = {
+        name: document.getElementById('addon_name').value,
+        category_id: CART_ADDONS_CATEGORY_ID,
+        price_dollars: document.getElementById('addon_price').value,
+        images: currentAddonImages,
+        published: document.getElementById('addon_published').checked,
+        stock: document.getElementById('addon_stock').value === '' ? null : parseInt(document.getElementById('addon_stock').value, 10),
+    };
+    try {
+        if (id) {
+            await adminApi('/api/admin-products', { action: 'update', id, ...payload });
+        } else {
+            await adminApi('/api/admin-products', { action: 'create', ...payload });
+        }
+        closeAddonModal();
+        await loadCartAddons();
+    } catch (err) {
+        document.getElementById('addonModalError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+async function deleteAddon(id) {
+    if (!confirm('Archive this cart addon? It will stop appearing in the checkout popup.')) return;
+    try { await adminApi('/api/admin-products', { action: 'delete', id }); await loadCartAddons(); } catch (err) { alert(err.message); }
+}
+async function restoreAddon(id) {
+    try { await adminApi('/api/admin-products', { action: 'update', id, published: true }); await loadCartAddons(); } catch (err) { alert(err.message); }
 }
 
 // ===================== BULK ADD DTF =====================

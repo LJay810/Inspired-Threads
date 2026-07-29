@@ -333,6 +333,27 @@
         .close-tiktok { position: absolute; top: 15px; right: 20px; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; transition: color 0.2s; }
         .close-tiktok:hover { color: var(--accent-pink); }
 
+        /* --- CART ADDONS (pre-checkout upsell popup) --- */
+        .cart-addons-modal { max-width: 460px; max-height: 85vh; overflow-y: auto; }
+        .cart-addon-row {
+            display: flex; align-items: center; gap: 14px; padding: 12px; margin-bottom: 10px;
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: 12px; transition: border-color 0.2s;
+        }
+        .cart-addon-row:hover { border-color: rgba(255,0,127,0.35); }
+        .cart-addon-thumb { width: 56px; height: 56px; flex-shrink: 0; border-radius: 8px; background-size: cover; background-position: center; background-color: #f5f5f5; }
+        .cart-addon-info { flex: 1 1 auto; min-width: 0; }
+        .cart-addon-name { font-size: 0.85rem; font-weight: 700; color: var(--text-pure); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cart-addon-price { font-family: var(--font-mono); font-size: 0.8rem; color: var(--accent-pink); margin-top: 2px; }
+        .cart-addon-incart { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+        .cart-addon-add-btn {
+            flex-shrink: 0; background: var(--accent-pink); color: #fff; border: none; border-radius: 8px;
+            padding: 8px 14px; font-family: var(--font-mono); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em;
+            text-transform: uppercase; cursor: none; transition: background 0.2s, transform 0.15s;
+        }
+        .cart-addon-add-btn:hover { background: var(--accent-pink-hover); transform: scale(1.05); }
+        .cart-addon-add-btn.added { background: #2ecc71; }
+        .cart-addon-add-btn:disabled { background: var(--border-subtle); color: var(--text-muted); cursor: default; transform: none; }
+
         /* --- GRAVEYARD RESURRECTION --- */
         .resurrect-modal { border-color: var(--accent-graveyard); box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px rgba(124,58,237,0.2); }
         .resurrect-modal-img { height: 180px; background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; border-radius: 8px; }
@@ -2335,6 +2356,16 @@
         </div>
     </div>
 
+    <div class="tiktok-overlay" id="cartAddonsOverlay" onclick="closeCartAddonsModal(event)">
+        <div class="tiktok-modal cart-addons-modal" onclick="event.stopPropagation()">
+            <button class="close-tiktok hover-target" onclick="closeCartAddonsModal()">✕</button>
+            <h2 style="font-family:var(--font-mono); color:var(--accent-pink); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.08em; text-align:center;">Wait! 👀</h2>
+            <p style="text-align:center; color:var(--text-pure); font-size:0.9rem; margin-bottom:22px;">Your cart wants 1 more cute thing before you check out. 🩷</p>
+            <div id="cartAddonsModalBody"></div>
+            <button class="checkout-btn magnetic-btn hover-target" style="margin-top:18px;" onclick="continueToCheckoutFromAddons()">Continue to Checkout →</button>
+        </div>
+    </div>
+
     <div class="tiktok-overlay resurrection-overlay" id="resurrectionCelebrationOverlay" onclick="closeResurrectionCelebration(event)">
         <div class="tiktok-modal resurrection-modal" onclick="event.stopPropagation()">
             <button class="close-tiktok hover-target" onclick="closeResurrectionCelebration()">✕</button>
@@ -3658,11 +3689,19 @@ Thank you for supporting my small business and understanding the handmade nature
                 window.productCategoryId = {}; // productId -> current categoryId, used by pollLiveStock to spot a Graveyard resurrection
                 window.dtfRegistry = []; // Reset local memory
 
-                const firstFilterBtnId = renderFilterBar(categoryList);
+                // Cart Addons: simple, cheap items ("Wait! One more cute thing?") shown only in
+                // the pre-checkout popup (see openCartAddonsModal), never in the normal shop grid
+                // or filter bar -- pulled straight from this same already-fetched response instead
+                // of a second network round-trip.
+                window.cartAddonProducts = products.filter(p => p.metadata && p.metadata.category === 'cart-addons');
+                const shopCategoryList = categoryList.filter(c => c.id !== 'cart-addons');
+
+                const firstFilterBtnId = renderFilterBar(shopCategoryList);
 
                 products.forEach(product => {
                     const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
                     const categoryId = product.metadata ? product.metadata.category : 'dtf';
+                    if (categoryId === 'cart-addons') return; // handled above -- never rendered as a normal shop card
                     const category = window.categoriesById[categoryId] || { id: categoryId, card_layout_type: 'simple', config: {} };
 
                     // The effective display/filter category is the product's own sub_category
@@ -6953,9 +6992,107 @@ Thank you for supporting my small business and understanding the handmade nature
             }
         }
 
+        // --- CART ADDONS (pre-checkout upsell popup) ---
+        // Simple (no size/color) items filed under the 'cart-addons' category in admin.html,
+        // shown once per checkout attempt right before the real Stripe redirect -- unless the
+        // cart already has one (see shouldShowCartAddonsPopup) or there's nothing to show.
+        function getAddonStock(product) {
+            if (!product.metadata || product.metadata.stock === undefined) return null;
+            const val = parseInt(product.metadata.stock, 10);
+            return isNaN(val) ? null : val;
+        }
+        function getAddonCartQuantity(priceId) {
+            const existing = cart.find(item => item.priceId === priceId && item.categoryId === 'cart-addons');
+            return existing ? existing.quantity : 0;
+        }
+        function shouldShowCartAddonsPopup() {
+            const addons = window.cartAddonProducts || [];
+            if (addons.length === 0) return false;
+            const hasAvailableAddon = addons.some(p => { const s = getAddonStock(p); return s === null || s > 0; });
+            if (!hasAvailableAddon) return false;
+            const cartAlreadyHasAddon = cart.some(item => item.categoryId === 'cart-addons');
+            return !cartAlreadyHasAddon;
+        }
+
+        function renderCartAddonsModalBody() {
+            const wrap = document.getElementById('cartAddonsModalBody');
+            const addons = window.cartAddonProducts || [];
+            wrap.innerHTML = addons.map(p => {
+                const stock = getAddonStock(p);
+                const inCart = getAddonCartQuantity(p.priceId);
+                const soldOut = stock !== null && stock - inCart <= 0;
+                const img = (p.images && p.images[0]) || '';
+                return `
+                <div class="cart-addon-row">
+                    <div class="cart-addon-thumb" style="background-image:${img ? `url('${img}')` : 'none'};"></div>
+                    <div class="cart-addon-info">
+                        <div class="cart-addon-name">${escapeHtml(p.name)}</div>
+                        <div class="cart-addon-price">$${p.price}</div>
+                        ${inCart > 0 ? `<div class="cart-addon-incart">In cart: ${inCart}</div>` : ''}
+                    </div>
+                    <button class="cart-addon-add-btn hover-target" ${soldOut ? 'disabled' : ''} onclick="addAddonToCart('${p.id}', this)">${soldOut ? 'Sold Out' : '+ Add'}</button>
+                </div>`;
+            }).join('');
+        }
+
+        function openCartAddonsModal() {
+            renderCartAddonsModalBody();
+            document.getElementById('cartAddonsOverlay').classList.add('active');
+        }
+        function closeCartAddonsModal(e) {
+            if (e && e.target.id !== 'cartAddonsOverlay') return;
+            document.getElementById('cartAddonsOverlay').classList.remove('active');
+        }
+
+        function addAddonToCart(productId, btnEl) {
+            const product = (window.cartAddonProducts || []).find(p => p.id === productId);
+            if (!product) return;
+            const stock = getAddonStock(product);
+            const inCart = getAddonCartQuantity(product.priceId);
+            if (stock !== null && inCart + 1 > stock) {
+                showStockLimitAlert(product.name, stock);
+                return;
+            }
+
+            const existing = cart.find(item => item.priceId === product.priceId && item.categoryId === 'cart-addons');
+            if (existing) {
+                existing.quantity += 1;
+            } else {
+                cart.push({
+                    id: Date.now(), name: product.name, price: parseFloat(product.price), priceId: product.priceId,
+                    size: null, color: null, quantity: 1, image: (product.images && product.images[0]) || '',
+                    isDtf: false, categoryId: 'cart-addons',
+                });
+            }
+            saveCart();
+            updateCartUI();
+            renderCartAddonsModalBody();
+
+            if (btnEl) {
+                const originalText = btnEl.textContent;
+                btnEl.textContent = 'Added ✓';
+                btnEl.classList.add('added');
+                setTimeout(() => { btnEl.classList.remove('added'); }, 900);
+            }
+        }
+
+        function continueToCheckoutFromAddons() {
+            closeCartAddonsModal();
+            doProcessCheckout();
+        }
+
         async function processCheckout() {
             if(cart.length === 0) return alert("Please add items to your cart before checking out.");
 
+            if (shouldShowCartAddonsPopup()) {
+                openCartAddonsModal();
+                return;
+            }
+
+            await doProcessCheckout();
+        }
+
+        async function doProcessCheckout() {
             setCheckoutButtonsState(true);
 
             const fulfillmentMethod = document.querySelector('input[name="fulfillment"]:checked').value;
