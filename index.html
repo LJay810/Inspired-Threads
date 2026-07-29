@@ -3867,6 +3867,123 @@ Thank you for supporting my small business and understanding the handmade nature
             }
         }
 
+        // ================== DTF CONTENT-BOUNDS AUTO-DETECTION ==================
+        // "The sensor" a few lines down (in the 'pocket' branch of applyDtfToTarget) only ever
+        // read a design's overall FILE aspect ratio (naturalWidth/naturalHeight) -- it has no idea
+        // how much of that file is actually visible artwork vs. transparent padding. For
+        // 'center_chest' designs (the default type, and the far more common one), the code
+        // literally "bypasses the sensor entirely" and just applies the category's fixed
+        // scale/y-offset -- meaning two designs with identical (unset/default) admin scale/nudge
+        // values could render at very different effective sizes/positions on the shirt, purely
+        // because one file happened to be exported with more built-in margin around its actual
+        // artwork than another. That's exactly what caused a full-bleed "Carhartt C" logo graphic
+        // to render bigger and higher (closer to the collar) than a Bubblegum Santa illustration
+        // that has natural headroom baked into its own canvas -- both used the identical category
+        // calibration, but one file's real content filled far more of its own canvas than the
+        // other's.
+        //
+        // detectDtfContentBounds() scans the actual alpha channel to find the true bounding box of
+        // visible (non-transparent) pixels within the file, as fractional margins (0-1) on each
+        // side. applyCenterChestAutoCorrection() then computes a corrective scale + re-centering
+        // nudge that normalizes every design toward a common "how much of its own file does the
+        // art actually fill" target -- categoryConfig.dtf_center_chest.reference_fill, admin-
+        // tunable (see admin.html's category editor), defaulting to 0.8 -- so a nearly full-bleed
+        // design gets scaled DOWN to compensate, and a heavily-padded one gets scaled UP, landing
+        // at a visually consistent size regardless of how each file happened to be exported.
+        //
+        // Deliberately gated (see the isUntuned check in applyDtfToTarget below) to ONLY run for
+        // designs that have NEVER been manually tuned -- customScale/nudgeX/nudgeY still at their
+        // pure fallback defaults (1/0/0). Every already-tuned design (anything with its own
+        // scale_<category>/nudge_x_<category>/nudge_y_<category> metadata) is assumed to already
+        // be correctly hand-calibrated and is left 100% untouched by this -- exactly preserving
+        // all existing tuning work. If a design that's already misbehaving (like Carhartt) already
+        // has SOME override set, clearing that override in admin is what hands it over to this
+        // auto-correction instead.
+        function detectDtfContentBounds(imgSrc) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous'; // needed to read pixels back for hosted (cross-origin) images, same as loadImageForCanvas
+                img.onload = () => {
+                    try {
+                        // Downscaled scan -- only need enough resolution to find the visible-
+                        // content edges as PERCENTAGES, not pixel-perfect boundaries, so this stays
+                        // fast even for a large source file.
+                        const SCAN_SIZE = 200;
+                        const scale = SCAN_SIZE / Math.max(img.naturalWidth, img.naturalHeight);
+                        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+                        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const { data } = ctx.getImageData(0, 0, w, h);
+
+                        let minX = w, minY = h, maxX = -1, maxY = -1;
+                        const ALPHA_THRESHOLD = 10; // ignores near-fully-transparent anti-aliasing fuzz at the real edge
+                        for (let y = 0; y < h; y++) {
+                            for (let x = 0; x < w; x++) {
+                                if (data[(y * w + x) * 4 + 3] > ALPHA_THRESHOLD) {
+                                    if (x < minX) minX = x;
+                                    if (x > maxX) maxX = x;
+                                    if (y < minY) minY = y;
+                                    if (y > maxY) maxY = y;
+                                }
+                            }
+                        }
+
+                        if (maxX < minX || maxY < minY) { resolve(null); return; } // fully transparent scan -- shouldn't happen, fail soft
+
+                        resolve({
+                            left: minX / w,
+                            right: (w - 1 - maxX) / w,
+                            top: minY / h,
+                            bottom: (h - 1 - maxY) / h,
+                            contentHeightRatio: (maxY - minY + 1) / h,
+                        });
+                    } catch (err) {
+                        // getImageData throws on a tainted canvas (a cross-origin image missing
+                        // proper CORS headers) -- fail soft into the pre-existing fixed-math
+                        // placement rather than ever blocking a design from being attached at all.
+                        console.warn('DTF content-bounds scan failed, falling back to standard placement:', err.message);
+                        resolve(null);
+                    }
+                };
+                img.onerror = () => resolve(null);
+                img.src = imgSrc;
+            });
+        }
+
+        // Turns a detectDtfContentBounds() result into the EXTRA scale/position correction to
+        // layer on top of the category's existing dtf_center_chest calibration. bounds === null
+        // (detection failed, or this design is already manually tuned) means "no correction" --
+        // returns exactly the pre-existing math untouched.
+        // Assumes HEIGHT is the dimension that matters for "does this hit the collar" (true for
+        // the portrait-oriented placement boxes/designs this site uses) -- an unusually WIDE
+        // design could still overflow sideways uncorrected, but that's a different failure mode
+        // than the one this fixes, and not one that's been reported.
+        function applyCenterChestAutoCorrection(centerChest, customScale, nudgeX, nudgeY, bounds) {
+            if (!bounds) return { scale: centerChest.scale * customScale, x: nudgeX, y: centerChest.y + nudgeY };
+
+            const referenceFill = centerChest.reference_fill ?? 0.8;
+            const contentFillRatio = Math.max(0.05, bounds.contentHeightRatio); // floor guards a degenerate near-zero scan
+            const scaleCorrection = Math.min(2.5, Math.max(0.4, referenceFill / contentFillRatio));
+
+            // Re-centers the ACTUAL visible content -- not the file's geometric center, which is
+            // all background-position:center naively aligns to the box's own center. Positive
+            // deviation means the content sits lower/righter than the file's own center, so the
+            // box shifts up/left (negative translate) to bring the visible art back to the
+            // position the calibration actually intended.
+            const verticalDeviation = (bounds.top - bounds.bottom) / 2;
+            const horizontalDeviation = (bounds.left - bounds.right) / 2;
+
+            return {
+                scale: centerChest.scale * customScale * scaleCorrection,
+                x: nudgeX - (horizontalDeviation * 100),
+                y: centerChest.y + nudgeY - (verticalDeviation * 100),
+            };
+        }
+
        function applyDtfToTarget(dtfId, dtfName, dtfImg, dtfPrice, dtfPriceId, designType, customScale, nudgeX, nudgeY) {
             const targetId = window.currentVisualizerTarget;
             if(!targetId) return;
@@ -3923,14 +4040,28 @@ Thank you for supporting my small business and understanding the handmade nature
                 img.src = dtfImg; // This triggers the sensor to run
            }
             else {
-                // CENTER CHEST (Bypasses the sensor entirely)
+                // CENTER CHEST
                 overlay.style.transformOrigin = 'top center';
 
                 const centerChest = categoryConfig.dtf_center_chest || { scale: 1.35, y: -20 };
-                const finalScale = centerChest.scale * customScale;
-                overlay.style.transform = `scale(${finalScale}) translate(${0 + nudgeX}%, ${centerChest.y + nudgeY}%)`;
 
-              fireSparkBurst(overlay);
+                // Auto-detection (see the big comment above detectDtfContentBounds) only ever
+                // runs for a design that's never been manually tuned for THIS placement -- anything
+                // with its own scale_<category>/nudge_x_<category>/nudge_y_<category> override is
+                // real tuning work and is left completely untouched.
+                const isUntuned = customScale === 1 && nudgeX === 0 && nudgeY === 0;
+
+                const renderCenterChest = (bounds) => {
+                    const { scale, x, y } = applyCenterChestAutoCorrection(centerChest, customScale, nudgeX, nudgeY, bounds);
+                    overlay.style.transform = `scale(${scale}) translate(${x}%, ${y}%)`;
+                    fireSparkBurst(overlay);
+                };
+
+                if (isUntuned) {
+                    detectDtfContentBounds(dtfImg).then(renderCenterChest);
+                } else {
+                    renderCenterChest(null);
+                }
             }
 
             document.getElementById(`attach-btn-${targetId}`).style.display = 'none';
