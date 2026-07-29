@@ -2936,9 +2936,17 @@ Thank you for supporting my small business and understanding the handmade nature
             }
             const defaultImage = window.productVariantColorImages[product.id][colors[0]] || '';
 
+            // A white (or off-white) garment photographed on the usual light #f5f5f5 letterbox
+            // background blends right into it -- swapping to the site's own near-black surface
+            // color specifically for White selections gives it actual contrast to sit against.
+            // Checked here for whichever color ends up selected FIRST (colors[0], after the
+            // grey/black preference reordering above); the .item-color change listener applies
+            // the same rule live when a shopper switches colors afterward.
+            const defaultImageZoneBg = /white/i.test(colors[0] || '') ? 'var(--bg-surface)' : '#f5f5f5';
+
             const overlayStyle = dtfOverlayStyle(category, product);
             const imageZoneHTML = `
-                <div class="product-image-zone hover-target lazy-bg" id="img-zone-${product.id}" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="openVariantLightbox(this)">
+                <div class="product-image-zone hover-target lazy-bg" id="img-zone-${product.id}" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: ${defaultImageZoneBg}; cursor: none !important;" onclick="openVariantLightbox(this)">
                     <div class="dtf-overlay" id="dtf-overlay-${product.id}" style="${overlayStyle}"></div>
                     <button type="button" class="dtf-save-btn hover-target" id="save-btn-${product.id}" onclick="saveDtfMockup('${product.id}', event)" title="Save this look">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -4442,6 +4450,11 @@ Thank you for supporting my small business and understanding the handmade nature
                         const imageZone = document.getElementById(targetZoneId);
                         if (newImage && imageZone) {
                             imageZone.style.backgroundImage = `url('${newImage}')`;
+                            // Same "White blends into the light letterbox background" fix as the
+                            // initial render in renderVariantApparelCard -- swap to the site's
+                            // near-black surface color specifically for White so it stays visible;
+                            // reset back to the normal light background for every other color.
+                            imageZone.style.backgroundColor = /white/i.test(selectedColor) ? 'var(--bg-surface)' : '#f5f5f5';
                         } else if (imageZone) {
                              imageZone.style.backgroundImage = 'none';
                              imageZone.style.backgroundColor = '#151515';
@@ -7044,7 +7057,7 @@ Thank you for supporting my small business and understanding the handmade nature
         });
 
         // --- 9. LIGHTBOX ENGINE ---
-        function openLightbox(imgSrc, isVariant = false, overlayBg = 'none', top = '0', left = '0', width = '0', height = '0', sourceW = 0, sourceH = 0, transform = 'none', transformOrigin = 'center') {
+        function openLightbox(imgSrc, isVariant = false, overlayBg = 'none', top = '0', left = '0', width = '0', height = '0', sourceW = 0, sourceH = 0, transform = 'none', transformOrigin = 'center', bgColor = '#f5f5f5') {
             const overlay = document.getElementById('lightboxOverlay');
             const container = document.getElementById('lightboxContainer');
             const standardImg = document.getElementById('lightboxStandardImg');
@@ -7059,8 +7072,12 @@ Thank you for supporting my small business and understanding the handmade nature
                 let scaleFactor = window.innerWidth < 900 ? 1.0 : 1.6;
                 container.style.width = `${sourceW * scaleFactor}px`;
                 container.style.height = `${sourceH * scaleFactor}px`;
-                container.style.backgroundColor = '#f5f5f5'; 
-                
+                // Inherits whatever background color the clicked product-image-zone was
+                // ALREADY showing (see openVariantLightbox) -- that's already been correctly
+                // set dark for a White selection vs. the normal light #f5f5f5 otherwise, so the
+                // lightbox just reuses it instead of re-deriving "is White selected" itself.
+                container.style.backgroundColor = bgColor;
+
                 if (overlayBg !== 'none') {
                     dtfOverlay.style.top = top;
                     dtfOverlay.style.left = left;
@@ -7096,7 +7113,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     // Extract the physical dimensions of the card that was clicked
                     const rect = element.getBoundingClientRect();
                     const dtfLayer = element.querySelector('.dtf-overlay');
-                    
+
                     let overlayBg = 'none';
                     let t = '0', l = '0', w = '0', h = '0';
                     let trans = 'none', transOrig = 'center';
@@ -7112,7 +7129,13 @@ Thank you for supporting my small business and understanding the handmade nature
                         transOrig = dtfLayer.style.transformOrigin;
                     }
 
-                    openLightbox(urlMatch[1], true, overlayBg, t, l, w, h, rect.width, rect.height, trans, transOrig);
+                    // Passes through whatever background color the clicked card is CURRENTLY
+                    // showing (already correctly dark for a White selection, light otherwise --
+                    // see renderVariantApparelCard/the .item-color change listener) so the
+                    // lightbox matches instead of reverting to the plain light default.
+                    const bgColor = element.style.backgroundColor || '#f5f5f5';
+
+                    openLightbox(urlMatch[1], true, overlayBg, t, l, w, h, rect.width, rect.height, trans, transOrig, bgColor);
                 }
             }
         }
