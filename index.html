@@ -2875,6 +2875,23 @@ Thank you for supporting my small business and understanding the handmade nature
         // have its own photo per color instead of every product in a category sharing one map.
         window.productVariantColorImages = {};
 
+        // Black-background replacement photos for White, one per Thread category -- added
+        // because the ORIGINAL White garment photos were shot on a plain white background (like
+        // most product photography), so the earlier "swap the letterbox to a dark background"
+        // CSS fix couldn't actually solve the visibility problem: the photo's own baked-in white
+        // pixels still dominate the frame regardless of what color sits behind it. These are real
+        // image files (same garment, re-shot/edited onto a black background) that live in images/
+        // alongside every other product photo -- add a new category here (or swap a path) any
+        // time a new black-bg photo is ready. Applied in renderVariantApparelCard below, and it
+        // always wins for any color name matching /white/i, whether that product uses its own
+        // per-variant photo or the category's shared fallback photo.
+        window.THREAD_WHITE_BLACKBG_IMAGES = {
+            'thread-tshirt': 'images/WhiteTShirt-BlackBG.png',
+            'thread-hoodie': 'images/WhiteHoodie-BlackBG.png',
+            'thread-crewneck': 'images/WhiteCrewNeck-BlackBG.png',
+            'thread-tanktop': 'images/WhiteTankTop-BlackBG.png',
+        };
+
         // --- CARD LAYOUT RENDERERS -- one per categories.card_layout_type. New categories
         // never need a new branch here: picking an existing layout type in admin.html is
         // enough. Each returns { imageZoneHTML, variantHTML, stockCount } for the shared
@@ -2933,6 +2950,15 @@ Thank you for supporting my small business and understanding the handmade nature
                 colors.forEach(color => { window.productVariantColorImages[product.id][color] = categoryColors[color]; });
             } else {
                 variants.forEach(v => { window.productVariantColorImages[product.id][v.color] = v.colorImageUrl; });
+            }
+            // Black-background override (see THREAD_WHITE_BLACKBG_IMAGES above) -- runs AFTER the
+            // normal per-color assignment so it always wins for any White-ish color, regardless of
+            // whether this product uses its own per-variant photo or the category's shared one.
+            const whiteOverrideImg = window.THREAD_WHITE_BLACKBG_IMAGES && window.THREAD_WHITE_BLACKBG_IMAGES[category.id];
+            if (whiteOverrideImg) {
+                colors.forEach(color => {
+                    if (/white/i.test(color)) window.productVariantColorImages[product.id][color] = whiteOverrideImg;
+                });
             }
             const defaultImage = window.productVariantColorImages[product.id][colors[0]] || '';
 
