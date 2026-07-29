@@ -7357,14 +7357,14 @@ Thank you for supporting my small business and understanding the handmade nature
 
         // Standalone, hardcoded Stripe Price IDs (not the admin-managed catalog) -- see
         // addTikTokToCart()'s own note on why this product stayed out of that migration.
-        // "Shipping Claim" needs a real one-time Stripe Price created in the Dashboard before
+        // "Shipping Deposit" needs a real one-time Stripe Price created in the Dashboard before
         // this option will actually work -- the REPLACE_ME placeholder trips the same guard
         // in addTikTokToCart() that's always protected the other tiers from an unconfigured id.
         const TIKTOK_TIERS = [
             { key: 'destash', label: 'Destash', price: 1.00, priceId: 'price_1ToElqFWt379RB9CShnW512b', icon: '🧵', note: 'Grab-bag remnants' },
             { key: 'sale', label: 'Sale', price: 1.50, priceId: 'price_1ToElqFWt379RB9CTegULiuL', icon: '🔥', note: 'Discounted picks' },
             { key: 'new', label: 'New', price: 2.00, priceId: 'price_1ToElqFWt379RB9CMDSOkhlt', icon: '✨', note: 'Fresh drops' },
-            { key: 'shipping', label: 'Shipping Claim', price: 9.00, priceId: 'price_1Tyf5hFWt379RB9C3mIPovaT', icon: '📦', note: 'Flat-rate shipping add-on' },
+            { key: 'shipping', label: 'Shipping Deposit', price: 9.00, priceId: 'price_1Tyf5hFWt379RB9C3mIPovaT', icon: '📦', note: 'Flat-rate shipping add-on' },
         ];
         let tiktokSelectedTierKey = TIKTOK_TIERS[0].key;
 
