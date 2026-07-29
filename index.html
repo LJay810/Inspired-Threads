@@ -2911,15 +2911,21 @@ Thank you for supporting my small business and understanding the handmade nature
             const categoryColors = (category.config && category.config.colors) || {};
             const colors = usingCategoryFallback ? Object.keys(categoryColors) : [...new Set(variants.map(v => v.color))];
 
-            // Default color selection: prefer Black when a product actually offers it, rather
-            // than whatever happened to come first out of Stripe's metadata/variant order
-            // (often Red, which isn't a meaningful default for a garment). Reordering here
-            // means the <select> below, the default preview image, and the stock lookup all
+            // Default color selection: prefer a Grey/Gray variant when a product actually offers
+            // one (falling back to Black, then whatever came first) rather than whatever happened
+            // to come first out of Stripe's metadata/variant order (often Red, which isn't a
+            // meaningful default for a garment). Matches loosely (/gr[ae]y/i) since color names
+            // aren't standardized across products -- some are just "Grey", others "Sport Grey",
+            // "Gray", etc. -- and both British/American spellings are equally correct, so this
+            // catches either without needing every product to use identical naming. Reordering
+            // here means the <select> below, the default preview image, and the stock lookup all
             // agree on the same default color.
+            const greyIdx = colors.findIndex(c => /gr[ae]y/i.test(c));
             const blackIdx = colors.findIndex(c => c.toLowerCase() === 'black');
-            if (blackIdx > 0) {
-                const [black] = colors.splice(blackIdx, 1);
-                colors.unshift(black);
+            const preferredIdx = greyIdx !== -1 ? greyIdx : blackIdx;
+            if (preferredIdx > 0) {
+                const [preferred] = colors.splice(preferredIdx, 1);
+                colors.unshift(preferred);
             }
 
             window.productVariantColorImages[product.id] = {};
