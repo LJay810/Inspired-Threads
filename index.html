@@ -3701,7 +3701,6 @@ Thank you for supporting my small business and understanding the handmade nature
                 products.forEach(product => {
                     const hasVariants = product.metadata && product.metadata.hasVariants === 'true';
                     const categoryId = product.metadata ? product.metadata.category : 'dtf';
-                    if (categoryId === 'cart-addons') return; // handled above -- never rendered as a normal shop card
                     const category = window.categoriesById[categoryId] || { id: categoryId, card_layout_type: 'simple', config: {} };
 
                     // The effective display/filter category is the product's own sub_category
@@ -3717,6 +3716,12 @@ Thank you for supporting my small business and understanding the handmade nature
 
                     // Load all DTF transfers into visualizer memory bank silently
                     if(categoryId === 'dtf') window.dtfRegistry.push(product);
+
+                    // Cart Addons: tracked above (so they still show up in the existing live-stock
+                    // Restock tool and the Redis reservation/stock-poll machinery, exactly like any
+                    // other product) but never rendered as a shop card or counted in the filter bar
+                    // -- they're only ever shown inside the pre-checkout popup (openCartAddonsModal).
+                    if (categoryId === 'cart-addons') return;
 
                     const renderer = CARD_LAYOUT_RENDERERS[category.card_layout_type] || renderSimpleCard;
                     const { imageZoneHTML, variantHTML, stockCount } = renderer(product, category);

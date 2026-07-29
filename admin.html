@@ -423,6 +423,13 @@
 let session = null;
 let categories = [];
 let productsCache = [];
+let productsLiveStock = {}; // redisKey -> live qty for non-variant products, refreshed each loadProducts()
+
+function getProductLiveStock(p) {
+    if (p.stock === null) return null;
+    const live = productsLiveStock[`stock_${p.id}_stock`];
+    return (live === undefined || live === null) ? p.stock : live;
+}
 let currentVariantColors = {}; // { colorName: { imageUrl, stockBySize: {size: qty} } }
 let variantMatrixCategoryId = null; // which category currentVariantColors was loaded/built for -- see onProductCategoryChange
 let selectedLayoutType = null;
@@ -453,6 +460,27 @@ async function adminApi(endpoint, body) {
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Request failed');
     return data;
+}
+
+// Redis is the live source of truth for stock (see api/checkout.js/api/products.js) -- the
+// products table's own stock column is only a cold-storage mirror that's re-seeded FROM Redis,
+// never the other way around, so it goes stale the instant a checkout session reserves or
+// releases inventory. This hits the same public, auth-free /api/stock endpoint the storefront
+// already polls, so admin tables/edit forms show what's actually happening in real time instead
+// of a number that only moves when someone re-saves the product.
+async function fetchLiveStock(keys) {
+    if (!keys || keys.length === 0) return {};
+    try {
+        const resp = await fetch('/api/stock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keys }),
+        });
+        const data = await resp.json();
+        return (data && data.stock) || {};
+    } catch (err) {
+        return {};
+    }
 }
 
 // ===================== CATEGORIES =====================
@@ -686,6 +714,10 @@ async function loadProducts() {
     const search = document.getElementById('productFilterSearch').value;
     const { products } = await adminApi('/api/admin-products', { action: 'list', category_id: category_id || undefined, search: search || undefined });
     productsCache = products;
+    const keys = productsCache
+        .filter(p => (!p.product_variants || p.product_variants.length === 0) && p.stock !== null)
+        .map(p => `stock_${p.id}_stock`);
+    productsLiveStock = await fetchLiveStock(keys);
     renderProductsTable();
 }
 
@@ -695,7 +727,7 @@ function renderProductsTable() {
     body.innerHTML = productsCache.map(p => {
         const stockLabel = p.product_variants && p.product_variants.length > 0
             ? `${p.product_variants.length} variant(s)`
-            : (p.stock === null ? 'Unlimited' : p.stock);
+            : (p.stock === null ? 'Unlimited' : getProductLiveStock(p));
         const syncBadge = p.stripe_sync_status === 'error'
             ? `<span class="badge error" title="${escapeHtml(p.stripe_sync_error || '')}">Sync failed</span> <button class="admin-btn small secondary" onclick='retrySync(${JSON.stringify(p.id)})'>Retry</button>`
             : `<span class="badge ok">Synced</span>`;
@@ -921,7 +953,10 @@ function openProductModal(id) {
         document.getElementById('prod_price').value = (p.price_cents / 100).toFixed(2);
         document.getElementById('prod_published').checked = p.published;
         document.getElementById('prod_sort_order').value = (p.sort_order != null && p.sort_order !== 99) ? p.sort_order : '';
-        document.getElementById('prod_stock').value = p.stock ?? '';
+        // Prefilled from LIVE Redis stock, not the cold Supabase mirror -- otherwise saving this
+        // form untouched (e.g. just to fix a typo in the name) would silently overwrite Redis back
+        // to the stale number and undo whatever's actually reserved/sold since the last manual edit.
+        document.getElementById('prod_stock').value = getProductLiveStock(p) ?? '';
         document.getElementById('prod_extra_metadata').value = p.extra_metadata && Object.keys(p.extra_metadata).length ? JSON.stringify(p.extra_metadata, null, 2) : '';
         if (p.dtf_placement) {
             document.getElementById('prod_dtf_top').value = p.dtf_placement.top || '';
@@ -1030,6 +1065,15 @@ async function saveProduct(evt) {
 
 const CART_ADDONS_CATEGORY_ID = 'cart-addons';
 let cartAddonsCache = [];
+let cartAddonsLiveStock = {}; // redisKey -> live qty, refreshed each loadCartAddons() -- see fetchLiveStock
+
+// null (unlimited) has nothing in Redis to check -- everything else falls back to the cold
+// Supabase mirror only if Redis hasn't been asked yet (fetchLiveStock failed/not run).
+function getAddonLiveStock(p) {
+    if (p.stock === null) return null;
+    const live = cartAddonsLiveStock[`stock_${p.id}_stock`];
+    return (live === undefined || live === null) ? p.stock : live;
+}
 let currentAddonImages = [];
 
 async function ensureCartAddonsCategory() {
@@ -1051,6 +1095,8 @@ async function loadCartAddons() {
         await ensureCartAddonsCategory();
         const { products } = await adminApi('/api/admin-products', { action: 'list', category_id: CART_ADDONS_CATEGORY_ID });
         cartAddonsCache = products;
+        const keys = cartAddonsCache.filter(p => p.stock !== null).map(p => `stock_${p.id}_stock`);
+        cartAddonsLiveStock = await fetchLiveStock(keys);
         renderCartAddonsTable();
     } catch (err) {
         document.getElementById('cartAddonsTableBody').innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(err.message)}</td></tr>`;
@@ -1070,7 +1116,7 @@ function renderCartAddonsTable() {
             <td data-label=""><img class="admin-thumb" src="${p.images && p.images[0] || ''}" loading="lazy" onerror="this.style.opacity=0"></td>
             <td data-label="Name">${escapeHtml(p.name)}</td>
             <td data-label="Price">$${(p.price_cents / 100).toFixed(2)}</td>
-            <td data-label="Stock">${p.stock === null ? 'Unlimited' : p.stock}</td>
+            <td data-label="Stock">${p.stock === null ? 'Unlimited' : getAddonLiveStock(p)}</td>
             <td data-label="Published">${publishedCell}</td>
             <td data-label="">
                 <button class="admin-btn small secondary" onclick='openAddonModal(${JSON.stringify(p.id)})'>Edit</button>
@@ -1091,7 +1137,10 @@ function openAddonModal(id) {
         document.getElementById('addon_id').value = p.id;
         document.getElementById('addon_name').value = p.name;
         document.getElementById('addon_price').value = (p.price_cents / 100).toFixed(2);
-        document.getElementById('addon_stock').value = p.stock ?? '';
+        // Prefilled from LIVE Redis stock, not the cold Supabase mirror -- otherwise saving this
+        // form untouched (e.g. just to fix a typo in the name) would silently overwrite Redis back
+        // to the stale number and undo whatever's actually reserved/sold since the last manual edit.
+        document.getElementById('addon_stock').value = getAddonLiveStock(p) ?? '';
         document.getElementById('addon_published').checked = p.published;
         currentAddonImages = (p.images || []).slice();
     } else {
