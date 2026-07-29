@@ -355,6 +355,43 @@
         .cart-addon-add-btn.added { background: #2ecc71; }
         .cart-addon-add-btn:disabled { background: var(--border-subtle); color: var(--text-muted); cursor: default; transform: none; }
 
+        /* --- TIKTOK LIVE CLAIMS: FANCY TIER PICKER --- */
+        .tiktok-tier-picker { position: relative; margin-bottom: 10px; }
+        .tiktok-tier-trigger {
+            width: 100%; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-subtle); border-radius: 10px; padding: 12px 14px; cursor: none;
+            transition: var(--transition-snappy); text-align: left;
+        }
+        .tiktok-tier-trigger:hover, .tiktok-tier-trigger.open { border-color: var(--accent-pink); box-shadow: 0 0 14px rgba(255,0,127,0.15); }
+        .tiktok-tier-trigger-icon { font-size: 1.4rem; flex-shrink: 0; }
+        .tiktok-tier-trigger-text { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+        .tiktok-tier-trigger-label { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: var(--text-pure); text-transform: uppercase; letter-spacing: 0.04em; }
+        .tiktok-tier-trigger-price { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-pink); margin-top: 2px; }
+        .tiktok-tier-trigger-chevron { color: var(--text-muted); transition: transform 0.25s ease; flex-shrink: 0; }
+        .tiktok-tier-trigger.open .tiktok-tier-trigger-chevron { transform: rotate(180deg); color: var(--accent-pink); }
+
+        .tiktok-tier-dropdown {
+            position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 20;
+            background: rgba(15,15,15,0.98); border: 1px solid var(--accent-pink); border-radius: 12px;
+            box-shadow: 0 20px 45px rgba(0,0,0,0.85), 0 0 25px rgba(255,0,127,0.15);
+            padding: 6px; opacity: 0; pointer-events: none; transform: translateY(-8px) scale(0.97);
+            transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.25,1,0.5,1); max-height: 260px; overflow-y: auto;
+        }
+        .tiktok-tier-dropdown.open { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
+
+        .tiktok-tier-option {
+            width: 100%; display: flex; align-items: center; gap: 12px; background: none; border: none; border-radius: 8px;
+            padding: 10px; cursor: none; transition: background 0.15s ease; text-align: left;
+        }
+        .tiktok-tier-option:hover { background: rgba(255,0,127,0.1); }
+        .tiktok-tier-option.selected { background: rgba(255,0,127,0.15); }
+        .tiktok-tier-option-icon { font-size: 1.25rem; flex-shrink: 0; }
+        .tiktok-tier-option-text { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+        .tiktok-tier-option-label { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700; color: var(--text-pure); text-transform: uppercase; letter-spacing: 0.03em; }
+        .tiktok-tier-option-note { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
+        .tiktok-tier-option-price { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: var(--accent-pink); flex-shrink: 0; }
+        .tiktok-tier-option.selected .tiktok-tier-option-price::after { content: ' \2713'; }
+
         /* --- GRAVEYARD RESURRECTION --- */
         .resurrect-modal { border-color: var(--accent-graveyard); box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px rgba(124,58,237,0.2); }
         .resurrect-modal-img { height: 180px; background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; border-radius: 8px; }
@@ -2265,11 +2302,17 @@
             
             <div class="form-group" style="margin-bottom: 10px;">
                 <label>Select Claim Tier</label>
-                <select id="tiktokTier" class="variant-select hover-target" style="width: 100%; margin-bottom: 10px;" onchange="updateTikTokTotal()">
-                    <option value="1.00" data-price-id="price_1ToElqFWt379RB9CShnW512b">Destash - $1.00</option>
-                    <option value="1.50" data-price-id="price_1ToElqFWt379RB9CTegULiuL">Sale - $1.50</option>
-                    <option value="2.00" data-price-id="price_1ToElqFWt379RB9CMDSOkhlt">New - $2.00</option>
-                </select>
+                <div class="tiktok-tier-picker" id="tiktokTierPicker">
+                    <button type="button" class="tiktok-tier-trigger hover-target" id="tiktokTierTrigger" onclick="toggleTikTokTierDropdown()">
+                        <span class="tiktok-tier-trigger-icon" id="tiktokTierTriggerIcon">🧵</span>
+                        <span class="tiktok-tier-trigger-text">
+                            <span class="tiktok-tier-trigger-label" id="tiktokTierTriggerLabel">Destash</span>
+                            <span class="tiktok-tier-trigger-price" id="tiktokTierTriggerPrice">$1.00</span>
+                        </span>
+                        <span class="tiktok-tier-trigger-chevron">▾</span>
+                    </button>
+                    <div class="tiktok-tier-dropdown" id="tiktokTierDropdown"></div>
+                </div>
             </div>
 
             <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; margin-top: 20px;">
@@ -7312,16 +7355,76 @@ Thank you for supporting my small business and understanding the handmade nature
         // --- 10. TIKTOK LIVE CLAIMS ENGINE ---
         let currentTikTokQty = 1;
 
+        // Standalone, hardcoded Stripe Price IDs (not the admin-managed catalog) -- see
+        // addTikTokToCart()'s own note on why this product stayed out of that migration.
+        // "Shipping Claim" needs a real one-time Stripe Price created in the Dashboard before
+        // this option will actually work -- the REPLACE_ME placeholder trips the same guard
+        // in addTikTokToCart() that's always protected the other tiers from an unconfigured id.
+        const TIKTOK_TIERS = [
+            { key: 'destash', label: 'Destash', price: 1.00, priceId: 'price_1ToElqFWt379RB9CShnW512b', icon: '🧵', note: 'Grab-bag remnants' },
+            { key: 'sale', label: 'Sale', price: 1.50, priceId: 'price_1ToElqFWt379RB9CTegULiuL', icon: '🔥', note: 'Discounted picks' },
+            { key: 'new', label: 'New', price: 2.00, priceId: 'price_1ToElqFWt379RB9CMDSOkhlt', icon: '✨', note: 'Fresh drops' },
+            { key: 'shipping', label: 'Shipping Claim', price: 9.00, priceId: 'price_1Tyf5hFWt379RB9C3mIPovaT', icon: '📦', note: 'Flat-rate shipping add-on' },
+        ];
+        let tiktokSelectedTierKey = TIKTOK_TIERS[0].key;
+
+        function renderTikTokTierDropdown() {
+            const dd = document.getElementById('tiktokTierDropdown');
+            dd.innerHTML = TIKTOK_TIERS.map(t => `
+                <button type="button" class="tiktok-tier-option hover-target${t.key === tiktokSelectedTierKey ? ' selected' : ''}" onclick="selectTikTokTier('${t.key}')">
+                    <span class="tiktok-tier-option-icon">${t.icon}</span>
+                    <span class="tiktok-tier-option-text">
+                        <span class="tiktok-tier-option-label">${t.label}</span>
+                        <span class="tiktok-tier-option-note">${t.note}</span>
+                    </span>
+                    <span class="tiktok-tier-option-price">$${t.price.toFixed(2)}</span>
+                </button>
+            `).join('');
+        }
+
+        function toggleTikTokTierDropdown(forceClose) {
+            const dd = document.getElementById('tiktokTierDropdown');
+            const trigger = document.getElementById('tiktokTierTrigger');
+            const shouldOpen = forceClose === true ? false : !dd.classList.contains('open');
+            dd.classList.toggle('open', shouldOpen);
+            trigger.classList.toggle('open', shouldOpen);
+        }
+
+        function selectTikTokTier(key) {
+            tiktokSelectedTierKey = key;
+            const tier = TIKTOK_TIERS.find(t => t.key === key);
+            document.getElementById('tiktokTierTriggerIcon').textContent = tier.icon;
+            document.getElementById('tiktokTierTriggerLabel').textContent = tier.label;
+            document.getElementById('tiktokTierTriggerPrice').textContent = `$${tier.price.toFixed(2)}`;
+            renderTikTokTierDropdown();
+            toggleTikTokTierDropdown(true);
+            updateTikTokTotal();
+        }
+
+        // Closes the tier dropdown on any click outside it -- the picker/dropdown live inside
+        // .tiktok-modal, whose own backdrop-click-to-close handler stops propagation before it
+        // ever reaches here, so this never fights with closeTikTokModal().
+        document.addEventListener('click', (e) => {
+            const picker = document.getElementById('tiktokTierPicker');
+            // composedPath() (the propagation path frozen at dispatch time) rather than
+            // picker.contains(e.target) -- selecting an option re-renders the dropdown's
+            // innerHTML as part of the SAME click, which detaches the clicked option node from
+            // the document before this listener runs; .contains() would then wrongly read that
+            // detached node as "outside" the picker on every single selection.
+            const path = e.composedPath ? e.composedPath() : [e.target];
+            if (picker && !path.includes(picker)) toggleTikTokTierDropdown(true);
+        });
+
         function openTikTokModal() {
             document.getElementById('tiktokOverlay').classList.add('active');
             document.getElementById('tiktokQty').value = 1; // Resets to 1 natively
-            document.getElementById('tiktokTier').selectedIndex = 0; 
-            updateTikTokTotal();
+            selectTikTokTier(TIKTOK_TIERS[0].key);
         }
 
         function closeTikTokModal(e) {
             if (e && e.target !== document.getElementById('tiktokOverlay')) return;
             document.getElementById('tiktokOverlay').classList.remove('active');
+            toggleTikTokTierDropdown(true);
         }
 
         // --- PAYMENT STATUS MODAL (Success / Fail) ---
@@ -7388,21 +7491,19 @@ Thank you for supporting my small business and understanding the handmade nature
                 qtyInput.value = 1;
             }
             
-            const tierPrice = parseFloat(document.getElementById('tiktokTier').value);
-            const total = tierPrice * current;
+            const tier = TIKTOK_TIERS.find(t => t.key === tiktokSelectedTierKey) || TIKTOK_TIERS[0];
+            const total = tier.price * current;
             document.getElementById('tiktokTotal').innerText = `$${total.toFixed(2)}`;
         }
 
         function addTikTokToCart() {
-            const select = document.getElementById('tiktokTier');
-            const selectedOption = select.options[select.selectedIndex];
-            
-            const price = parseFloat(selectedOption.value);
-            const priceId = selectedOption.getAttribute('data-price-id');
+            const tier = TIKTOK_TIERS.find(t => t.key === tiktokSelectedTierKey) || TIKTOK_TIERS[0];
+
+            const price = tier.price;
+            const priceId = tier.priceId;
             const quantity = parseInt(document.getElementById('tiktokQty').value) || 1;
-            
-            const tierText = selectedOption.innerText.split(' - ')[0];
-            const name = `TikTok Live Claim (${tierText})`;
+
+            const name = `TikTok Live Claim (${tier.label})`;
 
             if (priceId.includes("REPLACE_ME")) {
                 alert("SYSTEM HALT: Stripe Price IDs have not been configured in the HTML.");
