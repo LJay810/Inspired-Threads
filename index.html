@@ -398,14 +398,19 @@
         .tiktok-shipping-deposit-divider::before, .tiktok-shipping-deposit-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-subtle); }
         .tiktok-shipping-deposit-divider span { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
         .tiktok-shipping-deposit-btn {
-            width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+            /* Plain centered text flow, NOT flexbox -- the arrow is an inline span at the end of
+               the text so on a narrow screen (where "Shipping Deposit -- $9.00" wraps to 2 lines)
+               it wraps right along with everything else and stays glued to "$9.00". As a flex
+               item it centered against the whole multi-line block's height instead, landing
+               visually stranded in the gap between the two wrapped lines. */
+            display: block; width: 100%; text-align: center; line-height: 1.5;
             background: rgba(255,0,127,0.08); border: 1px dashed var(--accent-pink); color: var(--accent-pink);
             border-radius: 10px; padding: 12px 14px; font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700;
             text-transform: uppercase; letter-spacing: 0.03em; cursor: none; transition: var(--transition-snappy);
         }
         .tiktok-shipping-deposit-btn:hover { background: rgba(255,0,127,0.18); box-shadow: 0 0 14px rgba(255,0,127,0.2); }
         .tiktok-shipping-deposit-btn:disabled { opacity: 0.6; cursor: default; box-shadow: none; }
-        .tiktok-shipping-deposit-arrow { transition: transform 0.2s ease; }
+        .tiktok-shipping-deposit-arrow { display: inline-block; transition: transform 0.2s ease; }
         .tiktok-shipping-deposit-btn:hover .tiktok-shipping-deposit-arrow { transform: translateX(3px); }
         .tiktok-shipping-deposit-note { text-align: center; font-size: 0.68rem; color: var(--text-muted); margin: 8px 0 0; }
 
