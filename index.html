@@ -392,6 +392,23 @@
         .tiktok-tier-option-price { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: var(--accent-pink); flex-shrink: 0; }
         .tiktok-tier-option.selected .tiktok-tier-option-price::after { content: ' \2713'; }
 
+        /* --- TIKTOK LIVE CLAIMS: STANDALONE SHIPPING DEPOSIT BUTTON --- */
+        .tiktok-shipping-deposit-row { margin-bottom: 20px; }
+        .tiktok-shipping-deposit-divider { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; }
+        .tiktok-shipping-deposit-divider::before, .tiktok-shipping-deposit-divider::after { content: ''; flex: 1; height: 1px; background: var(--border-subtle); }
+        .tiktok-shipping-deposit-divider span { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+        .tiktok-shipping-deposit-btn {
+            width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: rgba(255,0,127,0.08); border: 1px dashed var(--accent-pink); color: var(--accent-pink);
+            border-radius: 10px; padding: 12px 14px; font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.03em; cursor: none; transition: var(--transition-snappy);
+        }
+        .tiktok-shipping-deposit-btn:hover { background: rgba(255,0,127,0.18); box-shadow: 0 0 14px rgba(255,0,127,0.2); }
+        .tiktok-shipping-deposit-btn:disabled { opacity: 0.6; cursor: default; box-shadow: none; }
+        .tiktok-shipping-deposit-arrow { transition: transform 0.2s ease; }
+        .tiktok-shipping-deposit-btn:hover .tiktok-shipping-deposit-arrow { transform: translateX(3px); }
+        .tiktok-shipping-deposit-note { text-align: center; font-size: 0.68rem; color: var(--text-muted); margin: 8px 0 0; }
+
         /* --- GRAVEYARD RESURRECTION --- */
         .resurrect-modal { border-color: var(--accent-graveyard); box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px rgba(124,58,237,0.2); }
         .resurrect-modal-img { height: 180px; background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; border-radius: 8px; }
@@ -2313,6 +2330,14 @@
                     </button>
                     <div class="tiktok-tier-dropdown" id="tiktokTierDropdown"></div>
                 </div>
+            </div>
+
+            <div class="tiktok-shipping-deposit-row">
+                <div class="tiktok-shipping-deposit-divider"><span>or</span></div>
+                <button type="button" class="tiktok-shipping-deposit-btn hover-target" id="shippingDepositBtn" onclick="buyShippingDepositNow()">
+                    📦 Shipping Deposit — $9.00 <span class="tiktok-shipping-deposit-arrow">→</span>
+                </button>
+                <p class="tiktok-shipping-deposit-note"></p>
             </div>
 
             <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; margin-top: 20px;">
@@ -7364,9 +7389,16 @@ Thank you for supporting my small business and understanding the handmade nature
             { key: 'destash', label: 'Destash', price: 1.00, priceId: 'price_1ToElqFWt379RB9CShnW512b', icon: '🧵', note: 'Grab-bag remnants' },
             { key: 'sale', label: 'Sale', price: 1.50, priceId: 'price_1ToElqFWt379RB9CTegULiuL', icon: '🔥', note: 'Discounted picks' },
             { key: 'new', label: 'New', price: 2.00, priceId: 'price_1ToElqFWt379RB9CMDSOkhlt', icon: '✨', note: 'Fresh drops' },
-            { key: 'shipping', label: 'Shipping Deposit', price: 9.00, priceId: 'price_1Tyf5hFWt379RB9C3mIPovaT', icon: '📦', note: 'Flat-rate shipping add-on' },
         ];
         let tiktokSelectedTierKey = TIKTOK_TIERS[0].key;
+
+        // Deliberately NOT one of the TIKTOK_TIERS above -- that dropdown feeds the normal cart
+        // (addTikTokToCart -> cart.push -> the regular checkout flow), and this $9 flat deposit
+        // sitting in the cart alongside a "Standard Shipping" fulfillment pick would stack a real
+        // shipping fee on top of itself. buyShippingDepositNow() below skips the cart/fulfillment
+        // picker entirely and opens its own one-item Stripe session instead.
+        const SHIPPING_DEPOSIT_PRICE_ID = 'price_1Tyf5hFWt379RB9C3mIPovaT';
+        const SHIPPING_DEPOSIT_PRICE = 9.00;
 
         function renderTikTokTierDropdown() {
             const dd = document.getElementById('tiktokTierDropdown');
@@ -7425,6 +7457,36 @@ Thank you for supporting my small business and understanding the handmade nature
             if (e && e.target !== document.getElementById('tiktokOverlay')) return;
             document.getElementById('tiktokOverlay').classList.remove('active');
             toggleTikTokTierDropdown(true);
+        }
+
+        // Bypasses the cart entirely -- a completely standalone, one-item Stripe session, so
+        // this flat $9 deposit never sits in the real cart alongside a "Standard Shipping" pick
+        // (which would otherwise stack a real shipping fee on top of it; see the
+        // 'shipping_deposit_standalone' fulfillment value in api/checkout.js for the other half
+        // of this fix). Fixed quantity of 1 -- this isn't a product line the shopper tunes.
+        async function buyShippingDepositNow() {
+            const btn = document.getElementById('shippingDepositBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Redirecting...'; }
+
+            const shippingDepositItem = {
+                id: Date.now(), name: 'Shipping Deposit', price: SHIPPING_DEPOSIT_PRICE, priceId: SHIPPING_DEPOSIT_PRICE_ID,
+                size: null, color: null, quantity: 1,
+            };
+
+            try {
+                const response = await fetch('/api/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: [shippingDepositItem], fulfillment: 'shipping_deposit_standalone' }),
+                });
+                const session = await response.json();
+                if (session.error) throw new Error(session.error);
+                window.location.href = session.url;
+            } catch (error) {
+                console.error('Shipping Deposit checkout error:', error);
+                showPaymentStatusModal('fail', 'Checkout Failed', error.message);
+                if (btn) { btn.disabled = false; btn.innerHTML = '📦 Shipping Deposit — $9.00 <span class="tiktok-shipping-deposit-arrow">→</span>'; }
+            }
         }
 
         // --- PAYMENT STATUS MODAL (Success / Fail) ---

@@ -283,7 +283,14 @@ export default async function handler(req, res) {
             ? summaryText.slice(0, 487) + '...'
             : summaryText;
 
-        sessionMetadata['Fulfillment_Method'] = fulfillmentMethod === 'shipping' ? 'Standard Shipping' : 'Local Pickup';
+        // 'shipping_deposit_standalone' -- the TikTok Live Claims "Shipping Deposit" button
+        // (see buyShippingDepositNow() in index.html) -- is neither a real shipping order nor a
+        // pickup; it deliberately isn't 'shipping' so the shipping_options block below never
+        // stacks a real shipping fee on top of this flat $9 deposit, but it still deserves its
+        // own label rather than showing up as a misleading "Local Pickup" in the Dashboard/orders.
+        sessionMetadata['Fulfillment_Method'] = fulfillmentMethod === 'shipping' ? 'Standard Shipping'
+            : fulfillmentMethod === 'shipping_deposit_standalone' ? 'N/A (Shipping Deposit Only)'
+            : 'Local Pickup';
         if (supabaseUserId) sessionMetadata['supabase_user_id'] = supabaseUserId;
 
         // LOYALTY PERKS + REFERRALS: look up the shopper's tier and referral status from one
