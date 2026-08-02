@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const { requireAdmin } = require('../lib/require-admin');
 const { syncProductToStripe, archiveProductInStripe } = require('../lib/stripe-sync');
+const { applyStockChange } = require('../lib/apply-stock-change');
 
 // Redis is the live source of truth the storefront actually reads (see api/products.js) --
 // Supabase's stock/product_variants.stock columns are only a cold-storage mirror, re-seeded from
@@ -20,8 +21,18 @@ async function syncStockToRedis(productId, stripeMetaKey, qty) {
 }
 
 // Variants payload shape from admin.html's product form: [{ size, color, color_image_url, stock }, ...]
-async function replaceVariants(productId, variants) {
+async function replaceVariants(productId, variants, adminUserId, adminLabel) {
     if (!Array.isArray(variants)) return;
+
+    // Snapshot existing stock levels BEFORE the delete, keyed by size|color, so the delete+
+    // reinsert below can tell which rows actually changed -- only those go through
+    // applyStockChange (Graveyard move/restore, wishlist notify, restock_log), matching what a
+    // restock through the dedicated Restock tab would do. Untouched rows keep the plain Redis
+    // sync they always had.
+    const { data: existingRows } = await supabaseAdmin.from('product_variants').select('size, color, stock').eq('product_id', productId);
+    const previousStockByKey = {};
+    (existingRows || []).forEach(r => { previousStockByKey[`${r.size}|${r.color}`] = r.stock; });
+
     const { error: delErr } = await supabaseAdmin.from('product_variants').delete().eq('product_id', productId);
     if (delErr) throw delErr;
     if (variants.length === 0) return;
@@ -37,7 +48,12 @@ async function replaceVariants(productId, variants) {
 
     // Keep Redis in sync too -- see syncStockToRedis above for why this matters.
     for (const row of rows) {
-        await syncStockToRedis(productId, `stock_${row.size}_${row.color}`, row.stock);
+        const stripeMetaKey = `stock_${row.size}_${row.color}`;
+        if (previousStockByKey[`${row.size}|${row.color}`] !== row.stock) {
+            await applyStockChange(supabaseAdmin, kv, { productId, stripeMetaKey, newQuantity: row.stock, adminUserId, adminLabel });
+        } else {
+            await syncStockToRedis(productId, stripeMetaKey, row.stock);
+        }
     }
 }
 
@@ -49,6 +65,7 @@ export default async function handler(req, res) {
     try {
         const auth = await requireAdmin(req);
         if (auth.error) return res.status(auth.status).json({ error: auth.error });
+        const adminLabel = auth.username || auth.callerId;
 
         const { action } = req.body;
 
@@ -117,13 +134,19 @@ export default async function handler(req, res) {
             if (insErr) throw insErr;
 
             if (category.card_layout_type === 'variant-apparel') {
-                await replaceVariants(product.id, variants || []);
+                await replaceVariants(product.id, variants || [], auth.callerId, adminLabel);
+            } else if (product.stock !== null) {
+                await applyStockChange(supabaseAdmin, kv, { productId: product.id, stripeMetaKey: 'stock', newQuantity: product.stock, adminUserId: auth.callerId, adminLabel });
             } else {
-                await syncStockToRedis(product.id, 'stock', product.stock);
+                await syncStockToRedis(product.id, 'stock', null);
             }
 
-            const syncResult = await syncProductToStripe(product);
-            return res.status(200).json({ product, sync: syncResult });
+            // Re-fetch: a brand-new DTF product saved with 0 stock just got moved straight to the
+            // Graveyard by applyStockChange above -- re-read so the Stripe mirror and the response
+            // reflect that category_id, not the pre-move snapshot from the insert() above.
+            const { data: finalProduct } = await supabaseAdmin.from('products').select('*').eq('id', product.id).single();
+            const syncResult = await syncProductToStripe(finalProduct || product);
+            return res.status(200).json({ product: finalProduct || product, sync: syncResult });
         }
 
         if (action === 'update') {
@@ -162,13 +185,21 @@ export default async function handler(req, res) {
             if (updErr) throw updErr;
 
             if (variants !== undefined) {
-                await replaceVariants(id, variants);
+                await replaceVariants(id, variants, auth.callerId, adminLabel);
             } else if (stock !== undefined) {
-                await syncStockToRedis(id, 'stock', updateFields.stock);
+                if (updateFields.stock !== null) {
+                    await applyStockChange(supabaseAdmin, kv, { productId: id, stripeMetaKey: 'stock', newQuantity: updateFields.stock, adminUserId: auth.callerId, adminLabel });
+                } else {
+                    await syncStockToRedis(id, 'stock', null);
+                }
             }
 
-            const syncResult = await syncProductToStripe({ ...product, __priceChanged: priceChanged });
-            return res.status(200).json({ product, sync: syncResult });
+            // Re-fetch: zeroing stock (or restoring it) above may have just changed category_id
+            // via the Graveyard move/restore in applyStockChange -- re-read so the Stripe mirror
+            // and the response reflect that, not the pre-move snapshot from the update() above.
+            const { data: finalProduct } = await supabaseAdmin.from('products').select('*').eq('id', id).single();
+            const syncResult = await syncProductToStripe({ ...(finalProduct || product), __priceChanged: priceChanged });
+            return res.status(200).json({ product: finalProduct || product, sync: syncResult });
         }
 
         if (action === 'delete') {

@@ -93,6 +93,24 @@
 
     #variantMatrixWrap { overflow-x: auto; } /* size x color grid can get wide -- scroll it rather than break layout */
 
+    /* ===================== RESTOCK TAB ===================== */
+    .stock-stats-line { color: var(--text-muted); font-size: 0.78rem; margin: 2px 0 14px; }
+    .stock-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border-subtle); font-size: 0.85rem; }
+    .stock-row:last-child { border-bottom: none; }
+    .stock-row-label { flex: 1; min-width: 0; }
+    .stock-row-product { color: var(--text-pure); font-weight: 600; }
+    .stock-row-variant { color: var(--text-muted); font-family: var(--font-mono); font-size: 0.72rem; }
+    .stock-row-current { font-family: var(--font-mono); color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; min-width: 66px; }
+    .stock-row-current.out { color: #ff6b8a; font-weight: 700; }
+    .stock-row-current.low { color: #f5b800; font-weight: 700; }
+    .stock-row input[type=number] {
+        width: 84px; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-pure);
+        padding: 7px 9px; border-radius: 6px; font-size: 0.82rem;
+    }
+    .stock-row.graveyard { background: rgba(124,58,237,0.08); border-radius: 6px; padding-left: 8px; padding-right: 8px; }
+    .stock-row-graveyard-note { color: #a78bfa; font-size: 0.68rem; font-family: var(--font-mono); margin-top: 2px; }
+    .stock-row-status { font-size: 0.72rem; color: var(--accent-pink); min-width: 60px; }
+
     /* ===================== MOBILE / TABLET (same 900px breakpoint the storefront uses) ===================== */
     @media (max-width: 900px) {
         .admin-shell { flex-direction: column; }
@@ -144,6 +162,13 @@
         #bulkAddDtfTable td::before { display: block; margin-bottom: 4px; }
         #bulkAddDtfTable input, #bulkAddDtfTable select { width: 100% !important; }
 
+        /* Restock tab: a fixed-width label squeezed next to the qty/input/button on a ~350px
+           phone forces the product name and Graveyard note into a near-vertical sliver of text.
+           Letting the row wrap puts the label on its own full-width line, with qty/input/button
+           flowing onto a second line below it instead. */
+        .stock-row { flex-wrap: wrap; row-gap: 6px; }
+        .stock-row-label { flex-basis: 100%; }
+
         /* The size x color stock matrix stays a real scrollable grid (see #variantMatrixWrap
            above) rather than becoming cards -- it's a genuine 2D grid, and stacking it into
            cards would lose the at-a-glance row/column comparison that's the whole point of it. */
@@ -157,10 +182,11 @@
         <div class="admin-logo">INSPIRED THREADS<br>ADMIN</div>
         <button class="admin-nav-btn active" data-tab="categories" onclick="switchTab('categories')">Categories</button>
         <button class="admin-nav-btn" data-tab="products" onclick="switchTab('products')">Products</button>
+        <button class="admin-nav-btn" data-tab="restock" onclick="switchTab('restock')">Restock</button>
         <button class="admin-nav-btn" data-tab="promocodes" onclick="switchTab('promocodes')">Promo Codes</button>
         <button class="admin-nav-btn" data-tab="cartaddons" onclick="switchTab('cartaddons')">Cart Addons</button>
         <div class="admin-nav-divider"></div>
-        <a class="admin-nav-link" href="/#account">← Restock / Customers / Reviews (existing tools)</a>
+        <a class="admin-nav-link" href="/#account">← Customers / Reviews (existing tools)</a>
         <a class="admin-nav-link" href="/">← Back to storefront</a>
     </aside>
 
@@ -200,6 +226,18 @@
                     <tbody id="productsTableBody"><tr><td colspan="8" class="empty-state">Loading...</td></tr></tbody>
                 </table>
             </div>
+        </section>
+
+        <!-- ===================== RESTOCK TAB ===================== -->
+        <section class="admin-tab-panel" id="tab-restock">
+            <div class="settings-field-hint" style="margin-bottom:14px;">
+                Quick stock updates across every tracked product/variant, lowest-stock first. Setting a variant from 0 to a positive number notifies everyone who wishlisted it. Adjusting an already-in-stock number stays silent. DTF designs that hit 0 stock move to the Graveyard automatically; setting a real quantity on a graveyarded design restores it to its original category.
+            </div>
+            <div class="admin-toolbar">
+                <input type="text" id="restockFilterInput" placeholder="Filter by product name…" oninput="filterRestockTab(this.value)" style="flex:1; min-width:220px;">
+            </div>
+            <div class="stock-stats-line" id="restockStatsLine"></div>
+            <div id="restockList"></div>
         </section>
 
         <!-- ===================== PROMO CODES TAB ===================== -->
@@ -452,6 +490,7 @@ function switchTab(tab) {
     document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${tab}`));
     if (tab === 'products') loadProducts();
+    if (tab === 'restock') loadRestockTab();
     if (tab === 'promocodes') loadPromoCodes();
     if (tab === 'cartaddons') loadCartAddons();
 }
@@ -1059,6 +1098,162 @@ async function saveProduct(evt) {
         await loadProducts();
     } catch (err) {
         document.getElementById('productModalError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+// ===================== RESTOCK =====================
+// Reproduces the account-dropdown mini panel's quick-restock workflow inside the full admin
+// panel: every tracked stock key (plain 'stock' for design-attach/cart-addon products, one entry
+// per size/color for variant-apparel), sorted lowest-first, with a one-field inline update that
+// hits the exact same /api/admin-restock endpoint the mini panel used (now backed by
+// lib/apply-stock-change.js) -- so Graveyard move/restore, wishlist notification, and the
+// restock_log activity feed all behave identically no matter which UI triggered the change.
+
+let restockEntriesCache = [];
+
+async function loadRestockTab() {
+    const { products } = await adminApi('/api/admin-products', { action: 'list' });
+
+    const entries = [];
+    products.forEach(p => {
+        if (p.product_variants && p.product_variants.length > 0) {
+            p.product_variants.forEach(v => {
+                entries.push({
+                    productId: p.id, stripeMetaKey: `stock_${v.size}_${v.color}`,
+                    name: p.name, variantLabel: `${v.size} / ${v.color}`,
+                    qty: parseInt(v.stock, 10) || 0,
+                    categoryId: p.category_id, preCategoryId: p.pre_graveyard_category_id,
+                });
+            });
+        } else if (p.stock !== null) {
+            entries.push({
+                productId: p.id, stripeMetaKey: 'stock',
+                name: p.name, variantLabel: 'Standard',
+                qty: parseInt(p.stock, 10) || 0,
+                categoryId: p.category_id, preCategoryId: p.pre_graveyard_category_id,
+            });
+        }
+    });
+
+    const keys = entries.map(e => `stock_${e.productId}_${e.stripeMetaKey}`);
+    const live = await fetchLiveStock(keys);
+    entries.forEach(e => {
+        const liveVal = live[`stock_${e.productId}_${e.stripeMetaKey}`];
+        if (liveVal !== undefined && liveVal !== null) e.qty = parseInt(liveVal, 10) || 0;
+    });
+
+    entries.sort((a, b) => a.qty - b.qty); // most urgent (lowest stock) first
+    restockEntriesCache = entries;
+    renderRestockTab();
+}
+
+function renderRestockTab() {
+    const container = document.getElementById('restockList');
+    const entries = restockEntriesCache;
+
+    const outCount = entries.filter(e => e.qty <= 0).length;
+    const lowCount = entries.filter(e => e.qty > 0 && e.qty <= 3).length;
+    document.getElementById('restockStatsLine').textContent = `${entries.length} tracked · ${outCount} out of stock · ${lowCount} low (≤3)`;
+
+    const rows = entries.map((e, i) => {
+        const rowId = `restock-${i}`;
+        const stockClass = e.qty <= 0 ? 'out' : (e.qty <= 3 ? 'low' : '');
+
+        // GRAVEYARD: this design is made-to-order with no real inventory (see
+        // sql/graveyard_resurrection_schema.sql) -- flag it distinctly and show where it'll go
+        // back to, so restocking it for real is a one-click, no-guessing action.
+        const isGraveyard = e.categoryId === 'graveyard';
+        let graveyardNote = '';
+        let buttonLabel = 'Set';
+        let inputPlaceholder = 'new #';
+        if (isGraveyard) {
+            const preCat = categories.find(c => c.id === e.preCategoryId);
+            graveyardNote = `<div class="stock-row-graveyard-note">🪦 In the Graveyard — originally: ${escapeHtml((preCat && preCat.label) || e.preCategoryId || 'unknown category')}</div>`;
+            buttonLabel = '🪦➜✅ Restore';
+            inputPlaceholder = 'real stock #';
+        }
+
+        return `
+            <div class="stock-row${isGraveyard ? ' graveyard' : ''}" data-product-name="${escapeHtml(e.name.toLowerCase())}">
+                <div class="stock-row-label">
+                    <div class="stock-row-product">${escapeHtml(e.name)}</div>
+                    <div class="stock-row-variant">${escapeHtml(e.variantLabel)}</div>
+                    ${graveyardNote}
+                </div>
+                <div class="stock-row-current ${stockClass}" id="${rowId}-current">now: ${e.qty}</div>
+                <input type="number" min="0" id="${rowId}-input" placeholder="${inputPlaceholder}">
+                <button type="button" class="admin-btn small" onclick="adminRestockSet(${i}, '${rowId}')">${buttonLabel}</button>
+                <span class="stock-row-status" id="${rowId}-status"></span>
+            </div>
+        `;
+    });
+
+    container.innerHTML = rows.length > 0
+        ? rows.join('')
+        : '<p class="empty-state">No stock-tracked products found.</p>';
+
+    // Re-apply whatever filter text is currently in the box (covers the refresh-after-restock
+    // case, so an active filter doesn't get silently cleared).
+    const filterInput = document.getElementById('restockFilterInput');
+    if (filterInput && filterInput.value) filterRestockTab(filterInput.value);
+}
+
+function filterRestockTab(query) {
+    const q = query.trim().toLowerCase();
+    document.querySelectorAll('#restockList .stock-row').forEach(row => {
+        const matches = !q || (row.dataset.productName || '').includes(q);
+        row.style.display = matches ? 'flex' : 'none';
+    });
+}
+
+async function adminRestockSet(index, rowId) {
+    const entry = restockEntriesCache[index];
+    const input = document.getElementById(`${rowId}-input`);
+    const statusEl = document.getElementById(`${rowId}-status`);
+    const currentEl = document.getElementById(`${rowId}-current`);
+    const newQuantity = parseInt(input.value, 10);
+
+    if (!Number.isInteger(newQuantity) || newQuantity < 0) {
+        statusEl.textContent = 'Invalid #';
+        return;
+    }
+
+    // GRAVEYARD: setting a positive number here on a made-to-order design is a real "restore
+    // from Graveyard" action, not just a stock edit -- make that unmistakable before it happens,
+    // since it's a deliberate one-way move (mirrors index.html's mini panel confirm copy).
+    const isGraveyardRestore = entry.categoryId === 'graveyard' && newQuantity > 0;
+    const preCat = categories.find(c => c.id === entry.preCategoryId);
+    const destinationLabel = (preCat && preCat.label) || entry.preCategoryId || 'its original category';
+    const willNotify = entry.qty <= 0 && newQuantity > 0;
+
+    const confirmMsg = isGraveyardRestore
+        ? `Restore "${entry.name}" out of the Graveyard back into ${destinationLabel} with ${newQuantity} in real stock?\n\nOnly do this once you actually have that many made -- anyone will be able to buy it immediately.`
+        : `Set "${entry.name}" (${entry.variantLabel}) to ${newQuantity}?`
+            + (willNotify ? '\n\nThis will email everyone who wishlisted it.' : '');
+    if (!confirm(confirmMsg)) return;
+
+    statusEl.textContent = 'Saving…';
+    try {
+        const result = await adminApi('/api/admin-restock', { productId: entry.productId, stripeMetaKey: entry.stripeMetaKey, newQuantity });
+
+        if (result.restoredFromGraveyard) {
+            // Category actually changed this time -- a full tab refresh is what's needed to
+            // reflect that, same reasoning as the old mini panel's initShopEngine() refresh.
+            statusEl.textContent = 'Restored ✓';
+            await loadRestockTab();
+            return;
+        }
+
+        statusEl.textContent = 'Saved ✓';
+        input.value = '';
+        currentEl.textContent = `now: ${newQuantity}`;
+        currentEl.classList.remove('out', 'low');
+        if (newQuantity <= 0) currentEl.classList.add('out');
+        else if (newQuantity <= 3) currentEl.classList.add('low');
+        entry.qty = newQuantity;
+        setTimeout(() => { statusEl.textContent = ''; }, 2000);
+    } catch (err) {
+        statusEl.textContent = err.message;
     }
 }
 
