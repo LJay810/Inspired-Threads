@@ -3130,9 +3130,15 @@ Thank you for supporting my small business and understanding the handmade nature
             return { imageZoneHTML, variantHTML, stockCount };
         }
 
-        function renderSimpleCard(product) {
+        function renderSimpleCard(product, category) {
             const defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
-            const imageZoneHTML = `<div class="product-image-zone hover-target lazy-bg" data-bg="${defaultImage}" style="background-size: contain; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
+            // Memo Pads product photos are shot wider/taller than the fixed 280px image zone, so
+            // background-size:contain (every other 'simple' category's default) letterboxes them
+            // against the #f5f5f5 fill color -- visible as a white border inside the card. Memo
+            // Pads specifically fills the zone instead (cropping slightly) so there's no fill
+            // color showing; every other 'simple' category keeps the letterboxed default.
+            const bgSize = category && category.id === 'memo-pads' ? 'cover' : 'contain';
+            const imageZoneHTML = `<div class="product-image-zone hover-target lazy-bg" data-bg="${defaultImage}" style="background-size: ${bgSize}; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
             const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
             return { imageZoneHTML, variantHTML: '', stockCount };
         }
