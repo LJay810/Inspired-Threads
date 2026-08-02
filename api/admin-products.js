@@ -35,7 +35,7 @@ async function replaceVariants(productId, variants, adminUserId, adminLabel) {
 
     const { error: delErr } = await supabaseAdmin.from('product_variants').delete().eq('product_id', productId);
     if (delErr) throw delErr;
-    if (variants.length === 0) return;
+
     const rows = variants.map(v => ({
         product_id: productId,
         size: v.size,
@@ -43,16 +43,30 @@ async function replaceVariants(productId, variants, adminUserId, adminLabel) {
         color_image_url: v.color_image_url || null,
         stock: Number.isInteger(v.stock) ? v.stock : (parseInt(v.stock, 10) || 0),
     }));
-    const { error: insErr } = await supabaseAdmin.from('product_variants').insert(rows);
-    if (insErr) throw insErr;
+
+    if (rows.length > 0) {
+        const { error: insErr } = await supabaseAdmin.from('product_variants').insert(rows);
+        if (insErr) throw insErr;
+    }
 
     // Keep Redis in sync too -- see syncStockToRedis above for why this matters.
+    const newKeys = new Set(rows.map(r => `${r.size}|${r.color}`));
     for (const row of rows) {
         const stripeMetaKey = `stock_${row.size}_${row.color}`;
         if (previousStockByKey[`${row.size}|${row.color}`] !== row.stock) {
             await applyStockChange(supabaseAdmin, kv, { productId, stripeMetaKey, newQuantity: row.stock, adminUserId, adminLabel });
         } else {
             await syncStockToRedis(productId, stripeMetaKey, row.stock);
+        }
+    }
+
+    // A color/size removed from the matrix entirely (no longer in `variants`) needs its Redis
+    // key cleared too -- otherwise a stale count lingers forever since nothing else ever
+    // re-syncs or deletes it once the row is gone from product_variants.
+    for (const key of Object.keys(previousStockByKey)) {
+        if (!newKeys.has(key)) {
+            const [size, color] = key.split('|');
+            await syncStockToRedis(productId, `stock_${size}_${color}`, null);
         }
     }
 }
@@ -133,20 +147,24 @@ export default async function handler(req, res) {
             }).select().single();
             if (insErr) throw insErr;
 
+            let finalProduct = product;
             if (category.card_layout_type === 'variant-apparel') {
                 await replaceVariants(product.id, variants || [], auth.callerId, adminLabel);
+                // Variant-apparel is never a DTF/Graveyard category, so category_id can't have
+                // changed here -- no need for the re-fetch below.
             } else if (product.stock !== null) {
                 await applyStockChange(supabaseAdmin, kv, { productId: product.id, stripeMetaKey: 'stock', newQuantity: product.stock, adminUserId: auth.callerId, adminLabel });
+                // Re-fetch: a brand-new DTF product saved with 0 stock just got moved straight to
+                // the Graveyard by applyStockChange above -- re-read so the Stripe mirror and the
+                // response reflect that category_id, not the pre-move snapshot from insert() above.
+                const { data: refreshed } = await supabaseAdmin.from('products').select('*').eq('id', product.id).single();
+                if (refreshed) finalProduct = refreshed;
             } else {
                 await syncStockToRedis(product.id, 'stock', null);
             }
 
-            // Re-fetch: a brand-new DTF product saved with 0 stock just got moved straight to the
-            // Graveyard by applyStockChange above -- re-read so the Stripe mirror and the response
-            // reflect that category_id, not the pre-move snapshot from the insert() above.
-            const { data: finalProduct } = await supabaseAdmin.from('products').select('*').eq('id', product.id).single();
-            const syncResult = await syncProductToStripe(finalProduct || product);
-            return res.status(200).json({ product: finalProduct || product, sync: syncResult });
+            const syncResult = await syncProductToStripe(finalProduct);
+            return res.status(200).json({ product: finalProduct, sync: syncResult });
         }
 
         if (action === 'update') {
@@ -184,22 +202,27 @@ export default async function handler(req, res) {
             const { data: product, error: updErr } = await supabaseAdmin.from('products').update(updateFields).eq('id', id).select().single();
             if (updErr) throw updErr;
 
+            let finalProduct = product;
             if (variants !== undefined) {
                 await replaceVariants(id, variants, auth.callerId, adminLabel);
+                // Variant-apparel is never a DTF/Graveyard category, so category_id can't have
+                // changed here -- no need for the re-fetch below.
             } else if (stock !== undefined) {
                 if (updateFields.stock !== null) {
                     await applyStockChange(supabaseAdmin, kv, { productId: id, stripeMetaKey: 'stock', newQuantity: updateFields.stock, adminUserId: auth.callerId, adminLabel });
+                    // Re-fetch: zeroing stock (or restoring it) above may have just changed
+                    // category_id via the Graveyard move/restore in applyStockChange -- re-read
+                    // so the Stripe mirror and the response reflect that, not the pre-move
+                    // snapshot from the update() above.
+                    const { data: refreshed } = await supabaseAdmin.from('products').select('*').eq('id', id).single();
+                    if (refreshed) finalProduct = refreshed;
                 } else {
                     await syncStockToRedis(id, 'stock', null);
                 }
             }
 
-            // Re-fetch: zeroing stock (or restoring it) above may have just changed category_id
-            // via the Graveyard move/restore in applyStockChange -- re-read so the Stripe mirror
-            // and the response reflect that, not the pre-move snapshot from the update() above.
-            const { data: finalProduct } = await supabaseAdmin.from('products').select('*').eq('id', id).single();
-            const syncResult = await syncProductToStripe({ ...(finalProduct || product), __priceChanged: priceChanged });
-            return res.status(200).json({ product: finalProduct || product, sync: syncResult });
+            const syncResult = await syncProductToStripe({ ...finalProduct, __priceChanged: priceChanged });
+            return res.status(200).json({ product: finalProduct, sync: syncResult });
         }
 
         if (action === 'delete') {
