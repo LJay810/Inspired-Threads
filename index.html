@@ -3130,15 +3130,27 @@ Thank you for supporting my small business and understanding the handmade nature
             return { imageZoneHTML, variantHTML, stockCount };
         }
 
+        // Categories whose product photos get the "fill the frame" + saturation treatment below
+        // instead of the letterboxed, unfiltered 'simple'-layout default.
+        const VIBRANT_COVER_CATEGORIES = ['memo-pads', 'cup-wraps'];
+
         function renderSimpleCard(product, category) {
             const defaultImage = product.images && product.images.length > 0 ? product.images[0] : '';
-            // Memo Pads product photos are shot wider/taller than the fixed 280px image zone, so
-            // background-size:contain (every other 'simple' category's default) letterboxes them
-            // against the #f5f5f5 fill color -- visible as a white border inside the card. Memo
-            // Pads specifically fills the zone instead (cropping slightly) so there's no fill
-            // color showing; every other 'simple' category keeps the letterboxed default.
-            const bgSize = category && category.id === 'memo-pads' ? 'cover' : 'contain';
-            const imageZoneHTML = `<div class="product-image-zone hover-target lazy-bg" data-bg="${defaultImage}" style="background-size: ${bgSize}; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
+            // Memo Pads/Cup Wraps product photos are shot wider/taller than the fixed 280px image
+            // zone, so background-size:contain (every other 'simple' category's default) letterboxes
+            // them against the #f5f5f5 fill color -- visible as a white border inside the card (and,
+            // via the same mechanism, inside the lightbox -- see openVariantLightbox/openLightbox
+            // below, which carries these same two values through via data-bg-size/data-bg-filter).
+            // These two categories fill the zone instead (cropping slightly) so no fill color shows;
+            // every other 'simple' category keeps the letterboxed default. A mild saturation/
+            // contrast lift is layered on for just these two as well -- their paper-on-wood-table
+            // product shots read a bit flatter than the rest of the shop's punchier photography.
+            // Pure CSS filter, not a re-edit of the uploaded images, so it's trivial to tune or
+            // remove later by editing VIBRANT_COVER_CATEGORIES/the filter string below.
+            const isVibrant = category && VIBRANT_COVER_CATEGORIES.includes(category.id);
+            const bgSize = isVibrant ? 'cover' : 'contain';
+            const bgFilter = isVibrant ? 'saturate(1.25) contrast(1.04)' : '';
+            const imageZoneHTML = `<div class="product-image-zone hover-target lazy-bg" data-bg="${defaultImage}" data-bg-size="${bgSize}" data-bg-filter="${bgFilter}" style="background-size: ${bgSize}; background-position: center; background-repeat: no-repeat; background-color: #f5f5f5; ${bgFilter ? `filter: ${bgFilter};` : ''} cursor: none !important;" onclick="${defaultImage ? 'openVariantLightbox(this)' : ''}">${defaultImage ? '' : '[ NO IMAGE PROVIDED ]'}</div>`;
             const stockCount = product.metadata && product.metadata.stock !== undefined ? parseInt(product.metadata.stock) : null;
             return { imageZoneHTML, variantHTML: '', stockCount };
         }
@@ -7120,7 +7132,7 @@ Thank you for supporting my small business and understanding the handmade nature
         });
 
         // --- 9. LIGHTBOX ENGINE ---
-        function openLightbox(imgSrc, isVariant = false, overlayBg = 'none', top = '0', left = '0', width = '0', height = '0', sourceW = 0, sourceH = 0, transform = 'none', transformOrigin = 'center', bgColor = '#f5f5f5') {
+        function openLightbox(imgSrc, isVariant = false, overlayBg = 'none', top = '0', left = '0', width = '0', height = '0', sourceW = 0, sourceH = 0, transform = 'none', transformOrigin = 'center', bgColor = '#f5f5f5', bgSize = 'contain', bgFilter = '') {
             const overlay = document.getElementById('lightboxOverlay');
             const container = document.getElementById('lightboxContainer');
             const standardImg = document.getElementById('lightboxStandardImg');
@@ -7140,6 +7152,13 @@ Thank you for supporting my small business and understanding the handmade nature
                 // set dark for a White selection vs. the normal light #f5f5f5 otherwise, so the
                 // lightbox just reuses it instead of re-deriving "is White selected" itself.
                 container.style.backgroundColor = bgColor;
+                // Same reasoning for fill mode/saturation -- carries the card's own values through
+                // (cover+saturated for Memo Pads/Cup Wraps, contain+unfiltered for everything else)
+                // rather than defaulting back to the letterboxed/unfiltered look. Always set
+                // (never left conditional) since this container is reused across opens -- a later
+                // non-vibrant product must clear out a previous open's filter, not inherit it.
+                container.style.backgroundSize = bgSize;
+                container.style.filter = bgFilter;
 
                 if (overlayBg !== 'none') {
                     dtfOverlay.style.top = top;
@@ -7198,7 +7217,15 @@ Thank you for supporting my small business and understanding the handmade nature
                     // lightbox matches instead of reverting to the plain light default.
                     const bgColor = element.style.backgroundColor || '#f5f5f5';
 
-                    openLightbox(urlMatch[1], true, overlayBg, t, l, w, h, rect.width, rect.height, trans, transOrig, bgColor);
+                    // Carries the card's own fill mode + saturation filter (set via data-bg-size/
+                    // data-bg-filter in renderSimpleCard for Memo Pads/Cup Wraps) into the lightbox,
+                    // so the enlarged view doesn't revert to the plain letterboxed/unfiltered
+                    // default those two categories were specifically fixed to avoid. Every other
+                    // category has neither attribute set, so this falls back to the prior behavior.
+                    const bgSize = element.dataset.bgSize || 'contain';
+                    const bgFilter = element.dataset.bgFilter || '';
+
+                    openLightbox(urlMatch[1], true, overlayBg, t, l, w, h, rect.width, rect.height, trans, transOrig, bgColor, bgSize, bgFilter);
                 }
             }
         }
