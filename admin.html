@@ -172,11 +172,14 @@
            readable on a phone. */
         .admin-thumb { width: 64px; height: 64px; border-radius: 6px; }
 
-        /* Bulk Add DTF's rows are a form, not read-only data -- a label ABOVE a full-width input
-           reads far better on a phone than squeezing an input next to its label. */
-        #bulkAddDtfTable td[data-label]:not([data-label=""]) { display: block; }
-        #bulkAddDtfTable td::before { display: block; margin-bottom: 4px; }
-        #bulkAddDtfTable input, #bulkAddDtfTable select { width: 100% !important; }
+        /* Bulk Add DTF's/Simple-category rows are a form, not read-only data -- a label ABOVE a
+           full-width input reads far better on a phone than squeezing an input next to its label. */
+        #bulkAddDtfTable td[data-label]:not([data-label=""]),
+        #bulkAddSimpleTable td[data-label]:not([data-label=""]) { display: block; }
+        #bulkAddDtfTable td::before,
+        #bulkAddSimpleTable td::before { display: block; margin-bottom: 4px; }
+        #bulkAddDtfTable input, #bulkAddDtfTable select,
+        #bulkAddSimpleTable input { width: 100% !important; }
 
         /* Restock tab: a fixed-width label squeezed next to the qty/input/button on a ~350px
            phone forces the product name and Graveyard note into a near-vertical sliver of text.
@@ -240,6 +243,8 @@
             <div class="admin-toolbar">
                 <button class="admin-btn" onclick="openProductModal()">+ Add Product</button>
                 <button class="admin-btn secondary" onclick="openBulkAddDtfModal()">+ Bulk Add DTF's</button>
+                <button class="admin-btn secondary" onclick="openBulkAddSimpleModal('cup-wraps')">+ Bulk Add Cup Wraps</button>
+                <button class="admin-btn secondary" onclick="openBulkAddSimpleModal('memo-pads')">+ Bulk Add Memo Pads</button>
                 <select id="productFilterCategory" onchange="loadProducts()"><option value="">All categories</option></select>
                 <input type="text" id="productFilterSearch" placeholder="Search by name..." oninput="debouncedLoadProducts()">
             </div>
@@ -455,6 +460,35 @@
             <div>
                 <button type="button" class="admin-btn secondary" onclick="closeBulkAddDtfModal()">Close</button>
                 <button type="button" class="admin-btn" onclick="saveBulkDtfRows()">Save All</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===================== BULK ADD SIMPLE-CATEGORY MODAL ===================== -->
+<!-- Shared by Cup Wraps, Memo Pads, and any future single-image, no-variant category -- same
+     batch-save mechanics as Bulk Add DTF above (reserved sort_order range, per-row lock-after-
+     save) but with no "File Under" column: unlike DTF (which files rows under dtf-pocket/
+     dtf-kids sub-categories), these categories have no children to file anything under, so the
+     category is fixed for the whole batch by whichever button opened this modal. -->
+<div class="admin-modal-overlay" id="bulkAddSimpleModalOverlay">
+    <div class="admin-modal" style="max-width: 860px;">
+        <h2 id="bulkAddSimpleModalTitle">Bulk Add Products</h2>
+        <div id="bulkAddSimpleError"></div>
+        <div class="settings-field-hint" style="margin-bottom:14px;">
+            Each row becomes its own product with its own image, name, price, and stock. Saved rows lock and won't be re-submitted if you fix a mistake and click "Save All" again.
+        </div>
+        <div class="admin-table-scroll">
+            <table class="admin-table" id="bulkAddSimpleTable">
+                <thead><tr><th>Image</th><th>Name</th><th>Price ($)</th><th>Stock</th><th></th></tr></thead>
+                <tbody id="bulkAddSimpleRows"></tbody>
+            </table>
+        </div>
+        <div class="admin-modal-actions" style="justify-content:space-between;">
+            <button type="button" class="admin-btn secondary" onclick="addBulkSimpleRow()">+ Add Row</button>
+            <div>
+                <button type="button" class="admin-btn secondary" onclick="closeBulkAddSimpleModal()">Close</button>
+                <button type="button" class="admin-btn" onclick="saveBulkSimpleRows()">Save All</button>
             </div>
         </div>
     </div>
@@ -1648,6 +1682,142 @@ async function saveBulkDtfRows() {
         errorEl.innerHTML = `<div class="admin-error-banner">Nothing to save -- fill in at least a name, price, and image on one row.</div>`;
     } else if (successCount === attemptedCount) {
         setTimeout(closeBulkAddDtfModal, 900); // brief pause so the "Saved ✓" statuses are visible
+    }
+}
+
+// ===================== BULK ADD SIMPLE-CATEGORY (Cup Wraps, Memo Pads, ...) =====================
+// Same batch-save mechanics as Bulk Add DTF above -- reserved sort_order range computed once so
+// top-to-bottom entry order becomes display order, per-row lock-after-save so a second "Save All"
+// (after fixing a different broken row) can't create a duplicate from an already-successful one --
+// generalized to any single-image, no-variant, no-subcategory category via a categoryId parameter
+// instead of being hardcoded to 'dtf'. No "File Under" picker here: unlike DTF, which files rows
+// under dtf-pocket/dtf-kids sub_category_id, these categories have no children to file under, so
+// category_id is fixed for the whole batch by whichever button opened the modal.
+
+let bulkSimpleRowCounter = 0;
+let bulkSimpleCategoryId = null;
+
+function addBulkSimpleRow() {
+    bulkSimpleRowCounter++;
+    const tr = document.createElement('tr');
+    tr.dataset.rowId = bulkSimpleRowCounter;
+    tr.innerHTML = `
+        <td data-label="Image">
+            <input type="file" accept="image/*" class="bulk-image-input" onchange="previewBulkSimpleImage(this)">
+            <img class="admin-thumb bulk-image-preview" style="display:none; margin-top:6px;">
+        </td>
+        <td data-label="Name"><input type="text" class="bulk-name" placeholder="Product name" style="min-width:140px;"></td>
+        <td data-label="Price ($)"><input type="number" class="bulk-price" min="0.01" step="0.01" style="width:80px;"></td>
+        <td data-label="Stock"><input type="number" class="bulk-stock" min="0" placeholder="Unlimited" style="width:90px;"></td>
+        <td data-label="">
+            <button type="button" class="admin-btn small danger" onclick="this.closest('tr').remove()">✕</button>
+            <div class="bulk-status" style="font-size:0.72rem; margin-top:4px;"></div>
+        </td>
+    `;
+    document.getElementById('bulkAddSimpleRows').appendChild(tr);
+}
+
+function previewBulkSimpleImage(input) {
+    const img = input.closest('tr').querySelector('.bulk-image-preview');
+    const file = input.files[0];
+    if (!file) { img.style.display = 'none'; return; }
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+}
+
+function openBulkAddSimpleModal(categoryId) {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) { alert(`Could not find a category with id "${categoryId}" -- has it been renamed or deleted?`); return; }
+    bulkSimpleCategoryId = categoryId;
+    document.getElementById('bulkAddSimpleModalTitle').textContent = `Bulk Add ${category.label}`;
+    document.getElementById('bulkAddSimpleRows').innerHTML = '';
+    document.getElementById('bulkAddSimpleError').innerHTML = '';
+    for (let i = 0; i < 5; i++) addBulkSimpleRow();
+    document.getElementById('bulkAddSimpleModalOverlay').classList.add('open');
+}
+
+function closeBulkAddSimpleModal() {
+    document.getElementById('bulkAddSimpleModalOverlay').classList.remove('open');
+}
+
+async function saveBulkSimpleRows() {
+    const errorEl = document.getElementById('bulkAddSimpleError');
+    errorEl.innerHTML = '';
+
+    const category = categories.find(c => c.id === bulkSimpleCategoryId);
+    if (!category) {
+        errorEl.innerHTML = `<div class="admin-error-banner">Could not find a category with id "${escapeHtml(bulkSimpleCategoryId || '')}" -- has it been renamed?</div>`;
+        return;
+    }
+
+    const rows = Array.from(document.querySelectorAll('#bulkAddSimpleRows tr'));
+    let attemptedCount = 0;
+    let successCount = 0;
+
+    // Same reserved-range trick as Bulk Add DTF: compute the whole batch's sort_order range ONCE
+    // up front instead of letting each row's create() auto-compute "lowest in category - 1"
+    // independently -- rows save sequentially, so without this the last row typed in would end
+    // up with the lowest number (shows first), reversing the batch's visual order.
+    const { products: existingInCategory } = await adminApi('/api/admin-products', { action: 'list', category_id: category.id });
+    const currentLowest = existingInCategory.reduce((min, p) => Math.min(min, Number.isInteger(p.sort_order) ? p.sort_order : 99), 99);
+    let nextSortOrder = currentLowest - rows.length;
+
+    for (const tr of rows) {
+        if (tr.dataset.saved === 'true') { nextSortOrder++; continue; } // already saved on a prior click -- don't resubmit
+
+        const statusEl = tr.querySelector('.bulk-status');
+        const nameInput = tr.querySelector('.bulk-name');
+        const priceInput = tr.querySelector('.bulk-price');
+        const stockInput = tr.querySelector('.bulk-stock');
+        const fileInput = tr.querySelector('.bulk-image-input');
+
+        const name = nameInput.value.trim();
+        const price = priceInput.value;
+        const file = fileInput.files[0];
+        const rowSortOrder = nextSortOrder;
+        nextSortOrder++; // reserved for this row regardless of whether it actually saves, so later rows keep their intended relative order
+
+        if (!name && !file) continue; // a fully blank leftover row -- not meant to be saved
+
+        attemptedCount++;
+        if (!name || !price || !file) {
+            statusEl.innerHTML = '<span style="color:#ff6b8a;">Missing name, price, or image</span>';
+            continue;
+        }
+
+        statusEl.textContent = 'Saving…';
+        try {
+            const imageUrl = await uploadToStorage(file);
+            const result = await adminApi('/api/admin-products', {
+                action: 'create',
+                name,
+                category_id: category.id,
+                price_dollars: price,
+                images: [imageUrl],
+                stock: stockInput.value === '' ? null : parseInt(stockInput.value, 10),
+                sort_order: rowSortOrder,
+            });
+
+            if (result.sync && !result.sync.ok) {
+                statusEl.innerHTML = '<span style="color:#ff6b8a;">Saved, but Stripe sync failed</span>';
+            } else {
+                statusEl.innerHTML = '<span style="color:#4ade80;">Saved ✓</span>';
+            }
+            // Lock the row so a later "Save All" (after fixing a different broken row) can't
+            // accidentally create a duplicate product from this already-successful one.
+            tr.dataset.saved = 'true';
+            [nameInput, priceInput, stockInput, fileInput].forEach(el => el.disabled = true);
+            successCount++;
+        } catch (err) {
+            statusEl.innerHTML = `<span style="color:#ff6b8a;">${escapeHtml(err.message)}</span>`;
+        }
+    }
+
+    if (successCount > 0) await loadProducts();
+    if (attemptedCount === 0) {
+        errorEl.innerHTML = `<div class="admin-error-banner">Nothing to save -- fill in at least a name, price, and image on one row.</div>`;
+    } else if (successCount === attemptedCount) {
+        setTimeout(closeBulkAddSimpleModal, 900); // brief pause so the "Saved ✓" statuses are visible
     }
 }
 
