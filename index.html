@@ -4028,13 +4028,13 @@ Thank you for supporting my small business and understanding the handmade nature
                     // form), at most one product at a time -- shimmers gold and openly says what
                     // it is (rather than staying a total secret) so a shopper who spots it knows
                     // exactly what they found, and the ACTUAL enforcement of "only the first
-                    // buyer gets 75% off" lives entirely server-side (api/checkout.js's Redis
+                    // buyer gets 50% off" lives entirely server-side (api/checkout.js's Redis
                     // claim) -- this banner text is honest regardless of any race, never a literal
                     // price tag that could go stale the instant someone else wins it first.
                     const isGoldenTicket = product.metadata && product.metadata.golden_ticket === 'true';
                     if (isGoldenTicket) window._currentGoldenTicketProductId = product.id; // read back by pollLiveStock() to detect a change
                     const goldenTicketBanner = isGoldenTicket
-                        ? `<div class="golden-ticket-banner">🎫 Golden Ticket — 75% OFF for the first buyer!</div>`
+                        ? `<div class="golden-ticket-banner">🎫 Golden Ticket — 50% OFF for the first buyer!</div>`
                         : '';
 
                     const cardHTML = `
@@ -6859,7 +6859,7 @@ Thank you for supporting my small business and understanding the handmade nature
             // GRAVEYARD: this card's badge/button are the themed "IN THE GRAVEYARD" / "Resurrect"
             // state, not the generic sold-out one -- leave it alone. Stock on a graveyarded
             // product is always 0 by definition, so this function would otherwise stomp the
-            // Resurrect button back to "SOLD OUT" on every 20s poll. The only transition that
+            // Resurrect button back to "SOLD OUT" on every 10s poll. The only transition that
             // matters (stock crossing 0 -> positive, i.e. an actual resurrection) is already
             // handled separately in pollLiveStock(), which triggers a full initShopEngine()
             // re-render instead of a targeted patch, since the product's category changes too.
@@ -6907,11 +6907,11 @@ Thank you for supporting my small business and understanding the handmade nature
             }
         }
 
-        // Poll every 20s while the tab is visible. Pausing on hidden tabs keeps this cheap --
+        // Poll every 10s while the tab is visible. Pausing on hidden tabs keeps this cheap --
         // it's a single Redis MGET per poll (see api/stock.js), no Stripe calls at all.
         function startLiveStockPolling() {
             if (window._stockPollTimer) clearInterval(window._stockPollTimer);
-            window._stockPollTimer = setInterval(pollLiveStock, 20000);
+            window._stockPollTimer = setInterval(pollLiveStock, 10000);
 
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) {
@@ -6921,7 +6921,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     }
                 } else {
                     pollLiveStock();
-                    if (!window._stockPollTimer) window._stockPollTimer = setInterval(pollLiveStock, 20000);
+                    if (!window._stockPollTimer) window._stockPollTimer = setInterval(pollLiveStock, 10000);
                 }
             });
         }

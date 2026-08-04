@@ -46,7 +46,7 @@ export default async function handler(req, res) {
         // the high-traffic products table, which would broadcast every routine stock/price edit
         // to every connected tab. One indexed lookup (products_golden_ticket_idx), unconditional
         // (not gated behind a query param) since it's cheap and every poll already happens every
-        // 20s regardless -- see pollLiveStock() in index.html for the client-side comparison
+        // 10s regardless -- see pollLiveStock() in index.html for the client-side comparison
         // that decides whether this actually changed anything worth a re-render.
         const { data: goldenRow } = await supabaseAdmin.from('products').select('id').eq('is_golden_ticket', true).maybeSingle();
         responseBody.goldenTicketProductId = (goldenRow && goldenRow.id) || null;
