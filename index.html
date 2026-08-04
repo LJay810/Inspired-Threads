@@ -8209,11 +8209,14 @@ Thank you for supporting my small business and understanding the handmade nature
 
         // mode 'fall': drifts downward with a horizontal sway (snow/petals/leaves).
         // mode 'wander': slow erratic random-walk drift with a pulsing glow (fireflies).
+        // shape: which drawXShape() function below actually renders each dot as -- a real petal/
+        // leaf silhouette (with a center vein) instead of a generic circle/ellipse standing in
+        // for every season alike.
         const SEASONS = {
-            winter: { mode: 'fall',   colors: ['#ffffff', '#e6f2ff', '#d0e8ff'], minSize: 2,   maxSize: 4.2, speedY: [16, 34], sway: 16, rotate: false, count: { mobile: 24, desktop: 46 } },
-            spring: { mode: 'fall',   colors: ['#ffc2e0', '#ff9fd0', '#ffffff'], minSize: 3,   maxSize: 6,   speedY: [12, 24], sway: 26, rotate: true,  count: { mobile: 16, desktop: 32 } },
-            summer: { mode: 'wander', colors: ['#ffe066', '#fff3b0'],             minSize: 1.8, maxSize: 3.2, speedY: [0, 0],   sway: 0,  rotate: false, count: { mobile: 14, desktop: 26 } },
-            fall:   { mode: 'fall',   colors: ['#e8985e', '#c96b3c', '#f2b544'], minSize: 3,   maxSize: 6.5, speedY: [14, 28], sway: 30, rotate: true,  count: { mobile: 16, desktop: 30 } },
+            winter: { mode: 'fall',   shape: 'snow',    colors: ['#ffffff', '#e6f2ff', '#d0e8ff'], minSize: 2,   maxSize: 4.2, speedY: [16, 34], sway: 16, count: { mobile: 24, desktop: 46 } },
+            spring: { mode: 'fall',   shape: 'petal',   colors: ['#ffc2e0', '#ff9fd0', '#ffffff'], minSize: 4,   maxSize: 7.5, speedY: [12, 24], sway: 26, count: { mobile: 16, desktop: 32 } },
+            summer: { mode: 'wander', shape: 'firefly', colors: ['#ffe066', '#fff3b0'],             minSize: 1.8, maxSize: 3.2, speedY: [0, 0],   sway: 0,  count: { mobile: 14, desktop: 26 } },
+            fall:   { mode: 'fall',   shape: 'leaf',    colors: ['#e8985e', '#c96b3c', '#f2b544'], minSize: 4,   maxSize: 8,   speedY: [14, 28], sway: 30, count: { mobile: 16, desktop: 30 } },
         };
 
         // Testing override -- add ?season=winter (or spring/summer/fall) to the URL to force a
@@ -8229,18 +8232,26 @@ Thank you for supporting my small business and understanding the handmade nature
         function rand(min, max) { return min + Math.random() * (max - min); }
 
         function spawnParticle(atTop) {
-            const size = rand(season.minSize, season.maxSize);
+            // Winter mixes ordinary small round flecks with occasional larger, more detailed
+            // crystal flakes (drawSnowflakeShape) -- real snowfall reads as a mix of both, not
+            // one uniform dot size/shape. ~1 in 4 flakes gets the detailed treatment, sized up a
+            // bit so the extra detail is actually visible.
+            const isDetailedSnowflake = season.shape === 'snow' && Math.random() < 0.28;
+            const size = rand(season.minSize, season.maxSize) * (isDetailedSnowflake ? 1.7 : 1);
             const color = season.colors[(Math.random() * season.colors.length) | 0];
             if (season.mode === 'fall') {
                 return {
                     x: rand(0, W), y: atTop ? rand(-40, 0) : rand(0, H),
-                    size, color,
+                    size, color, detailed: isDetailedSnowflake,
                     vy: rand(season.speedY[0], season.speedY[1]),
                     swayPhase: Math.random() * Math.PI * 2,
                     swaySpeed: rand(0.4, 1.1),
                     swayAmp: season.sway,
                     rot: Math.random() * Math.PI * 2,
-                    rotSpeed: season.rotate ? rand(-0.6, 0.6) : 0,
+                    // Every fall-mode shape tumbles now (petals/leaves genuinely benefit from it,
+                    // and it also makes a detailed snowflake crystal catch the light as it spins;
+                    // imperceptible on a plain round fleck either way, so no need to special-case it).
+                    rotSpeed: rand(-0.6, 0.6),
                 };
             }
             return { // wander (fireflies)
@@ -8270,20 +8281,84 @@ Thank you for supporting my small business and understanding the handmade nature
             requestAnimationFrame(() => { resize(); resizeTicking = false; });
         });
 
+        // A real petal silhouette -- symmetric almond/teardrop shape (bezier, not a plain
+        // ellipse) tapered to points at both ends, with a soft pale center vein so it reads as an
+        // actual flower petal rather than a squashed dot.
+        function drawPetalShape(size) {
+            ctx.beginPath();
+            ctx.moveTo(0, -size);
+            ctx.bezierCurveTo(size * 0.55, -size * 0.55, size * 0.55, size * 0.55, 0, size);
+            ctx.bezierCurveTo(-size * 0.55, size * 0.55, -size * 0.55, -size * 0.55, 0, -size);
+            ctx.closePath();
+            ctx.fill();
+            ctx.lineWidth = Math.max(0.4, size * 0.05);
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.beginPath();
+            ctx.moveTo(0, -size * 0.75);
+            ctx.lineTo(0, size * 0.75);
+            ctx.stroke();
+        }
+
+        // A rounded-lobe leaf silhouette (paired quadratic curves out to a point, back in to a
+        // stem notch at the base) with a visible center vein -- the same "give it a real edge and
+        // a vein" idea as the petal above, tuned for a leaf's more pointed, less symmetric shape.
+        function drawLeafShape(size) {
+            ctx.beginPath();
+            ctx.moveTo(0, -size);
+            ctx.quadraticCurveTo(size * 0.8, -size * 0.15, size * 0.42, size * 0.55);
+            ctx.quadraticCurveTo(size * 0.15, size * 0.85, 0, size);
+            ctx.quadraticCurveTo(-size * 0.15, size * 0.85, -size * 0.42, size * 0.55);
+            ctx.quadraticCurveTo(-size * 0.8, -size * 0.15, 0, -size);
+            ctx.closePath();
+            ctx.fill();
+            ctx.lineWidth = Math.max(0.4, size * 0.08);
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.beginPath();
+            ctx.moveTo(0, -size * 0.8);
+            ctx.lineTo(0, size * 0.8);
+            ctx.stroke();
+        }
+
+        // A real 6-armed crystal (three lines through the center, each with a pair of short
+        // side branches) rather than a dot -- reserved for the ~28% of winter flakes spawned
+        // "detailed" (see spawnParticle), so snowfall reads as a mix of fine flecks and the
+        // occasional bigger, actually-a-snowflake flake, the way real snow looks.
+        function drawSnowflakeShape(size) {
+            ctx.lineWidth = Math.max(0.6, size * 0.12);
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = ctx.fillStyle;
+            for (let i = 0; i < 6; i++) {
+                ctx.save();
+                ctx.rotate((Math.PI / 3) * i);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, -size);
+                ctx.moveTo(0, -size * 0.55);
+                ctx.lineTo(size * 0.28, -size * 0.72);
+                ctx.moveTo(0, -size * 0.55);
+                ctx.lineTo(-size * 0.28, -size * 0.72);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        const FALL_SHAPE_DRAWERS = { petal: drawPetalShape, leaf: drawLeafShape };
+
         function drawFallParticle(p) {
             const x = p.x + Math.sin(p.swayPhase) * p.swayAmp;
             ctx.save();
             ctx.translate(x, p.y);
             ctx.rotate(p.rot);
             ctx.fillStyle = p.color;
-            ctx.globalAlpha = 0.75;
-            if (season.rotate) {
-                // A slightly squashed ellipse rather than a plain circle, so spring/fall read as
-                // petals/leaves tumbling instead of just more snow.
-                ctx.beginPath();
-                ctx.ellipse(0, 0, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
-                ctx.fill();
+            ctx.globalAlpha = 0.8;
+
+            const shapeDrawer = FALL_SHAPE_DRAWERS[season.shape];
+            if (shapeDrawer) {
+                shapeDrawer(p.size);
+            } else if (p.detailed) {
+                drawSnowflakeShape(p.size);
             } else {
+                // Plain soft circle -- ordinary snow flecks (the majority of winter's particles).
                 ctx.beginPath();
                 ctx.arc(0, 0, p.size, 0, Math.PI * 2);
                 ctx.fill();
@@ -8294,12 +8369,19 @@ Thank you for supporting my small business and understanding the handmade nature
         function drawWanderParticle(p, t) {
             const tw = 0.4 + 0.6 * Math.sin(p.phase + t * p.twinkleSpeed);
             ctx.save();
+            ctx.translate(p.x, p.y);
+            // Oriented along its CURRENT drift heading, recomputed every frame -- not a value
+            // fixed once at spawn, so the glow's elongation actually tracks its real movement as
+            // it periodically changes direction (see wanderClock in the update loop below).
+            ctx.rotate(Math.atan2(p.vy, p.vx));
             ctx.globalAlpha = tw * 0.85;
             ctx.fillStyle = p.color;
             ctx.shadowColor = p.color;
             ctx.shadowBlur = 8;
+            // A gently elongated glow (not a perfect circle) oriented along its own drift
+            // heading -- reads a little more like a drifting firefly's light than a flat dot.
             ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, p.size * 1.3, p.size * 0.8, 0, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
         }
