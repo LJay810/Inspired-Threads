@@ -8,6 +8,15 @@ const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABAS
 // knows which Redis keys it cares about -- it builds them the exact same way
 // products.js / checkout.js do: `stock_${productId}_${metadataKey}` -- so this
 // endpoint just does a single Redis MGET and hands the raw numbers back.
+//
+// STOCK_POLL_MAX_KEYS -- keep this comfortably ABOVE index.html's own
+// STOCK_POLL_CHUNK_SIZE (pollLiveStock() there splits large catalogs into chunks of that
+// size and sends them as parallel requests). This used to be a hard 300 with no chunking
+// on the client side at all -- once the catalog grew past 300 tracked stock keys, EVERY
+// poll request came back a flat 400 here, which silently broke live stock/Golden-Ticket
+// updates catalog-wide (the client bailed out of the whole poll on any non-2xx response).
+const STOCK_POLL_MAX_KEYS = 500;
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method Not Allowed' });
@@ -20,7 +29,7 @@ export default async function handler(req, res) {
         // An empty keys array is always valid now, even with no resurrection session to look
         // up -- the Golden Ticket lookup below is unconditional, so a poll with nothing
         // stock-tracked to MGET still has real work to do (and a real answer to give back).
-        if (keys.length > 300) {
+        if (keys.length > STOCK_POLL_MAX_KEYS) {
             return res.status(400).json({ error: 'Too many keys requested' });
         }
         if (!keys.every((k) => typeof k === 'string' && k.startsWith('stock_'))) {

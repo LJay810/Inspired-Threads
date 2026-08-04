@@ -6794,6 +6794,13 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         // --- LIVE STOCK POLLING ---
+        // Must stay comfortably under api/stock.js's own per-request key cap (see
+        // STOCK_POLL_MAX_KEYS there) -- the catalog has already grown past a single request's
+        // worth (450+ tracked keys as of writing, still growing), so pollLiveStock() below
+        // splits into chunks of this size instead of hoping the catalog never grows past
+        // whatever cap is currently set.
+        const STOCK_POLL_CHUNK_SIZE = 250;
+
         // Walks everything we know about (window.productInventory, populated once at page
         // load) and lists every Redis key we'd need to re-check. Built the same way
         // products.js builds them server-side, so this always matches.
@@ -6821,15 +6828,36 @@ Thank you for supporting my small business and understanding the handmade nature
             const keyMap = collectAllStockKeys();
 
             try {
-                const response = await fetch('/api/stock', {
+                // CHUNKED: the catalog has already grown past what fits in a single request
+                // (450+ tracked keys as of writing, see STOCK_POLL_CHUNK_SIZE above) -- a request
+                // over api/stock.js's own per-request cap comes back a flat 400, and
+                // `if (!response.ok) return;` used to bail out of THIS ENTIRE FUNCTION before
+                // ever reaching the Golden Ticket check or the stock-badge refresh below, which
+                // is exactly why NEITHER was updating live no matter how long you waited --
+                // every single poll was silently failing outright, catalog-wide. Splitting into
+                // parallel chunks here means this can never happen again just because the
+                // catalog keeps growing.
+                const redisKeys = keyMap.map(k => k.redisKey);
+                const chunks = [];
+                for (let i = 0; i < redisKeys.length; i += STOCK_POLL_CHUNK_SIZE) {
+                    chunks.push(redisKeys.slice(i, i + STOCK_POLL_CHUNK_SIZE));
+                }
+                if (chunks.length === 0) chunks.push([]); // still need ONE request -- it's the only thing that carries the Golden Ticket check
+
+                const responses = await Promise.all(chunks.map(chunkKeys => fetch('/api/stock', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ keys: keyMap.map(k => k.redisKey) })
-                });
-                if (!response.ok) return;
+                    body: JSON.stringify({ keys: chunkKeys })
+                })));
+                if (responses.some(r => !r.ok)) return;
 
-                const data = await response.json();
-                if (!data || !data.stock) return;
+                const dataList = await Promise.all(responses.map(r => r.json()));
+                if (dataList.some(d => !d || !d.stock)) return;
+
+                // Every chunk's response carries its own (identical) Golden Ticket answer --
+                // riding along on api/stock.js's per-request unconditional lookup, see there --
+                // so only the first chunk's copy of it is actually needed here.
+                const data = { stock: Object.assign({}, ...dataList.map(d => d.stock)), goldenTicketProductId: dataList[0].goldenTicketProductId };
 
                 // GOLDEN TICKET (bystander effect): the flag can change without any stock number
                 // moving at all -- an admin flagging/unflagging one, or it flipping back off the
