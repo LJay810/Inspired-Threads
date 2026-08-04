@@ -1770,6 +1770,11 @@
             z-index: 50;
             transform-origin: center;
             transform: translate(-50%, -50%) rotate(var(--rot)) scale(0);
+            /* Promotes each spark to its own GPU compositor layer up front -- the box-shadow
+               itself still has to be rasterized (not free), but the transform/opacity keyframes
+               driving its position/fade run on the compositor thread instead of main, same as
+               forcing a layer with translateZ(0) but without the redundant no-op 3D transform. */
+            will-change: transform, opacity;
             /* Updated to 1.5 seconds for a dramatic linger */
             animation: spark-pop 1.5s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
         }
@@ -1791,17 +1796,16 @@
             border: 1px solid var(--accent-pink);
             box-shadow: 0 0 16px rgba(255,0,127,0.6), 0 6px 20px rgba(0,0,0,0.5);
             z-index: 4000; pointer-events: none;
+            /* Explicit GPU-layer promotion -- this element's transform gets rewritten by JS every
+               single animation frame (see animateFlight), so it benefits the most out of anything
+               on this page from being composited instead of re-painted from scratch each time. */
+            will-change: transform, opacity;
         }
-        .cart-flyer-spark {
-            position: fixed; top: 0; left: 0; width: 5px; height: 5px; border-radius: 50%;
-            background: var(--accent-pink); box-shadow: 0 0 8px var(--accent-pink);
-            z-index: 3999; pointer-events: none;
-            animation: cartFlyerSparkFade 0.5s ease-out forwards;
-        }
-        @keyframes cartFlyerSparkFade {
-            from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            to { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-        }
+        /* The per-frame trail sparks that used to live here as individual DOM elements are now
+           canvas-rendered (see spawnCartTrailSpark/cartTrailLoop in the script below) -- a real
+           GPU-cost fix (pre-baked sprite + drawImage instead of a fresh blurred box-shadow div
+           every frame), not just a density cut, so the trail stays exactly as dense on mobile as
+           on desktop. */
         /* Landing bump on the cart icon itself, timed to when the flyer arrives. */
         @keyframes cartBtnBump {
             0% { transform: scale(1); }
@@ -4257,6 +4261,86 @@ Thank you for supporting my small business and understanding the handmade nature
             return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
         }
 
+        // --- CART FLYER TRAIL (canvas-rendered) ---
+        // A dense per-frame spark trail was originally a DOM <div> per spark, each with a
+        // box-shadow blur -- fine on a desktop GPU, but genuinely expensive to keep recomputing on
+        // real mobile hardware regardless of HOW FEW you spawn per frame, since box-shadow blur
+        // isn't cheaply GPU-compositable the way transform/opacity are; cutting the density was
+        // trading away the look without fixing the actual cost driver. Same trick the portal
+        // intro already uses instead: bake the glow into a small sprite ONCE (a radial gradient,
+        // pre-rendered to an offscreen canvas), then every spark for the rest of the site's life
+        // is just a cheap drawImage() onto one shared, GPU-composited canvas layer -- no DOM
+        // nodes, no per-frame gradient/blur computation, full density on every device.
+        const CART_SPARK_COLORS = ['#ff007f', '#ff5fa8', '#ffd7ec']; // pink -> lighter pink -> near-white
+        const cartSparkSprites = CART_SPARK_COLORS.map((hex) => {
+            const c = document.createElement('canvas');
+            c.width = c.height = 32;
+            const g = c.getContext('2d');
+            const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+            grad.addColorStop(0, hex);
+            grad.addColorStop(0.45, hex);
+            grad.addColorStop(1, 'transparent');
+            g.fillStyle = grad;
+            g.beginPath(); g.arc(16, 16, 16, 0, Math.PI * 2); g.fill();
+            return c;
+        });
+
+        let cartTrailCanvas = null, cartTrailCtx = null, cartTrailRafId = 0;
+        const cartTrailSparks = []; // {x, y, size, spriteIdx, born, ttl}
+
+        // Built lazily on the first spark ever spawned, then kept around for the rest of the page
+        // life (empty/idle costs nothing) rather than created and torn down on every single flight.
+        function ensureCartTrailCanvas() {
+            if (cartTrailCanvas) return;
+            cartTrailCanvas = document.createElement('canvas');
+            cartTrailCanvas.style.cssText = 'position:fixed; inset:0; z-index:3998; pointer-events:none; will-change:contents;';
+            document.body.appendChild(cartTrailCanvas);
+            const resize = () => {
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                cartTrailCanvas.width = Math.round(window.innerWidth * dpr);
+                cartTrailCanvas.height = Math.round(window.innerHeight * dpr);
+                cartTrailCanvas.style.width = window.innerWidth + 'px';
+                cartTrailCanvas.style.height = window.innerHeight + 'px';
+                cartTrailCtx = cartTrailCanvas.getContext('2d');
+                cartTrailCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            };
+            resize();
+            window.addEventListener('resize', resize);
+        }
+
+        function spawnCartTrailSpark(x, y) {
+            ensureCartTrailCanvas();
+            cartTrailSparks.push({
+                x: x + (Math.random() - 0.5) * 14,
+                y: y + (Math.random() - 0.5) * 14,
+                size: 5 + Math.random() * 9,
+                spriteIdx: (Math.random() * cartSparkSprites.length) | 0,
+                born: performance.now(),
+                ttl: 550,
+            });
+            if (!cartTrailRafId) cartTrailRafId = requestAnimationFrame(cartTrailLoop);
+        }
+
+        function cartTrailLoop() {
+            if (!cartTrailCtx) { cartTrailRafId = 0; return; }
+            cartTrailCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            const now = performance.now();
+            for (let i = cartTrailSparks.length - 1; i >= 0; i--) {
+                const s = cartTrailSparks[i];
+                const age = now - s.born;
+                if (age >= s.ttl) { cartTrailSparks.splice(i, 1); continue; }
+                const k = age / s.ttl;
+                const scale = 1 - k * 0.5;
+                const w = s.size * scale * 2;
+                cartTrailCtx.globalAlpha = 1 - k;
+                cartTrailCtx.drawImage(cartSparkSprites[s.spriteIdx], s.x - w / 2, s.y - w / 2, w, w);
+            }
+            cartTrailCtx.globalAlpha = 1;
+            // Stops itself once the trail is empty (fire-and-forget, no lingering idle rAF loop
+            // between flights) -- spawnCartTrailSpark restarts it the next time it's needed.
+            cartTrailRafId = cartTrailSparks.length > 0 ? requestAnimationFrame(cartTrailLoop) : 0;
+        }
+
         // One leg of a flying-to-cart trip -- a quadratic-bezier arc with a tumble and a dense,
         // varied spark trail. Shared by both legs of flyToCart() below (source-to-icon, then
         // icon-to-real-thumbnail) so the two legs read as one continuous flight instead of two
@@ -4283,23 +4367,6 @@ Thank you for supporting my small business and understanding the handmade nature
                 const spinTurns = 0.5 + Math.random() * 0.4;
 
                 const startTime = performance.now();
-                const SPARK_COLORS = ['#ff007f', '#ff5fa8', '#ffd7ec']; // pink -> lighter pink -> near-white, for a sparkle mix instead of one flat dot color
-
-                // MOBILE: up to 3 new blurred-box-shadow <div>s created every single frame, across
-                // two chained legs, is real per-frame cost -- fine on a desktop GPU, but enough to
-                // drop frames on weaker mobile hardware. A choppy/frame-dropping animation doesn't
-                // just look laggy, it visually reads as teleporting between whichever two points
-                // happened to actually render, which is almost certainly what "snaps onto the
-                // Checkout button, then snaps to the thumbnail" actually was -- both were real
-                // points on the same continuous arc, just with the frames between them dropped.
-                // Cutting spark volume/cost (fewer per frame, lower spawn odds, a small fixed
-                // blur instead of one that scales with size) is a real fix for THAT, not just a
-                // cosmetic trim -- vs. the previous fix (a settling delay + instant scroll), which
-                // targeted a stale-measurement theory that evidently wasn't the actual cause.
-                // Desktop keeps the full density/glow exactly as before.
-                const isMobileWidth = window.matchMedia('(max-width: 900px)').matches;
-                const sparkSlots = isMobileWidth ? 1 : 3;
-                const sparkChance = isMobileWidth ? 0.4 : 0.6;
 
                 function frame(now) {
                     const t = Math.min((now - startTime) / duration, 1);
@@ -4314,31 +4381,13 @@ Thank you for supporting my small business and understanding the handmade nature
                     flyer.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scale})`;
                     flyer.style.opacity = t < 0.85 ? '1' : `${Math.max(0, 1 - (t - 0.85) / 0.15)}`;
 
-                    // Dense, varied trail on desktop -- lighter (see sparkSlots/sparkChance above)
-                    // on mobile, where the per-frame DOM+paint cost matters more than the density.
-                    for (let n = 0; n < sparkSlots; n++) {
-                        if (Math.random() >= sparkChance) continue;
-                        const spark = document.createElement('div');
-                        spark.className = 'cart-flyer-spark';
-                        // left/top, not transform -- the CSS keyframe animation on this class
-                        // already animates transform (fade + scale), and a CSS animation always
-                        // wins over an inline transform on the same property, so positioning via
-                        // transform here would get silently overwritten the instant it starts.
-                        const jitter = 7; // small spread so the trail reads as a cluster, not one exact line
-                        spark.style.left = `${x + (Math.random() - 0.5) * jitter * 2}px`;
-                        spark.style.top = `${y + (Math.random() - 0.5) * jitter * 2}px`;
-                        const size = 3 + Math.random() * 6;
-                        spark.style.width = `${size}px`;
-                        spark.style.height = `${size}px`;
-                        const color = SPARK_COLORS[(Math.random() * SPARK_COLORS.length) | 0];
-                        spark.style.background = color;
-                        // Blurred box-shadow is the single most expensive part of a spark to paint
-                        // -- a small FIXED blur on mobile instead of one that scales with size
-                        // keeps the sparkle without the growing GPU cost of larger, more blurred
-                        // ones. Desktop keeps the full size-scaled glow.
-                        spark.style.boxShadow = isMobileWidth ? `0 0 3px ${color}` : `0 0 ${size + 4}px ${color}`;
-                        document.body.appendChild(spark);
-                        setTimeout(() => spark.remove(), 550);
+                    // Full density on every device -- see spawnCartTrailSpark/cartTrailLoop above
+                    // for why this no longer needs a mobile-specific cut: canvas + pre-rendered
+                    // sprites cost the same whether this fires once or a dozen times, since there's
+                    // no per-spark DOM node and no per-frame gradient/blur recomputation either way.
+                    for (let n = 0; n < 3; n++) {
+                        if (Math.random() >= 0.6) continue;
+                        spawnCartTrailSpark(x, y);
                     }
 
                     if (t < 1) {
@@ -4371,16 +4420,10 @@ Thank you for supporting my small business and understanding the handmade nature
             const cartBtn = document.querySelector('.cart-btn');
             if (!sourceEl || !cartBtn) return;
 
-            // MOBILE: smaller bursts (see animateFlight's own matching mobile spark reduction for
-            // the full reasoning) -- each burst particle carries a triple box-shadow glow
-            // (.spark-particle), and several firing at once is real simultaneous paint work.
-            // Trimming the count here, on top of the trail already being lighter on mobile, is
-            // what actually fixes dropped-frame choppiness -- an earlier attempt at this bug fixed
-            // a stale-measurement theory (a settling delay + instant scroll) that, in hindsight,
-            // wasn't the real cause; that harmless instant-scroll change is kept below, the
-            // ineffective delay has been removed.
-            const isMobileWidth = window.matchMedia('(max-width: 900px)').matches;
-            const burstCounts = isMobileWidth ? { launch: 6, icon: 7, land: 8 } : { launch: 12, icon: 14, land: 16 };
+            // Same full burst counts on every device now -- the actual mobile choppiness was the
+            // per-frame TRAIL sparks (fixed by moving them to canvas, see animateFlight above),
+            // not these one-time bursts, so there's no more reason to hold this back on mobile.
+            const burstCounts = { launch: 12, icon: 14, land: 16 };
 
             const fromPoint = rectCenter(sourceEl);
             burstAt(fromPoint.x, fromPoint.y, burstCounts.launch);
