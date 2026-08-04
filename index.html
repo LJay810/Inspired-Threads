@@ -1582,15 +1582,21 @@
             0%, 100% { box-shadow: 0 0 6px rgba(124,58,237,0.55), 0 0 14px rgba(124,58,237,0.3); }
             50%      { box-shadow: 0 0 10px rgba(124,58,237,0.9), 0 0 22px rgba(124,58,237,0.45); }
         }
+        @keyframes drawerImgGlowGolden {
+            0%, 100% { box-shadow: 0 0 6px rgba(255,215,0,0.55), 0 0 14px rgba(255,215,0,0.3); }
+            50%      { box-shadow: 0 0 10px rgba(255,215,0,0.9), 0 0 22px rgba(255,215,0,0.5); }
+        }
         .drawer-item-img-wrap-dtf { border-color: var(--accent-pink); animation: drawerImgGlowPink 2.2s ease-in-out infinite; }
         .drawer-item-img-wrap-graveyard { border-color: var(--accent-graveyard); animation: drawerImgGlowGraveyard 2.2s ease-in-out infinite; }
+        .drawer-item-img-wrap-golden { border-color: #ffd700; animation: drawerImgGlowGolden 2.2s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {
             .drawer-item-img-wrap-dtf { animation: none; box-shadow: 0 0 8px rgba(255,0,127,0.5); }
             .drawer-item-img-wrap-graveyard { animation: none; box-shadow: 0 0 8px rgba(124,58,237,0.55); }
+            .drawer-item-img-wrap-golden { animation: none; box-shadow: 0 0 8px rgba(255,215,0,0.6); }
         }
 
         /* Desktop: stronger glow -- more noticeable at typical monitor viewing distance/size than
-           on a phone held close. Same two keyframes, just wider spread + higher peak opacity. */
+           on a phone held close. Same keyframes, just wider spread + higher peak opacity. */
         @media (min-width: 901px) {
             @keyframes drawerImgGlowPinkDesktop {
                 0%, 100% { box-shadow: 0 0 8px rgba(255,0,127,0.7), 0 0 18px rgba(255,0,127,0.4); }
@@ -1600,8 +1606,13 @@
                 0%, 100% { box-shadow: 0 0 8px rgba(124,58,237,0.7), 0 0 18px rgba(124,58,237,0.45); }
                 50%      { box-shadow: 0 0 16px rgba(124,58,237,1), 0 0 32px rgba(124,58,237,0.65); }
             }
+            @keyframes drawerImgGlowGoldenDesktop {
+                0%, 100% { box-shadow: 0 0 8px rgba(255,215,0,0.75), 0 0 18px rgba(255,215,0,0.45); }
+                50%      { box-shadow: 0 0 16px rgba(255,215,0,1), 0 0 32px rgba(255,215,0,0.7); }
+            }
             .drawer-item-img-wrap-dtf { animation-name: drawerImgGlowPinkDesktop; }
             .drawer-item-img-wrap-graveyard { animation-name: drawerImgGlowGraveyardDesktop; }
+            .drawer-item-img-wrap-golden { animation-name: drawerImgGlowGoldenDesktop; }
         }
 
         .drawer-item-details { flex: 1; min-width: 0; padding-right: 35px; }
@@ -1726,6 +1737,18 @@
             line-height: 1.4; background: rgba(255,0,127,0.1); border: 1px solid var(--accent-pink); color: var(--text-pure);
         }
         .buy3get1-banner.earned { background: rgba(52,211,153,0.1); border-color: var(--accent-graveyard-glow); }
+        .golden-ticket-cart-banner {
+            margin-bottom: 18px; padding: 10px 12px; border-radius: 8px; font-size: 0.75rem;
+            line-height: 1.4; background: rgba(255,215,0,0.12); border: 1px solid #ffd700; color: var(--text-pure);
+            animation: goldenTicketCartPulse 2.2s ease-in-out infinite;
+        }
+        @keyframes goldenTicketCartPulse {
+            0%, 100% { box-shadow: 0 0 0 rgba(255,215,0,0); }
+            50%      { box-shadow: 0 0 14px rgba(255,215,0,0.4); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .golden-ticket-cart-banner { animation: none; box-shadow: 0 0 8px rgba(255,215,0,0.3); }
+        }
 
         .discount-choice-box {
             align-items: center; gap: 10px; margin-bottom: 20px;
@@ -2167,6 +2190,12 @@
                 <span>🔒 Sign in so this cart follows you to any device.</span>
                 <button type="button" class="guest-cart-save-btn hover-target" onclick="closeAllDrawers(); openAuthModal();">Sign In</button>
             </div>
+
+            <!-- Hidden by default (see renderGoldenTicketCartBanner) -- only shown while the cart
+                 holds the current Golden Ticket product. Deliberately vague on price (see the
+                 comment above goldenTicketBanner in the shop-grid card render) -- the real 50%-off
+                 win is only ever decided server-side at checkout. -->
+            <div class="golden-ticket-cart-banner" id="goldenTicketCartBanner" style="display:none;"></div>
 
             <!-- Hidden by default (see renderBuy3Get1FreeBanner) -- only shown once the cart has
                  at least one Thread-apparel-with-a-design in it, whether or not the deal has
@@ -5005,7 +5034,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         // without needing to re-derive it from productId at render time.
                         const categoryId = window.productCategoryId ? window.productCategoryId[productId] : null;
                         baseItemId = Date.now();
-                        cart.push({ id: baseItemId, name: baseItemName, price, priceId, size, color, quantity: 1, image: imageUrl, isDtf, categoryId });
+                        cart.push({ id: baseItemId, name: baseItemName, price, priceId, size, color, quantity: 1, image: imageUrl, isDtf, categoryId, productId });
                     }
 
                     // PUSH #2: THE ATTACHED DTF PRINT (DUAL PAYLOAD) -- always a DTF design by definition
@@ -6578,6 +6607,21 @@ Thank you for supporting my small business and understanding the handmade nature
             return { qualifyingCount, freeCount, remaining, totalFreeValue };
         }
 
+        // GOLDEN TICKET (cart edition): purely informational -- never claims a literal price
+        // (see the shop-grid banner's own comment for why) since whether THIS shopper actually
+        // wins the discount is only ever decided by api/checkout.js's Redis claim at the moment
+        // they check out, not by having the item sitting in their cart right now.
+        function renderGoldenTicketCartBanner() {
+            const banner = document.getElementById('goldenTicketCartBanner');
+            if (!banner) return;
+            const hasGoldenItem = !!window._currentGoldenTicketProductId
+                && cart.some(item => item.productId === window._currentGoldenTicketProductId);
+            banner.style.display = hasGoldenItem ? 'block' : 'none';
+            if (hasGoldenItem) {
+                banner.innerHTML = `🎫 <strong>Golden Ticket item in your cart!</strong> Be the first to check out for 50% off it.`;
+            }
+        }
+
         function renderBuy3Get1FreeBanner() {
             const banner = document.getElementById('buy3Get1FreeBanner');
             if (!banner) return;
@@ -6788,9 +6832,16 @@ Thank you for supporting my small business and understanding the handmade nature
                 // numbers below the way a resurrection is. window._currentGoldenTicketProductId is
                 // set once in initShopEngine() from each card's own already-fetched metadata;
                 // comparing against the freshly-polled value here is what makes an already-open
-                // tab notice a change instead of needing a manual refresh.
+                // tab notice a change instead of needing a manual refresh. updateCartUI() rides
+                // along too (AFTER awaiting -- initShopEngine is itself async, and only sets
+                // window._currentGoldenTicketProductId partway through its own render loop, so
+                // firing this un-awaited would read a stale value) -- if the golden item is
+                // already sitting in an open cart drawer, its glow/banner should flip the instant
+                // this poll notices, not wait for the next cart mutation (initShopEngine() only
+                // re-renders the shop grid, not the cart).
                 if (data.goldenTicketProductId !== undefined && data.goldenTicketProductId !== window._currentGoldenTicketProductId) {
-                    initShopEngine();
+                    await initShopEngine();
+                    updateCartUI();
                     return;
                 }
 
@@ -7044,11 +7095,19 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         function simpleCardInnerHTML(item) {
+            // GOLDEN TICKET (bystander effect, cart edition): item.productId is stamped on at
+            // add-to-cart time (see the two cart.push() call sites), compared against the SAME
+            // window._currentGoldenTicketProductId the shop-grid cards use -- so this glow/badge
+            // tracks reality live off the 10s poll (see pollLiveStock), not a snapshot from
+            // whenever the item was actually added.
+            const isGoldenTicketItem = !item.resurrection && !!item.productId && item.productId === window._currentGoldenTicketProductId;
             const metaText = item.resurrection
                 ? '🪦 Resurrection Pre-Order'
                 : item.size ? `${item.size} / ${item.color}` : (item.name.includes('[ATTACHED PRINT]') ? 'Transfer Add-on' : 'Standard Specifications');
             const itemAccentClass = item.resurrection
                 ? 'drawer-item-img-wrap-graveyard'
+                : isGoldenTicketItem
+                ? 'drawer-item-img-wrap-golden'
                 : (item.isDtf || item.name.includes('[ATTACHED PRINT]')) ? 'drawer-item-img-wrap-dtf' : '';
             const imageHtml = item.image
                 ? `<div class="drawer-item-img-wrap ${itemAccentClass}"><img class="drawer-item-img" src="${item.image}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
@@ -7056,8 +7115,8 @@ Thank you for supporting my small business and understanding the handmade nature
             return `
                 ${imageHtml}
                 <div class="drawer-item-details">
-                    <h4 style="color: ${item.resurrection ? 'var(--accent-graveyard)' : item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
-                    <div class="drawer-item-meta">${metaText}</div>
+                    <h4 style="color: ${item.resurrection ? 'var(--accent-graveyard)' : isGoldenTicketItem ? '#ffd700' : item.name.includes('[ATTACHED PRINT]') ? 'var(--accent-pink)' : 'var(--text-pure)'}">${item.name}</h4>
+                    <div class="drawer-item-meta">${metaText}${isGoldenTicketItem ? ' · 🎫 50% Off' : ''}</div>
                     <div class="drawer-item-price"></div>
                 </div>
                 <button type="button" class="remove-item hover-target">✕</button>
@@ -7071,15 +7130,16 @@ Thank you for supporting my small business and understanding the handmade nature
             // below already names the design, so the title would otherwise say it twice. Only the
             // DISPLAYED name changes; garment.name itself (used by BOGO/checkout matching) is untouched.
             const displayName = garment.name.replace(/ \(w\/ .+\)$/, '');
+            const isGoldenTicketItem = !!garment.productId && garment.productId === window._currentGoldenTicketProductId;
             const metaText = garment.size ? `${garment.size} / ${garment.color}` : 'Standard Specifications';
             const imageHtml = garment.image
-                ? `<div class="drawer-item-img-wrap"><img class="drawer-item-img" src="${garment.image}" alt="${escapeHtml(displayName)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
+                ? `<div class="drawer-item-img-wrap ${isGoldenTicketItem ? 'drawer-item-img-wrap-golden' : ''}"><img class="drawer-item-img" src="${garment.image}" alt="${escapeHtml(displayName)}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>`
                 : '';
             return `
                 ${imageHtml}
                 <div class="drawer-item-details">
-                    <h4>${escapeHtml(displayName)}</h4>
-                    <div class="drawer-item-meta">${metaText}</div>
+                    <h4${isGoldenTicketItem ? ' style="color:#ffd700;"' : ''}>${escapeHtml(displayName)}</h4>
+                    <div class="drawer-item-meta">${metaText}${isGoldenTicketItem ? ' · 🎫 50% Off' : ''}</div>
                     <div class="drawer-item-price"></div>
                     <div class="drawer-item-attached"></div>
                 </div>
@@ -7091,6 +7151,7 @@ Thank you for supporting my small business and understanding the handmade nature
             const cartItemsContainer = document.getElementById('cartItems');
             const cartNavCount = document.getElementById('cartNavCount');
             updateGuestCartSaveBanner();
+            renderGoldenTicketCartBanner();
             renderBuy3Get1FreeBanner();
             renderDiscountChoiceOptions(cart.reduce((sum, item) => sum + (item.price * item.quantity), 0));
 
@@ -7367,7 +7428,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 existingBase.quantity += 1;
             } else {
                 const categoryId = window.productCategoryId ? window.productCategoryId[item.productId] : null;
-                cart.push({ id: Date.now(), name: baseItemName, price: item.price, priceId: item.priceId, size: item.size, color: item.color, quantity: 1, image: item.image, isDtf: item.isDtf, categoryId });
+                cart.push({ id: Date.now(), name: baseItemName, price: item.price, priceId: item.priceId, size: item.size, color: item.color, quantity: 1, image: item.image, isDtf: item.isDtf, categoryId, productId: item.productId });
             }
 
             // Push Attached DTF to Cart -- always a DTF design by definition
