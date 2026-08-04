@@ -4962,6 +4962,19 @@ Thank you for supporting my small business and understanding the handmade nature
                     // just a landing pulse (see flyToCart's onLand below).
                     if (isNewLine && imgWrap) imgWrap.style.visibility = 'hidden';
 
+                    // Scrolls .drawer-body (the nearest scrollable ancestor -- scrollIntoView
+                    // walks up to find it automatically) to bring this item into view BEFORE the
+                    // second leg lands on it. Without this, a cart with enough items that the new
+                    // one landed below the drawer's visible scroll fold would fly toward a real
+                    // but invisible point -- the landing burst would show up hovering over the
+                    // subtotal/total instead of the actual thumbnail. 'nearest' (not 'center') so
+                    // this is a no-op whenever the item's already fully visible, which is the
+                    // common case for a short cart -- no unnecessary scroll jump. Works correctly
+                    // even while the drawer is still off-screen (translate() doesn't affect
+                    // scrollable content, only paint position), so this can safely run before, or
+                    // in parallel with, the drawer's own open transition below.
+                    if (cartItemNode) cartItemNode.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
                     // Opened HERE, in parallel with flyToCart's first leg below -- not awaited
                     // first. That first leg alone (850ms) takes noticeably longer than the
                     // drawer's own 0.4s slide-in transition, so by the time the second leg starts,
