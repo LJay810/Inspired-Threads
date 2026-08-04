@@ -566,13 +566,20 @@
            existing 900px breakpoint (mobile uses max-width:900px elsewhere) so none of this
            touches mobile's rendering at all, not even incidentally. */
         @media (min-width: 901px) {
-            /* Header/subtitle on the left, the review-submission card on the right -- same row,
-               vertically aligned at the top like the reference mockup. flex-grow on the text side
-               (vs. a fixed width on the form side) means this stays correct no matter how long
-               the subtitle text ever gets. */
-            .reviews-header-row { display: flex; align-items: flex-start; gap: 40px; margin-bottom: 50px; }
-            .reviews-header-text { flex: 1 1 auto; max-width: 640px; }
-            .reviews-header-row .review-submission-area { flex: 0 0 420px; margin: 0; }
+            /* "Reviews" + the review-submission card share a top row (title left, form right,
+               same as before) -- but the subtitle now gets its OWN full-width row underneath,
+               centered, sitting right above the review grid. Grid (not flex) specifically because
+               this L-shaped span -- two columns on row 1, one full-width centered row 2 -- isn't
+               something flexbox can express without an extra wrapper; named grid-areas do it
+               directly against the same three flat DOM children mobile already stacks in order. */
+            .reviews-header-row {
+                display: grid; grid-template-columns: 1fr 420px; grid-template-areas: "title form" "subtitle subtitle";
+                column-gap: 40px; row-gap: 20px; align-items: start; margin-bottom: 50px;
+            }
+            .reviews-header-row > .section-header { grid-area: title; margin-bottom: 0; }
+            .reviews-subtitle-wrap { grid-area: subtitle; }
+            .reviews-subtitle-wrap .text-glass-bg { text-align: center; }
+            .reviews-header-row .review-submission-area { grid-area: form; margin: 0; }
 
             /* Same fixed-height, dark-background, cropped-to-fill treatment as the DTF product
                cards (.product-image-zone) -- makes review photos uniform instead of each one
@@ -2800,20 +2807,23 @@
              whole reviews-grid -- desktop sits it beside the header/subtitle as a two-column row
              (see .reviews-header-row's desktop-only rule below), mobile just stacks it right
              after the subtitle, ahead of every review card, instead of at the very bottom. -->
+        <!-- Header/subtitle/form are three flat siblings here (not subtitle nested inside a
+             header-text wrapper) specifically so desktop's grid-areas rule below can place the
+             subtitle on its OWN centered row underneath title+form, while mobile -- which applies
+             no grid/flex here at all -- just stacks all three in this exact DOM order, unchanged
+             from before. -->
         <div class="reviews-header-row">
-            <div class="reviews-header-text">
-                <h2 class="section-header reveal">Reviews</h2>
-                <!-- Blur (text-glass-bg) is deliberately on an INNER element, separate from the
-                     outer .reveal wrapper that gets transform/opacity-transitioned on
-                     scroll-into-view -- Android Chrome flickers/artifacts when a backdrop-filter
-                     blur sits on the same element as an active CSS transform transition (it has
-                     to re-composite the blurred backdrop mid-transition). Splitting them onto two
-                     elements avoids that entirely, same visual result. -->
-                <div class="reveal">
-                    <p class="text-glass-bg" style="color: var(--text-muted); font-size: 0.95rem; margin-top: 8px;">
-                        What real customers say about Inspired Threads.
-                    </p>
-                </div>
+            <h2 class="section-header reveal">Reviews</h2>
+            <!-- Blur (text-glass-bg) is deliberately on an INNER element, separate from the
+                 outer .reveal wrapper that gets transform/opacity-transitioned on
+                 scroll-into-view -- Android Chrome flickers/artifacts when a backdrop-filter
+                 blur sits on the same element as an active CSS transform transition (it has
+                 to re-composite the blurred backdrop mid-transition). Splitting them onto two
+                 elements avoids that entirely, same visual result. -->
+            <div class="reveal reviews-subtitle-wrap">
+                <p class="text-glass-bg" style="color: var(--text-muted); font-size: 0.95rem; margin-top: 8px;">
+                    What real customers say about Inspired Threads.
+                </p>
             </div>
             <div class="review-submission-area" id="reviewSubmissionArea"></div>
         </div>
