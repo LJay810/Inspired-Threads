@@ -1882,7 +1882,25 @@
             .hero-content { display: flex; flex-direction: column; align-items: center; width: 100%; padding-right: 0; box-sizing: border-box; margin-top: 0; }
             .hero-title { font-size: 1.9rem; margin-bottom: 15px; overflow-wrap: break-word; }
             .tiktok-btn { padding: 16px 45px; font-size: 1.15rem; }
-            .filter-bar { justify-content: center; }
+            /* Shop controls, reorganized for mobile: header gets its own centered row (forced
+               via flex-basis:100%), then the trust badge + size chart pills fall naturally onto
+               a shared centered row together (nothing 100%-wide between them), then the category
+               filters get their own row below as a symmetric 2-column grid -- CSS Grid (not
+               flex-wrap) specifically so every pill in a row shares the SAME width AND the same
+               height automatically, however many categories exist or however long their labels
+               run, instead of the old flex-wrap's ragged, left-hugging, uneven-width rows. */
+            .shop-controls { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px; }
+            .section-header { flex: 0 0 100%; text-align: center; margin-bottom: 4px; }
+            .trust-badge { margin: 0; }
+            .size-chart-btn { margin: 0; }
+            .filter-bar {
+                flex: 0 0 100%; display: grid; grid-template-columns: repeat(2, 1fr);
+                gap: 10px; margin-top: 10px;
+            }
+            .filter-bar .filter-btn, .filter-bar .dropdown-toggle { width: 100%; text-align: center; padding: 12px 10px; font-size: 0.68rem; }
+            .filter-bar .dropdown-toggle { padding-right: 28px; }
+            .filter-bar .dropdown { width: 100%; }
+            #mainDtfSearch { grid-column: 1 / -1; margin-top: 4px; }
             
             /* Bottom sheet instead of a side panel on mobile: slides up from the bottom edge,
                sized to fit its own content (not a full 100vh side panel that pins the footer to
