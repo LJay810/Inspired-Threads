@@ -1886,8 +1886,14 @@
            Supabase Realtime (see subscribeLiveStatusRealtime() below) -- no polling, no page
            refresh. Fixed + centered like the install-prompt-card, but slides down from the top
            instead of up from the bottom. */
+        /* top is set dynamically by positionLiveStatusBanner() in JS, not a fixed value here --
+           the header's real height varies (desktop: one row; mobile: wraps to 2+ rows depending
+           on viewport width, same "different nav-tab wrap points" variability already noted
+           elsewhere in this file for the header itself) so a hardcoded px offset drifts out of
+           sync and the banner ends up sitting ON TOP of the nav instead of below it. This value
+           is just a same-ballpark fallback for the instant before that JS runs. */
         .live-status-banner {
-            position: fixed; top: 14px; left: 50%; z-index: 1500;
+            position: fixed; top: 100px; left: 50%; z-index: 1500;
             display: flex; align-items: center; gap: 12px;
             max-width: min(92vw, 460px);
             background: rgba(15, 15, 15, 0.97); border: 1px solid var(--accent-pink); border-radius: 40px;
@@ -1895,7 +1901,7 @@
             box-shadow: 0 10px 40px rgba(0,0,0,0.6), 0 0 25px rgba(255,0,127,0.35);
             cursor: none; opacity: 0; pointer-events: none;
             transform: translate(-50%, -140%);
-            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, top 0.3s ease;
         }
         .live-status-banner.active { opacity: 1; pointer-events: all; transform: translate(-50%, 0); }
         .live-status-dot {
@@ -1911,9 +1917,39 @@
         .live-status-label { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 900; letter-spacing: 0.12em; color: #ff2d55; }
         .live-status-note { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .live-status-cta { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; color: var(--accent-pink); text-transform: uppercase; white-space: nowrap; flex-shrink: 0; margin-left: 4px; }
+        /* Mobile: NOT a floating overlay -- home's hero cards stack full-height right at the top
+           of the page there, so a fixed pill has nowhere open to float without sitting on top of
+           one of them. Instead this becomes a full-width bar in normal document flow, positioned
+           in the DOM right before #home (see the HTML) -- pushing the page's own content down
+           when it appears rather than covering it. Animated open/closed via max-height, same
+           trick already used by .policy-panel's accordion elsewhere in this file (no native way
+           to transition to/from an unknown "auto" height, so this animates toward a fixed cap
+           instead). JS sets margin-top (not `top` -- that's a no-op on a non-fixed/absolute
+           element) to clear the fixed header's real height; see positionLiveStatusBanner(). */
         @media (max-width: 900px) {
-            .live-status-banner { top: 8px; padding: 8px 14px 8px 12px; gap: 8px; }
-            .live-status-cta { display: none; } /* not enough room on small phones -- tapping the banner still works */
+            .live-status-banner {
+                position: relative; left: auto; transform: none;
+                width: 100%; max-width: 100%; border-radius: 0;
+                border-left: none; border-right: none; border-top: none; box-shadow: none;
+                justify-content: center; padding: 10px 16px;
+                max-height: 0; opacity: 1; overflow: hidden; pointer-events: none;
+                transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1), margin-top 0.3s ease;
+            }
+            /* Overrides the base .active rule's transform: translate(-50%, 0) -- that's the
+               desktop centering trick (paired with left: 50%), and without cancelling it here
+               it still wins on mobile once .active is added (higher specificity than the plain
+               .live-status-banner override above), shoving this full-width bar half its own
+               width off-screen to the left. */
+            .live-status-banner.active { max-height: 90px; pointer-events: all; transform: none; }
+        }
+        /* A little bigger on desktop, same idiom as the social icons/TikTok button's own
+           desktop-only size bump elsewhere in this file. */
+        @media (min-width: 901px) {
+            .live-status-banner { padding: 13px 26px 13px 18px; gap: 14px; max-width: 520px; }
+            .live-status-dot { width: 12px; height: 12px; }
+            .live-status-label { font-size: 0.8rem; }
+            .live-status-note { font-size: 0.85rem; }
+            .live-status-cta { font-size: 0.75rem; }
         }
 
         /* Small "LIVE" chip pinned to the corner of the hero TikTok button, same on/off
@@ -7185,11 +7221,48 @@ Thank you for supporting my small business and understanding the handmade nature
         let liveStatusChannel = null;
         let currentLiveStatus = { is_live: false };
 
+        // The header's real height varies (desktop: one row; mobile: wraps to 2+ rows depending
+        // on viewport width -- same wrap-point variability already called out for the header
+        // itself elsewhere in this file), so the banner's resting position is measured against
+        // the header's ACTUAL rendered height rather than a fixed px guess that would drift out
+        // of sync and land the banner back on top of the nav (exactly what was happening before).
+        function positionLiveStatusBanner() {
+            const banner = document.getElementById('liveStatusBanner');
+            const header = document.querySelector('header');
+            if (!banner || !header) return;
+            // Viewport-width check, not `isDesktop` -- that flag tests pointer precision
+            // (mouse vs. touch), not screen size, and the two don't always agree (e.g. a
+            // touch-only device can still report a fine pointer). Same 900px breakpoint the
+            // rest of the site already keys off (see updateBodyScrollLock).
+            const isMobileWidth = window.matchMedia('(max-width: 900px)').matches;
+            const headerHeight = header.getBoundingClientRect().height;
+            if (isMobileWidth) {
+                // Mobile is an in-flow full-width bar (see the .live-status-banner CSS), not a
+                // fixed overlay -- `top` does nothing for a normally-flowing element, margin-top
+                // is what actually clears the fixed header's real (wraps-to-2-rows) height.
+                banner.style.top = '';
+                banner.style.marginTop = `${Math.round(headerHeight)}px`;
+            } else {
+                banner.style.marginTop = '';
+                banner.style.top = `${Math.round(headerHeight + 16)}px`;
+            }
+        }
+
+        let bannerPositionTicking = false;
+        function onBannerResizeThrottled() {
+            if (bannerPositionTicking) return;
+            bannerPositionTicking = true;
+            requestAnimationFrame(() => { positionLiveStatusBanner(); bannerPositionTicking = false; });
+        }
+        window.addEventListener('resize', onBannerResizeThrottled);
+        positionLiveStatusBanner(); // as early as possible, before any data has even loaded
+
         // Drives the banner/chip on/off animation -- both are just a CSS class toggle (see
         // .live-status-banner.active / .tiktok-btn-live-chip.active), so going live and ending
         // live both animate identically whether this fires from the initial page load or a live
         // Realtime push from admin.html.
         function applyLiveStatus(status, opts = {}) {
+            positionLiveStatusBanner(); // re-measure right before any visibility change, in case the header's wrap/height shifted since the last check
             const wasLive = !!currentLiveStatus.is_live;
             currentLiveStatus = status || { is_live: false };
             const isLive = !!currentLiveStatus.is_live;
