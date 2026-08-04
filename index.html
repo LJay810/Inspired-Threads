@@ -3950,6 +3950,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 shopGrid.innerHTML = '';
                 window.productInventory = {};
                 window.productCategoryId = {}; // productId -> current categoryId, used by pollLiveStock to spot a Graveyard resurrection
+                window._currentGoldenTicketProductId = null; // reset here so pollLiveStock correctly notices "no longer any golden ticket at all," not just a switch between two products
                 window.dtfRegistry = []; // Reset local memory
 
                 // Cart Addons: simple, cheap items ("Wait! One more cute thing?") shown only in
@@ -4017,6 +4018,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     // claim) -- this banner text is honest regardless of any race, never a literal
                     // "$0.00" price tag that could go stale the instant someone else wins it first.
                     const isGoldenTicket = product.metadata && product.metadata.golden_ticket === 'true';
+                    if (isGoldenTicket) window._currentGoldenTicketProductId = product.id; // read back by pollLiveStock() to detect a change
                     const goldenTicketBanner = isGoldenTicket
                         ? `<div class="golden-ticket-banner">🎫 Golden Ticket — FREE for the first buyer!</div>`
                         : '';
@@ -4240,10 +4242,6 @@ Thank you for supporting my small business and understanding the handmade nature
         function flyToCart(sourceEl, imageUrl) {
             const cartBtn = document.querySelector('.cart-btn');
             if (!sourceEl || !cartBtn) return;
-            // Respects the same accessibility signal the account-glow-pulse animation and the
-            // seasonal particle overlay both already do elsewhere in this file.
-            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
             const startRect = sourceEl.getBoundingClientRect();
             const endRect = cartBtn.getBoundingClientRect();
             const startX = startRect.left + startRect.width / 2;
@@ -6561,6 +6559,18 @@ Thank you for supporting my small business and understanding the handmade nature
                 const data = await response.json();
                 if (!data || !data.stock) return;
 
+                // GOLDEN TICKET (bystander effect): the flag can change without any stock number
+                // moving at all -- an admin flagging/unflagging one, or it flipping back off the
+                // instant someone else claims it -- so this can't be detected from the stock
+                // numbers below the way a resurrection is. window._currentGoldenTicketProductId is
+                // set once in initShopEngine() from each card's own already-fetched metadata;
+                // comparing against the freshly-polled value here is what makes an already-open
+                // tab notice a change instead of needing a manual refresh.
+                if (data.goldenTicketProductId !== undefined && data.goldenTicketProductId !== window._currentGoldenTicketProductId) {
+                    initShopEngine();
+                    return;
+                }
+
                 // GRAVEYARD RESURRECTION (bystander effect): a Graveyard product's stock
                 // crossing 0 -> positive means someone else's resurrection payment just cleared.
                 // Collected here rather than acted on inline, since a full shop refresh (the
@@ -8056,10 +8066,6 @@ Thank you for supporting my small business and understanding the handmade nature
     (() => {
         const canvas = document.getElementById('seasonalParticlesCanvas');
         if (!canvas) return;
-
-        // Purely decorative -- same accessibility signal the account-glow-pulse animation
-        // already respects elsewhere in this file.
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
         const ctx = canvas.getContext('2d', { alpha: true });
         const IS_MOBILE_WIDTH = window.matchMedia('(max-width: 900px)').matches;

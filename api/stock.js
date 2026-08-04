@@ -1,5 +1,7 @@
 const { Redis } = require('@upstash/redis');
 const kv = Redis.fromEnv();
+const { createClient } = require('@supabase/supabase-js');
+const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // Lightweight, Stripe-free endpoint so the storefront can poll live stock counts
 // frequently without re-hitting the Stripe API on every poll. The client already
@@ -36,6 +38,18 @@ export default async function handler(req, res) {
         });
 
         const responseBody = { stock };
+
+        // GOLDEN TICKET: piggybacked on this same already-polled endpoint (same reasoning as the
+        // resurrection check below -- this project is already at Vercel Hobby's 12-function cap)
+        // so every visitor's browser can notice a golden ticket appearing, moving to a different
+        // product, or being claimed and cleared -- WITHOUT a dedicated Realtime subscription on
+        // the high-traffic products table, which would broadcast every routine stock/price edit
+        // to every connected tab. One indexed lookup (products_golden_ticket_idx), unconditional
+        // (not gated behind a query param) since it's cheap and every poll already happens every
+        // 20s regardless -- see pollLiveStock() in index.html for the client-side comparison
+        // that decides whether this actually changed anything worth a re-render.
+        const { data: goldenRow } = await supabaseAdmin.from('products').select('id').eq('is_golden_ticket', true).maybeSingle();
+        responseBody.goldenTicketProductId = (goldenRow && goldenRow.id) || null;
 
         // Riding along on this same already-polled endpoint (rather than a new serverless
         // function -- this project is already at Vercel Hobby's 12-function cap) so the buyer's
