@@ -44,6 +44,10 @@ export default async function handler(req, res) {
                     sort_order: (product.sort_order != null ? product.sort_order : 99).toString(),
                 };
                 if (product.sub_category_id) metadata.sub_category = product.sub_category_id;
+                // The shimmering "someone can win this free" treatment (see index.html's
+                // golden-ticket-card CSS) -- only ever true for at most one product at a time,
+                // enforced in api/admin-products.js.
+                if (product.is_golden_ticket) metadata.golden_ticket = 'true';
                 // Graveyard only: the category this design lived in before it sold out, so the
                 // embedded Admin Tools restock panel can show "originally: X" without guessing --
                 // see the "Restore from Graveyard" flow in index.html/api/admin-restock.js.

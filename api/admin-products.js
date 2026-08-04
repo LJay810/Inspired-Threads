@@ -99,9 +99,16 @@ export default async function handler(req, res) {
         }
 
         if (action === 'create') {
-            const { name, description, category_id, price_dollars, images, dtf_placement, sub_category_id, stock, variants, extra_metadata, sort_order, published } = req.body;
+            const { name, description, category_id, price_dollars, images, dtf_placement, sub_category_id, stock, variants, extra_metadata, sort_order, published, is_golden_ticket } = req.body;
             if (!name || !category_id || price_dollars === undefined) {
                 return res.status(400).json({ error: 'Missing name, category_id, or price_dollars.' });
+            }
+
+            // Only ever ONE product golden at a time -- see the identical comment in the
+            // 'update' action below.
+            if (is_golden_ticket) {
+                const { error: clearErr } = await supabaseAdmin.from('products').update({ is_golden_ticket: false }).eq('is_golden_ticket', true);
+                if (clearErr) throw clearErr;
             }
             const priceCents = Math.round(parseFloat(price_dollars) * 100);
             if (!Number.isInteger(priceCents) || priceCents <= 0) {
@@ -144,6 +151,7 @@ export default async function handler(req, res) {
                 stock: category.card_layout_type === 'variant-apparel' ? null : (stock !== undefined && stock !== null ? parseInt(stock, 10) : null),
                 extra_metadata: extra_metadata && typeof extra_metadata === 'object' ? extra_metadata : {},
                 published: published !== undefined ? !!published : true,
+                is_golden_ticket: !!is_golden_ticket,
             }).select().single();
             if (insErr) throw insErr;
 
@@ -168,7 +176,7 @@ export default async function handler(req, res) {
         }
 
         if (action === 'update') {
-            const { id, name, description, category_id, price_dollars, images, dtf_placement, sub_category_id, stock, variants, published, extra_metadata, sort_order } = req.body;
+            const { id, name, description, category_id, price_dollars, images, dtf_placement, sub_category_id, stock, variants, published, extra_metadata, sort_order, is_golden_ticket } = req.body;
             if (!id) return res.status(400).json({ error: 'Missing id.' });
 
             const { data: existing, error: fetchErr } = await supabaseAdmin.from('products').select('*').eq('id', id).single();
@@ -185,6 +193,16 @@ export default async function handler(req, res) {
             if (published !== undefined) updateFields.published = !!published;
             if (extra_metadata !== undefined) updateFields.extra_metadata = (extra_metadata && typeof extra_metadata === 'object') ? extra_metadata : {};
             if (Number.isInteger(sort_order)) updateFields.sort_order = sort_order;
+            if (is_golden_ticket !== undefined) {
+                updateFields.is_golden_ticket = !!is_golden_ticket;
+                // Only ever ONE product golden at a time -- clearing it here (rather than
+                // trusting the admin to remember to un-flag whichever one currently has it)
+                // means "make THIS one the Golden Ticket" is always a single, safe click.
+                if (is_golden_ticket) {
+                    const { error: clearErr } = await supabaseAdmin.from('products').update({ is_golden_ticket: false }).eq('is_golden_ticket', true).neq('id', id);
+                    if (clearErr) throw clearErr;
+                }
+            }
 
             let priceChanged = false;
             if (price_dollars !== undefined) {

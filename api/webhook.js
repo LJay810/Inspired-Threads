@@ -4,7 +4,7 @@ const kv = Redis.fromEnv();
 
 const { createClient } = require('@supabase/supabase-js');
 const { effectiveTierName, evaluateOrderBadges, isAnniversaryDay } = require('../lib/loyalty');
-const { notifyRestock, notifyPackingAlert, notifyResurrection } = require('../lib/notify');
+const { notifyRestock, notifyPackingAlert, notifyResurrection, notifyGoldenTicketClaimed } = require('../lib/notify');
 const { unpackCartItemMetadata } = require('../lib/cart-metadata');
 const { mirrorStockToCatalog } = require('../lib/catalog-stock');
 const { maybeMoveToGraveyard } = require('../lib/graveyard');
@@ -200,6 +200,52 @@ export default async function handler(req, res) {
         }
       }
 
+      // GOLDEN TICKET: an admin-flagged product just went to whoever checked out with it in
+      // their cart first (see is_golden_ticket in sql/golden_ticket_schema.sql and the Redis
+      // claim reservation in checkout.js). Flips the flag back off -- so it stops rendering as
+      // golden and stops being winnable -- and alerts the shop owner. Works for guests too
+      // (unlike the loyalty/packing-alert blocks below, this never gated on supabase_user_id
+      // being set at checkout) -- falls back to Stripe's own collected email for a guest winner.
+      // Idempotency here is naturally covered by this whole handler's outer eventKey guard for
+      // the common case; a rare Stripe redelivery after a LATER step fails could re-send this
+      // one email, same accepted tradeoff the packing-alert/resurrection notifications above
+      // already make rather than adding a dedicated one-time-claim marker for a notification.
+      if (metadata.golden_ticket_won === 'true' && metadata.golden_ticket_product_id && supabaseAdmin) {
+        try {
+          const { data: wonProduct } = await supabaseAdmin
+            .from('products')
+            .update({ is_golden_ticket: false })
+            .eq('id', metadata.golden_ticket_product_id)
+            .select('name, images')
+            .single();
+
+          let winnerUsername = 'Guest';
+          let winnerEmail = session.customer_details && session.customer_details.email;
+          if (metadata.supabase_user_id) {
+            const { data: winnerProfile } = await supabaseAdmin.from('profiles').select('username').eq('id', metadata.supabase_user_id).single();
+            if (winnerProfile && winnerProfile.username) winnerUsername = winnerProfile.username;
+            if (!winnerEmail) {
+              const { data: winnerUserData } = await supabaseAdmin.auth.admin.getUserById(metadata.supabase_user_id);
+              winnerEmail = winnerUserData && winnerUserData.user && winnerUserData.user.email;
+            }
+          }
+
+          await notifyGoldenTicketClaimed({
+            productName: wonProduct && wonProduct.name,
+            imageUrl: wonProduct && wonProduct.images && wonProduct.images.length > 0 ? wonProduct.images[0] : null,
+            username: winnerUsername,
+            email: winnerEmail,
+            sessionId: session.id,
+          });
+        } catch (err) {
+          // Never let a notification/flag-flip failure take down order processing itself --
+          // worst case the product silently stays flagged golden a little longer than intended,
+          // still safely un-re-claimable in the meantime since the Redis reservation itself
+          // already won't release just because this block failed.
+          console.error('Golden ticket finalize failed:', err.message);
+        }
+      }
+
       // LOYALTY: award spend/tier/badges to logged-in shoppers. This is an INCREMENT against
       // Supabase (not a re-copy), so — same reasoning as the expired-session release below —
       // it is NOT naturally idempotent and needs its own one-time claim independent of the
@@ -370,6 +416,18 @@ export default async function handler(req, res) {
             p_amount: parseFloat(metadata.crew_cash_used),
           });
           if (releaseErr) throw releaseErr;
+        }
+      }
+
+      // Same idea for a reserved-but-unused Golden Ticket claim -- releasing it (kv.del) means
+      // the NEXT person to check out with this product still in the Graveyard... er, still
+      // flagged golden, can win it. Doesn't need supabase_user_id (a guest can hold this
+      // reservation too, see checkout.js) -- keyed by product id instead.
+      if (metadata.golden_ticket_won === 'true' && metadata.golden_ticket_product_id) {
+        const goldenReleaseMarker = `golden_ticket_released_${session.id}`;
+        const claimed = await kv.set(goldenReleaseMarker, '1', { nx: true, ex: 86400 });
+        if (claimed) {
+          await kv.del(`golden_ticket_claim_${metadata.golden_ticket_product_id}`);
         }
       }
     }

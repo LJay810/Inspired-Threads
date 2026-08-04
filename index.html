@@ -117,7 +117,20 @@
             position: fixed; top: -10vh; left: 0; right: 0; height: 120vh;
             background: linear-gradient(to bottom, rgba(3,3,3,0.7) 0%, rgba(3,3,3,0.2) 100%), url('images/inspiredthreadsLogo.jpg') center/cover no-repeat;
             z-index: 0; pointer-events: none;
-            transform: translateZ(0); 
+            transform: translateZ(0);
+        }
+
+        /* --- SEASONAL PARTICLE OVERLAY --- */
+        /* Sits just above the parallax background (z-index 0) and well below the page sections
+           (z-index 10) -- same "ghosts through" layering already used for the Lion background
+           itself (see the comment on #shop/#about/#contact/#policy above), so these particles
+           read as part of the same living backdrop, dimmed appropriately behind each section's
+           own semi-opaque panel rather than sitting on top of page content. Deliberately a
+           SEPARATE canvas/loop from the portal intro's -- that one has its own one-shot
+           GATHER/IGNITE/OPEN/SETTLE timeline and fully tears itself down (nulls its sprites,
+           stops its rAF loop) once it finishes playing, so it's not built to run forever. */
+        #seasonalParticlesCanvas {
+            position: fixed; inset: 0; z-index: 1; pointer-events: none;
         }
         
         /* Allow the Lion to ghost through the entire site! */
@@ -1302,6 +1315,33 @@
         .product-card.hidden-filter { display: none !important; opacity: 0; transform: scale(0.95); }
         .product-card:hover { border-color: var(--accent-pink); box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255, 0, 127, 0.15); z-index: 50; }
 
+        /* --- GOLDEN TICKET --- */
+        .golden-ticket-card {
+            border-color: #ffd700 !important;
+            animation: goldenTicketGlow 2.2s ease-in-out infinite;
+        }
+        .golden-ticket-card:hover { box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 40px rgba(255,215,0,0.7) !important; }
+        @keyframes goldenTicketGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.35), inset 0 0 0 1px rgba(255,215,0,0.4); }
+            50%      { box-shadow: 0 0 40px rgba(255,215,0,0.7), inset 0 0 0 1px rgba(255,215,0,0.7); }
+        }
+        .golden-ticket-banner {
+            background: linear-gradient(120deg, #ffd700, #ffb700, #fff2b0, #ffd700);
+            background-size: 250% 250%;
+            animation: goldenTicketShimmer 3.5s linear infinite;
+            color: #1a1400; font-family: var(--font-mono); font-weight: 900; font-size: 0.72rem;
+            letter-spacing: 0.04em; text-transform: uppercase; text-align: center;
+            padding: 9px 10px; border-radius: 6px; margin-bottom: 14px;
+        }
+        @keyframes goldenTicketShimmer {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .golden-ticket-card { animation: none; box-shadow: 0 0 24px rgba(255,215,0,0.5); }
+            .golden-ticket-banner { animation: none; }
+        }
+
         @media (hover: none) and (pointer: coarse) {
             .product-card { transition: transform 0.4s ease, box-shadow 0.3s ease; transform: scale(1) !important; }
             .product-card:active { transform: scale(0.98) !important; border-color: var(--accent-pink); }
@@ -1740,6 +1780,36 @@
             100% { transform: translate(calc(-50% + var(--tx) * 1.5), calc(-50% + var(--ty) * 1.5)) rotate(var(--rot)) scale(0); opacity: 0; }
         }
 
+        /* --- FLYING-TO-CART ANIMATION --- */
+        /* A short-lived clone of the product's thumbnail, JS-animated (see flyToCart()) along a
+           quadratic-bezier arc from wherever it was added to the cart nav icon. Position is set
+           purely via JS transform per frame -- no CSS transition here, since the path is a curve,
+           not a straight interpolation between two fixed states. */
+        .cart-flyer {
+            position: fixed; top: 0; left: 0; width: 46px; height: 46px; border-radius: 10px;
+            background-size: cover; background-position: center; background-color: #f5f5f5;
+            border: 1px solid var(--accent-pink);
+            box-shadow: 0 0 16px rgba(255,0,127,0.6), 0 6px 20px rgba(0,0,0,0.5);
+            z-index: 4000; pointer-events: none;
+        }
+        .cart-flyer-spark {
+            position: fixed; top: 0; left: 0; width: 5px; height: 5px; border-radius: 50%;
+            background: var(--accent-pink); box-shadow: 0 0 8px var(--accent-pink);
+            z-index: 3999; pointer-events: none;
+            animation: cartFlyerSparkFade 0.5s ease-out forwards;
+        }
+        @keyframes cartFlyerSparkFade {
+            from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            to { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+        }
+        /* Landing bump on the cart icon itself, timed to when the flyer arrives. */
+        @keyframes cartBtnBump {
+            0% { transform: scale(1); }
+            45% { transform: scale(1.18); box-shadow: 0 0 22px rgba(255,0,127,0.7); }
+            100% { transform: scale(1); }
+        }
+        .cart-btn-bump { animation: cartBtnBump 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
         /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 900px) {
 
@@ -1968,6 +2038,7 @@
 <body>
 
     <div class="fixed-parallax-bg"></div>
+    <canvas id="seasonalParticlesCanvas"></canvas>
     <div class="noise-overlay"></div>
     
     <div class="cursor-dot" id="cursorDot"></div>
@@ -3938,8 +4009,20 @@ Thank you for supporting my small business and understanding the handmade nature
                     const isInWishlist = window.wishlist && window.wishlist.some(w => w.productId === product.id);
                     const heartClass = isInWishlist ? 'wishlist-heart hover-target active' : 'wishlist-heart hover-target';
 
+                    // GOLDEN TICKET: admin-flagged (see is_golden_ticket in admin.html's product
+                    // form), at most one product at a time -- shimmers gold and openly says what
+                    // it is (rather than staying a total secret) so a shopper who spots it knows
+                    // exactly what they found, and the ACTUAL enforcement of "only the first
+                    // buyer gets it free" lives entirely server-side (api/checkout.js's Redis
+                    // claim) -- this banner text is honest regardless of any race, never a literal
+                    // "$0.00" price tag that could go stale the instant someone else wins it first.
+                    const isGoldenTicket = product.metadata && product.metadata.golden_ticket === 'true';
+                    const goldenTicketBanner = isGoldenTicket
+                        ? `<div class="golden-ticket-banner">🎫 Golden Ticket — FREE for the first buyer!</div>`
+                        : '';
+
                     const cardHTML = `
-                        <div class="product-card reveal active" data-category="${cardCategory}" data-product-id="${product.id}">
+                        <div class="product-card reveal active${isGoldenTicket ? ' golden-ticket-card' : ''}" data-category="${cardCategory}" data-product-id="${product.id}">
 
                             <button class="${heartClass}" data-heart-id="${product.id}" onclick="addCurrentConfigToWishlist('${product.id}', this, ${hasVariants})">
                                 <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
@@ -3950,6 +4033,7 @@ Thank you for supporting my small business and understanding the handmade nature
                                 <span class="product-tag">${cardCategory.replace('-', ' ').toUpperCase()}</span>
 
                                 <h3 class="product-title">${product.name}</h3>
+                                ${goldenTicketBanner}
                                 ${stockHTML}
                                 <p class="product-desc">${product.description || 'Ready To Press Direct To Fabric Transfers. (Heat Press Only)'}</p>
                                 ${variantHTML}
@@ -4139,8 +4223,81 @@ Thank you for supporting my small business and understanding the handmade nature
                 overlayElement.appendChild(spark);
                 
                 // Matched to the new 1.5 second animation
-                setTimeout(() => spark.remove(), 1500); 
+                setTimeout(() => spark.remove(), 1500);
             }
+        }
+
+        // --- FLYING-TO-CART ANIMATION ---
+        // Clones the product's thumbnail and flies it from wherever it was just added (the
+        // clicked button/card) to the cart nav icon, along a gentle arc with a trailing spark or
+        // two, landing with a small bump on the cart icon. Purely a visual flourish, fired
+        // fire-and-forget -- never awaited, never blocks or delays the actual cart mutation that
+        // triggered it. Wired into the shop grid's Add to Cart and the cart-addons popup's +Add;
+        // NOT wired into wishlist "Move to Cart" or the TikTok/Resurrect modals -- those either
+        // fire from inside an already-open drawer/modal (nowhere sensible for a page-wide flight
+        // to originate from) or would need to grab the source element's position before that
+        // same click handler removes it from the DOM.
+        function flyToCart(sourceEl, imageUrl) {
+            const cartBtn = document.querySelector('.cart-btn');
+            if (!sourceEl || !cartBtn) return;
+            // Respects the same accessibility signal the account-glow-pulse animation and the
+            // seasonal particle overlay both already do elsewhere in this file.
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+            const startRect = sourceEl.getBoundingClientRect();
+            const endRect = cartBtn.getBoundingClientRect();
+            const startX = startRect.left + startRect.width / 2;
+            const startY = startRect.top + startRect.height / 2;
+            const endX = endRect.left + endRect.width / 2;
+            const endY = endRect.top + endRect.height / 2;
+
+            const flyer = document.createElement('div');
+            flyer.className = 'cart-flyer';
+            if (imageUrl) flyer.style.backgroundImage = `url('${imageUrl}')`;
+            document.body.appendChild(flyer);
+
+            // A quadratic-bezier arc (control point lifted above the midpoint), not a straight
+            // line -- reads as a genuine "toss" rather than a flat slide across the screen.
+            const controlX = (startX + endX) / 2 + (Math.random() - 0.5) * 60;
+            const controlY = Math.min(startY, endY) - 90;
+
+            const DURATION = 650;
+            const startTime = performance.now();
+
+            function animate(now) {
+                const t = Math.min((now - startTime) / DURATION, 1);
+                const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+                const inv = 1 - eased;
+
+                const x = inv * inv * startX + 2 * inv * eased * controlX + eased * eased * endX;
+                const y = inv * inv * startY + 2 * inv * eased * controlY + eased * eased * endY;
+                const scale = 1 - eased * 0.7;
+
+                flyer.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})`;
+                flyer.style.opacity = t < 0.85 ? '1' : `${Math.max(0, 1 - (t - 0.85) / 0.15)}`;
+
+                if (Math.random() < 0.35) {
+                    const spark = document.createElement('div');
+                    spark.className = 'cart-flyer-spark';
+                    // left/top, not transform -- the CSS keyframe animation below already
+                    // animates this spark's transform (fade + scale), and a CSS animation always
+                    // wins over an inline transform on the same property, so positioning via
+                    // transform here would get silently overwritten the instant it starts.
+                    spark.style.left = `${x}px`;
+                    spark.style.top = `${y}px`;
+                    document.body.appendChild(spark);
+                    setTimeout(() => spark.remove(), 500);
+                }
+
+                if (t < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    flyer.remove();
+                    cartBtn.classList.add('cart-btn-bump');
+                    setTimeout(() => cartBtn.classList.remove('cart-btn-bump'), 350);
+                }
+            }
+            requestAnimationFrame(animate);
         }
 
         // ================== DTF CONTENT-BOUNDS AUTO-DETECTION ==================
@@ -4693,6 +4850,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         }
                     }
 
+                    flyToCart(btn, imageUrl);
                     saveCart();
                     updateCartUI();
                     if(!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
@@ -7092,6 +7250,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     isDtf: false, categoryId: 'cart-addons',
                 });
             }
+            if (btnEl) flyToCart(btnEl, (product.images && product.images[0]) || '');
             saveCart();
             updateCartUI();
             renderCartAddonsModalBody();
@@ -7886,6 +8045,175 @@ Thank you for supporting my small business and understanding the handmade nature
                 setTimeout(scheduleShow, 6000);
             }
         })();
+    </script>
+
+    <!-- ================= SEASONAL PARTICLE OVERLAY ================= -->
+    <script>
+    // Ambient, continuous, purely decorative background particles drifting over the parallax
+    // Lion image year-round -- winter snow, spring petals, summer fireflies, fall leaves, picked
+    // by the current month. Deliberately its own small canvas/loop rather than reusing the portal
+    // intro's engine (see the CSS comment on #seasonalParticlesCanvas above for why).
+    (() => {
+        const canvas = document.getElementById('seasonalParticlesCanvas');
+        if (!canvas) return;
+
+        // Purely decorative -- same accessibility signal the account-glow-pulse animation
+        // already respects elsewhere in this file.
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        const ctx = canvas.getContext('2d', { alpha: true });
+        const IS_MOBILE_WIDTH = window.matchMedia('(max-width: 900px)').matches;
+        const DPR = Math.min(window.devicePixelRatio || 1, IS_MOBILE_WIDTH ? 1.5 : 2);
+
+        function seasonForMonth(month) { // 0-11
+            if (month === 11 || month === 0 || month === 1) return 'winter';
+            if (month >= 2 && month <= 4) return 'spring';
+            if (month >= 5 && month <= 7) return 'summer';
+            return 'fall'; // 8-10
+        }
+
+        // mode 'fall': drifts downward with a horizontal sway (snow/petals/leaves).
+        // mode 'wander': slow erratic random-walk drift with a pulsing glow (fireflies).
+        const SEASONS = {
+            winter: { mode: 'fall',   colors: ['#ffffff', '#e6f2ff', '#d0e8ff'], minSize: 2,   maxSize: 4.2, speedY: [16, 34], sway: 16, rotate: false, count: { mobile: 24, desktop: 46 } },
+            spring: { mode: 'fall',   colors: ['#ffc2e0', '#ff9fd0', '#ffffff'], minSize: 3,   maxSize: 6,   speedY: [12, 24], sway: 26, rotate: true,  count: { mobile: 16, desktop: 32 } },
+            summer: { mode: 'wander', colors: ['#ffe066', '#fff3b0'],             minSize: 1.8, maxSize: 3.2, speedY: [0, 0],   sway: 0,  rotate: false, count: { mobile: 14, desktop: 26 } },
+            fall:   { mode: 'fall',   colors: ['#e8985e', '#c96b3c', '#f2b544'], minSize: 3,   maxSize: 6.5, speedY: [14, 28], sway: 30, rotate: true,  count: { mobile: 16, desktop: 30 } },
+        };
+
+        const season = SEASONS[seasonForMonth(new Date().getMonth())];
+        const particleCount = IS_MOBILE_WIDTH ? season.count.mobile : season.count.desktop;
+
+        let W = 0, H = 0;
+        const particles = [];
+
+        function rand(min, max) { return min + Math.random() * (max - min); }
+
+        function spawnParticle(atTop) {
+            const size = rand(season.minSize, season.maxSize);
+            const color = season.colors[(Math.random() * season.colors.length) | 0];
+            if (season.mode === 'fall') {
+                return {
+                    x: rand(0, W), y: atTop ? rand(-40, 0) : rand(0, H),
+                    size, color,
+                    vy: rand(season.speedY[0], season.speedY[1]),
+                    swayPhase: Math.random() * Math.PI * 2,
+                    swaySpeed: rand(0.4, 1.1),
+                    swayAmp: season.sway,
+                    rot: Math.random() * Math.PI * 2,
+                    rotSpeed: season.rotate ? rand(-0.6, 0.6) : 0,
+                };
+            }
+            return { // wander (fireflies)
+                x: rand(0, W), y: rand(0, H), size, color,
+                vx: rand(-14, 14), vy: rand(-14, 14),
+                phase: Math.random() * Math.PI * 2,
+                twinkleSpeed: rand(0.6, 1.6),
+                wanderClock: rand(0, 5),
+            };
+        }
+
+        function resize() {
+            W = window.innerWidth; H = window.innerHeight;
+            canvas.width = Math.round(W * DPR);
+            canvas.height = Math.round(H * DPR);
+            canvas.style.width = W + 'px';
+            canvas.style.height = H + 'px';
+            ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        }
+        resize();
+        for (let i = 0; i < particleCount; i++) particles.push(spawnParticle(false));
+
+        let resizeTicking = false;
+        window.addEventListener('resize', () => {
+            if (resizeTicking) return;
+            resizeTicking = true;
+            requestAnimationFrame(() => { resize(); resizeTicking = false; });
+        });
+
+        function drawFallParticle(p) {
+            const x = p.x + Math.sin(p.swayPhase) * p.swayAmp;
+            ctx.save();
+            ctx.translate(x, p.y);
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = 0.75;
+            if (season.rotate) {
+                // A slightly squashed ellipse rather than a plain circle, so spring/fall read as
+                // petals/leaves tumbling instead of just more snow.
+                ctx.beginPath();
+                ctx.ellipse(0, 0, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawWanderParticle(p, t) {
+            const tw = 0.4 + 0.6 * Math.sin(p.phase + t * p.twinkleSpeed);
+            ctx.save();
+            ctx.globalAlpha = tw * 0.85;
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        let lastT = performance.now();
+        let rafId = 0;
+        let running = true;
+
+        function frame(now) {
+            if (!running) return;
+            const dt = Math.min((now - lastT) / 1000, 0.05); // clamp: tab-switch can't cause a jump
+            lastT = now;
+            const t = now / 1000;
+
+            ctx.clearRect(0, 0, W, H);
+
+            for (const p of particles) {
+                if (season.mode === 'fall') {
+                    p.y += p.vy * dt;
+                    p.swayPhase += p.swaySpeed * dt;
+                    p.rot += p.rotSpeed * dt;
+                    if (p.y - p.size > H) Object.assign(p, spawnParticle(true)); // recycle off the bottom back to the top
+                    drawFallParticle(p);
+                } else {
+                    p.wanderClock -= dt;
+                    if (p.wanderClock <= 0) {
+                        p.vx = rand(-14, 14); p.vy = rand(-14, 14);
+                        p.wanderClock = rand(2, 5);
+                    }
+                    p.x += p.vx * dt; p.y += p.vy * dt;
+                    if (p.x < -10) p.x = W + 10; else if (p.x > W + 10) p.x = -10;
+                    if (p.y < -10) p.y = H + 10; else if (p.y > H + 10) p.y = -10;
+                    drawWanderParticle(p, t);
+                }
+            }
+
+            rafId = requestAnimationFrame(frame);
+        }
+        rafId = requestAnimationFrame(frame);
+
+        // Pause entirely on a hidden tab -- same idiom as startLiveStockPolling() elsewhere in
+        // this file -- no point animating particles nobody can see.
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                running = false;
+                cancelAnimationFrame(rafId);
+            } else if (!running) {
+                running = true;
+                lastT = performance.now();
+                rafId = requestAnimationFrame(frame);
+            }
+        });
+    })();
     </script>
 
     <!-- ================= PORTAL INTRO ================= -->

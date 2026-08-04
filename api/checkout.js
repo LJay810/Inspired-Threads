@@ -67,6 +67,14 @@ export default async function handler(req, res) {
                 .maybeSingle();
 
             let product, hasVariants, stripeMetaKey, redisKey, hasStockLimit, isThreadApparel;
+            // GOLDEN TICKET: an admin flags exactly one product (is_golden_ticket, see
+            // sql/golden_ticket_schema.sql) to secretly go 100% free for whoever buys it first.
+            // "First" is decided here, atomically, via a Redis NX claim -- same reserve/release
+            // idiom already used for referral rewards, spin prizes, and VIP shipping credits
+            // elsewhere in this file. Only ever true for a real catalog product (never the
+            // Stripe-fallback branch below -- that's for standalone products like TikTok Live
+            // Claims, which were never migrated into this catalog and can't carry this flag).
+            let goldenTicketWonThisItem = false;
 
             if (dbProduct && dbProduct.published) {
                 product = dbProduct;
@@ -106,6 +114,29 @@ export default async function handler(req, res) {
                         item.resurrection = false;
                     }
                 }
+
+                if (product.is_golden_ticket) {
+                    try {
+                        // 30-minute TTL matches this session's own expires_at below -- if the
+                        // session goes unpaid, webhook.js's checkout.session.expired handler
+                        // releases this same key (kv.del) well before the TTL would anyway, but
+                        // the TTL is a safety net in case that release step itself never runs.
+                        const claimKey = `golden_ticket_claim_${product.id}`;
+                        goldenTicketWonThisItem = await kv.set(claimKey, '1', { nx: true, ex: 1800 });
+                    } catch (err) {
+                        // Never let a Redis hiccup here block a real checkout -- worst case, this
+                        // one shopper just pays the normal price instead of winning it.
+                        console.warn('Golden ticket claim check failed, proceeding at normal price:', err.message);
+                    }
+                    if (goldenTicketWonThisItem) {
+                        // The free win is exactly ONE unit, regardless of whatever quantity was
+                        // sitting in the cart -- and it never competes for BUY 3 GET 1 FREE
+                        // eligibility (already free; double-dipping into that too would either
+                        // give away a second free unit or corrupt that logic's own line-item
+                        // index bookkeeping, see the isThreadApparel exclusion below).
+                        item.quantity = 1;
+                    }
+                }
             } else {
                 // FALLBACK: not in the admin-managed catalog -- e.g. the standalone TikTok Live
                 // Claims product, which uses its own hardcoded Stripe Price IDs (see index.html)
@@ -129,10 +160,15 @@ export default async function handler(req, res) {
                 hasStockLimit = stripeProduct.metadata && stripeProduct.metadata[stripeMetaKey] !== undefined;
             }
 
-            subtotalCents += product.price_cents * item.quantity;
+            // A golden ticket win contributes $0 toward the real subtotal -- this feeds
+            // everything downstream that cares about actual money owed (free-shipping threshold,
+            // loyalty/referral/spin discount value comparisons, BUY 3 GET 1 FREE's own totals).
+            subtotalCents += goldenTicketWonThisItem ? 0 : product.price_cents * item.quantity;
 
             itemCatalogMeta[i] = {
-                isThreadApparel: !!isThreadApparel,
+                // Never BOGO-eligible once it's already free -- see the comment where
+                // goldenTicketWonThisItem is set, just above.
+                isThreadApparel: !!isThreadApparel && !goldenTicketWonThisItem,
                 priceCents: product.price_cents,
                 stripeProductId: (dbProduct && dbProduct.published) ? product.stripe_product_id : product.id,
             };
@@ -171,11 +207,25 @@ export default async function handler(req, res) {
                 reservedKeys.push({ key: redisKey, qty: item.quantity });
             }
 
-            lineItems.push({
-                price: item.priceId,
-                quantity: item.quantity,
-                adjustable_quantity: { enabled: true, minimum: 1 },
-            });
+            if (goldenTicketWonThisItem) {
+                // $0 override, referencing the SAME underlying Stripe product (so the receipt/
+                // Dashboard still shows the real garment/product name) -- never adjustable by the
+                // customer at Stripe's hosted page, or they could bump quantity for more free
+                // units. Same technique BUY 3 GET 1 FREE uses below for its own free line(s).
+                lineItems.push({
+                    price_data: { currency: 'usd', product: product.stripe_product_id, unit_amount: 0 },
+                    quantity: 1,
+                    adjustable_quantity: { enabled: false },
+                });
+                sessionMetadata['golden_ticket_won'] = 'true';
+                sessionMetadata['golden_ticket_product_id'] = product.id;
+            } else {
+                lineItems.push({
+                    price: item.priceId,
+                    quantity: item.quantity,
+                    adjustable_quantity: { enabled: true, minimum: 1 },
+                });
+            }
 
             // One packed key per item (not six) -- see lib/cart-metadata.js for why.
             sessionMetadata[`item_${i}`] = packCartItemMetadata(item, product, stripeMetaKey, redisKey, hasStockLimit);
@@ -184,7 +234,8 @@ export default async function handler(req, res) {
             // metadata (never as a real Stripe line item field), so without this, that detail
             // is technically still recoverable from item_N above but not readable at a glance.
             const variantLabel = hasVariants ? ` (${item.size}/${item.color})` : '';
-            packSummary.push(`${item.quantity}x ${item.name}${variantLabel}`);
+            const goldenLabel = goldenTicketWonThisItem ? ' [GOLDEN TICKET - FREE]' : '';
+            packSummary.push(`${item.quantity}x ${item.name}${variantLabel}${goldenLabel}`);
         }
 
         // BUY 3, GET THE 4TH FREE -- automatic store promo (Mom's idea), deliberately NOT a
@@ -705,6 +756,11 @@ export default async function handler(req, res) {
                 p_user_id: supabaseUserId,
                 p_amount: parseFloat(sessionMetadata['crew_cash_used']),
             });
+        }
+
+        // And for a reserved-but-unused Golden Ticket claim.
+        if (!sessionCreated && sessionMetadata['golden_ticket_won'] === 'true') {
+            await kv.del(`golden_ticket_claim_${sessionMetadata['golden_ticket_product_id']}`);
         }
 
         res.status(500).json({ error: error.message });
