@@ -115,7 +115,7 @@
         /* --- PARALLAX BACK WALL --- */
         .fixed-parallax-bg {
             position: fixed; top: -10vh; left: 0; right: 0; height: 120vh;
-            background: linear-gradient(to bottom, rgba(3,3,3,0.7) 0%, rgba(3,3,3,0.2) 100%), url('images/inspiredthreadsLogo.jpg') center/cover no-repeat;
+            background: var(--bg-main);
             z-index: 0; pointer-events: none;
             transform: translateZ(0);
         }
@@ -1866,10 +1866,6 @@
              GPU compositing on every scroll frame -- likely contributor to iOS Safari's
              low-memory tab reload on long scroll sessions */
 
-         .fixed-parallax-bg {
-                background: linear-gradient(to bottom, rgba(3,3,3,0.7) 0%, rgba(3,3,3,0.2) 100%), url('images/BackgroundMobile.JPEG') center/cover no-repeat;
-            }
-          
             header { padding: 10px 5px; justify-content: center; background: rgba(3, 3, 3, 0.98); border-bottom: 1px solid var(--border-subtle); backdrop-filter: none; -webkit-backdrop-filter: none; flex-wrap: wrap;}
             .brand-text { display: none; }
             
