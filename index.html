@@ -6812,8 +6812,13 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         async function pollLiveStock() {
+            // NOTE: deliberately never early-returns on an empty keyMap -- this poll is also the
+            // only thing that notices a Golden Ticket flag change (see below), which is
+            // completely independent of whether anything currently loaded even has tracked
+            // stock. Bailing out here used to silently skip that check too whenever the catalog
+            // had nothing stock-limited in view, which is exactly why toggling the flag in Admin
+            // required a manual refresh to show up.
             const keyMap = collectAllStockKeys();
-            if (keyMap.length === 0) return;
 
             try {
                 const response = await fetch('/api/stock', {
@@ -6964,17 +6969,24 @@ Thank you for supporting my small business and understanding the handmade nature
             if (window._stockPollTimer) clearInterval(window._stockPollTimer);
             window._stockPollTimer = setInterval(pollLiveStock, 10000);
 
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    if (window._stockPollTimer) {
-                        clearInterval(window._stockPollTimer);
-                        window._stockPollTimer = null;
+            // Bound once, ever -- this function itself runs on EVERY initShopEngine() re-render
+            // (initial load, plus every Golden Ticket/Graveyard-triggered refresh), so without
+            // this guard a fresh 'visibilitychange' listener stacked on top of every earlier one
+            // still attached, each one independently racing to spin up its own interval.
+            if (!window._stockPollVisibilityBound) {
+                window._stockPollVisibilityBound = true;
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        if (window._stockPollTimer) {
+                            clearInterval(window._stockPollTimer);
+                            window._stockPollTimer = null;
+                        }
+                    } else {
+                        pollLiveStock();
+                        if (!window._stockPollTimer) window._stockPollTimer = setInterval(pollLiveStock, 10000);
                     }
-                } else {
-                    pollLiveStock();
-                    if (!window._stockPollTimer) window._stockPollTimer = setInterval(pollLiveStock, 10000);
-                }
-            });
+                });
+            }
         }
         const stripe = Stripe('pk_live_51TnjXXFWt379RB9CQuAZ3roCVW8l892C9ffUstWDP6TjNAtlmYZ4gWWnad9kPpqGveHGqA54LAjtGE3eKNfYy6FM00dGd8t5Hr');
         

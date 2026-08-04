@@ -17,11 +17,9 @@ export default async function handler(req, res) {
         const keys = Array.isArray(req.body && req.body.keys) ? req.body.keys : [];
         const resurrectionSessionId = req.body && req.body.resurrectionSessionId;
 
-        // A resurrection-status-only check (see below) has nothing to MGET, so an empty keys
-        // array is only invalid when there's also no resurrection session to look up.
-        if (keys.length === 0 && !resurrectionSessionId) {
-            return res.status(400).json({ error: 'Missing keys array' });
-        }
+        // An empty keys array is always valid now, even with no resurrection session to look
+        // up -- the Golden Ticket lookup below is unconditional, so a poll with nothing
+        // stock-tracked to MGET still has real work to do (and a real answer to give back).
         if (keys.length > 300) {
             return res.status(400).json({ error: 'Too many keys requested' });
         }
