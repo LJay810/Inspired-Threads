@@ -68,7 +68,7 @@ export default async function handler(req, res) {
 
             let product, hasVariants, stripeMetaKey, redisKey, hasStockLimit, isThreadApparel;
             // GOLDEN TICKET: an admin flags exactly one product (is_golden_ticket, see
-            // sql/golden_ticket_schema.sql) to secretly go 100% free for whoever buys it first.
+            // sql/golden_ticket_schema.sql) to secretly go 75% off for whoever buys it first.
             // "First" is decided here, atomically, via a Redis NX claim -- same reserve/release
             // idiom already used for referral rewards, spin prizes, and VIP shipping credits
             // elsewhere in this file. Only ever true for a real catalog product (never the
@@ -160,13 +160,14 @@ export default async function handler(req, res) {
                 hasStockLimit = stripeProduct.metadata && stripeProduct.metadata[stripeMetaKey] !== undefined;
             }
 
-            // A golden ticket win contributes $0 toward the real subtotal -- this feeds
-            // everything downstream that cares about actual money owed (free-shipping threshold,
-            // loyalty/referral/spin discount value comparisons, BUY 3 GET 1 FREE's own totals).
-            subtotalCents += goldenTicketWonThisItem ? 0 : product.price_cents * item.quantity;
+            // A golden ticket win contributes only its discounted 25%-of-price toward the real
+            // subtotal -- this feeds everything downstream that cares about actual money owed
+            // (free-shipping threshold, loyalty/referral/spin discount value comparisons,
+            // BUY 3 GET 1 FREE's own totals).
+            subtotalCents += goldenTicketWonThisItem ? Math.round(product.price_cents * 0.25) : product.price_cents * item.quantity;
 
             itemCatalogMeta[i] = {
-                // Never BOGO-eligible once it's already free -- see the comment where
+                // Never BOGO-eligible once it's already discounted -- see the comment where
                 // goldenTicketWonThisItem is set, just above.
                 isThreadApparel: !!isThreadApparel && !goldenTicketWonThisItem,
                 priceCents: product.price_cents,
@@ -208,12 +209,12 @@ export default async function handler(req, res) {
             }
 
             if (goldenTicketWonThisItem) {
-                // $0 override, referencing the SAME underlying Stripe product (so the receipt/
-                // Dashboard still shows the real garment/product name) -- never adjustable by the
-                // customer at Stripe's hosted page, or they could bump quantity for more free
-                // units. Same technique BUY 3 GET 1 FREE uses below for its own free line(s).
+                // 75%-off override (25% of the real price), referencing the SAME underlying
+                // Stripe product (so the receipt/Dashboard still shows the real garment/product
+                // name) -- never adjustable by the customer at Stripe's hosted page, or they
+                // could bump quantity for more discounted units.
                 lineItems.push({
-                    price_data: { currency: 'usd', product: product.stripe_product_id, unit_amount: 0 },
+                    price_data: { currency: 'usd', product: product.stripe_product_id, unit_amount: Math.round(product.price_cents * 0.25) },
                     quantity: 1,
                     adjustable_quantity: { enabled: false },
                 });
@@ -234,7 +235,7 @@ export default async function handler(req, res) {
             // metadata (never as a real Stripe line item field), so without this, that detail
             // is technically still recoverable from item_N above but not readable at a glance.
             const variantLabel = hasVariants ? ` (${item.size}/${item.color})` : '';
-            const goldenLabel = goldenTicketWonThisItem ? ' [GOLDEN TICKET - FREE]' : '';
+            const goldenLabel = goldenTicketWonThisItem ? ' [GOLDEN TICKET - 75% OFF]' : '';
             packSummary.push(`${item.quantity}x ${item.name}${variantLabel}${goldenLabel}`);
         }
 

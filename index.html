@@ -4028,13 +4028,13 @@ Thank you for supporting my small business and understanding the handmade nature
                     // form), at most one product at a time -- shimmers gold and openly says what
                     // it is (rather than staying a total secret) so a shopper who spots it knows
                     // exactly what they found, and the ACTUAL enforcement of "only the first
-                    // buyer gets it free" lives entirely server-side (api/checkout.js's Redis
+                    // buyer gets 75% off" lives entirely server-side (api/checkout.js's Redis
                     // claim) -- this banner text is honest regardless of any race, never a literal
-                    // "$0.00" price tag that could go stale the instant someone else wins it first.
+                    // price tag that could go stale the instant someone else wins it first.
                     const isGoldenTicket = product.metadata && product.metadata.golden_ticket === 'true';
                     if (isGoldenTicket) window._currentGoldenTicketProductId = product.id; // read back by pollLiveStock() to detect a change
                     const goldenTicketBanner = isGoldenTicket
-                        ? `<div class="golden-ticket-banner">🎫 Golden Ticket — FREE for the first buyer!</div>`
+                        ? `<div class="golden-ticket-banner">🎫 Golden Ticket — 75% OFF for the first buyer!</div>`
                         : '';
 
                     const cardHTML = `
