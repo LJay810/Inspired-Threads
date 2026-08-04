@@ -328,7 +328,7 @@
         @media (min-width: 901px) {
             .social-btn { width: 54px; height: 54px; }
             .social-btn svg { width: 26px; height: 26px; }
-            .tiktok-btn { padding: 26px 75px; font-size: 1.55rem; }
+            .tiktok-btn { padding: 26px 130px; font-size: 1.55rem; }
         }
 
         /* --- OVERLAY MODALS (TIKTOK & DTF) --- */
@@ -1693,7 +1693,15 @@
 
         .home-layout { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 1400px; margin: 0 auto; }
         .home-hero-stack { display: flex; flex-direction: column; align-items: center; gap: 35px; width: 100%; }
-        .home-hero-wrap { width: 100%; max-width: 1100px; }
+        /* Row holds BOTH cards side by side on desktop -- widths below are hand-picked from the
+           two images' real aspect ratios (main is 1535x1024, side is 1024x1536) so a shared
+           height falls out naturally without either card needing a fixed px height that could
+           go stale if the source art is ever swapped for a different-sized version. The row
+           itself is centered as a single group, same as the lone hero image was before. */
+        .home-hero-row { display: flex; align-items: center; justify-content: center; gap: 30px; width: 100%; }
+        .home-hero-wrap { min-width: 0; }
+        .home-hero-wrap-main { flex: 0 1 940px; }
+        .home-hero-wrap-side { flex: 0 1 420px; }
         /* Deliberately NOT .glow-img (that's border: 1px solid var(--border-subtle), shared with
            other site images) -- this hero banner already has its own bold, self-contained edges
            in the artwork itself, so a hard CSS border around it just looks like a frame. The glow
@@ -1963,7 +1971,16 @@
             
             .home-layout { margin-top: 40px; }
             .home-hero-stack { gap: 25px; }
-            .home-hero-wrap { width: 90%; max-width: 380px; }
+            /* Both cards stack full-width instead of sitting side by side -- and the button
+               moves ABOVE them via order (DOM order is unchanged, still images-then-button, so
+               desktop's own layout/tab order stays exactly as before -- only mobile's visual
+               order flips). Both images share the same width cap regardless of which of the two
+               classes they carry -- desktop's per-card 940px/420px flex-basis values would
+               otherwise apply as a HEIGHT in this column direction, so they're explicitly reset
+               here alongside the shared width. */
+            .home-hero-row { flex-direction: column; gap: 25px; }
+            .home-hero-wrap, .home-hero-wrap-main, .home-hero-wrap-side { flex: 0 0 auto; width: 90%; max-width: 380px; }
+            .tiktok-btn-wrap { order: -1; }
             .about-layout { grid-template-columns: 1fr; gap: 40px; }
         }
 
@@ -2718,11 +2735,16 @@
 
         <div class="home-layout">
             <div class="home-hero-stack">
-                <div class="home-hero-wrap reveal">
-                    <picture>
-                        <source media="(max-width: 900px)" srcset="images/NewCardMobile.png">
-                        <img src="images/NewCardDesktop.png" class="home-hero-img hover-target" alt="Inspired Threads -- More Than Just A Website, It's An Experience! Register an account for referral discounts, Crew Cash, free gifts, a mystery wheel spin, tiered perks, earned badges, and leaderboard display." onclick="openLightbox(this.currentSrc || this.src)">
-                    </picture>
+                <div class="home-hero-row">
+                    <div class="home-hero-wrap home-hero-wrap-main reveal">
+                        <picture>
+                            <source media="(max-width: 900px)" srcset="images/NewCardMobile.png">
+                            <img src="images/NewCardDesktop.png" class="home-hero-img hover-target" alt="Inspired Threads -- More Than Just A Website, It's An Experience! Register an account for referral discounts, Crew Cash, free gifts, a mystery wheel spin, tiered perks, earned badges, and leaderboard display." onclick="openLightbox(this.currentSrc || this.src)">
+                        </picture>
+                    </div>
+                    <div class="home-hero-wrap home-hero-wrap-side reveal">
+                        <img src="images/InspiredThreadsDesktopSideImage.png" class="home-hero-img hover-target" alt="Be Inspired -- Apparel, Accessories & DTF Transfers" onclick="openLightbox(this.src)">
+                    </div>
                 </div>
                 <div class="tiktok-btn-wrap">
                     <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
