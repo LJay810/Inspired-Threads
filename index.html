@@ -1692,17 +1692,21 @@
         }
 
         .home-layout { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 1400px; margin: 0 auto; }
-        .home-cards-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 40px; width: 100%; }
-        .home-cards-row .home-img-wrapper:first-of-type { justify-self: end; }
-        .home-cards-row .home-img-wrapper:last-of-type { justify-self: start; }
-        .home-cards-row .hero-content { justify-self: center; }
-        /* contain (not cover) so the full image shows in the card itself -- cover was cropping
-           in whatever the source image's aspect ratio didn't match 3:4, hiding details that
-           only showed up once you opened the lightbox. Card size/aspect ratio is unchanged;
-           #151515 fills any letterboxed space, matching the same treatment used for review
-           photos elsewhere on the site. */
-        .home-card-img { aspect-ratio: 3 / 4; object-fit: contain; background: #151515; }
-        .home-img-wrapper { flex: 0 1 380px; }
+        .home-hero-stack { display: flex; flex-direction: column; align-items: center; gap: 35px; width: 100%; }
+        .home-hero-wrap { width: 100%; max-width: 1100px; }
+        /* Deliberately NOT .glow-img (that's border: 1px solid var(--border-subtle), shared with
+           other site images) -- this hero banner already has its own bold, self-contained edges
+           in the artwork itself, so a hard CSS border around it just looks like a frame. The glow
+           on hover comes entirely from box-shadow instead, no border property at all. */
+        .home-hero-img {
+            display: block; width: 100%; border-radius: 16px; cursor: none !important;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .home-hero-img:hover {
+            transform: translateY(-5px) scale(1.01);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 35px rgba(255, 0, 127, 0.3);
+        }
         .about-layout { display: grid; grid-template-columns: 1.2fr 1fr; gap: 60px; align-items: center; max-width: 1400px; }
         .about-img-wrapper { display: flex; justify-content: center; }
         .about-img-wrapper img { max-width: 500px; }
@@ -1958,11 +1962,8 @@
             .lightbox-close { top: 20px; right: 20px; }
             
             .home-layout { margin-top: 40px; }
-            .home-img-wrapper { width: 85%; max-width: 320px; }
-            .home-cards-row { grid-template-columns: 1fr; gap: 30px; }
-            .home-cards-row .home-img-wrapper:first-of-type { justify-self: center; order: 1; }
-            .home-cards-row .home-img-wrapper:last-of-type { justify-self: center; order: 2; }
-            .home-cards-row .hero-content { justify-self: center; order: 3; }
+            .home-hero-stack { gap: 25px; }
+            .home-hero-wrap { width: 90%; max-width: 380px; }
             .about-layout { grid-template-columns: 1fr; gap: 40px; }
         }
 
@@ -2716,18 +2717,16 @@
     <section id="home" class="page-section">
 
         <div class="home-layout">
-            <div class="home-cards-row">
-                <div class="home-img-wrapper reveal stagger-1">
-                    <img src="images/WelcomeToInspiredThreads.png" class="glow-img home-card-img hover-target" alt="Welcome to the Crew" onclick="openLightbox(this.src)">
+            <div class="home-hero-stack">
+                <div class="home-hero-wrap reveal">
+                    <picture>
+                        <source media="(max-width: 900px)" srcset="images/NewCardMobile.png">
+                        <img src="images/NewCardDesktop.png" class="home-hero-img hover-target" alt="Inspired Threads -- More Than Just A Website, It's An Experience! Register an account for referral discounts, Crew Cash, free gifts, a mystery wheel spin, tiered perks, earned badges, and leaderboard display." onclick="openLightbox(this.currentSrc || this.src)">
+                    </picture>
                 </div>
-                <div class="hero-content" style="margin-top: 0;">
-                    <div class="tiktok-btn-wrap">
-                        <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
-                        <span class="tiktok-btn-live-chip" id="tiktokBtnLiveChip">🔴 LIVE</span>
-                    </div>
-                </div>
-                <div class="home-img-wrapper reveal stagger-2">
-                    <img src="images/TikTokLiveSchedule.png" alt="Live Sale Schedule" class="glow-img home-card-img hover-target" onclick="openLightbox(this.src)">
+                <div class="tiktok-btn-wrap">
+                    <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
+                    <span class="tiktok-btn-live-chip" id="tiktokBtnLiveChip">🔴 LIVE</span>
                 </div>
             </div>
         </div>
