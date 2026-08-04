@@ -4285,6 +4285,22 @@ Thank you for supporting my small business and understanding the handmade nature
                 const startTime = performance.now();
                 const SPARK_COLORS = ['#ff007f', '#ff5fa8', '#ffd7ec']; // pink -> lighter pink -> near-white, for a sparkle mix instead of one flat dot color
 
+                // MOBILE: up to 3 new blurred-box-shadow <div>s created every single frame, across
+                // two chained legs, is real per-frame cost -- fine on a desktop GPU, but enough to
+                // drop frames on weaker mobile hardware. A choppy/frame-dropping animation doesn't
+                // just look laggy, it visually reads as teleporting between whichever two points
+                // happened to actually render, which is almost certainly what "snaps onto the
+                // Checkout button, then snaps to the thumbnail" actually was -- both were real
+                // points on the same continuous arc, just with the frames between them dropped.
+                // Cutting spark volume/cost (fewer per frame, lower spawn odds, a small fixed
+                // blur instead of one that scales with size) is a real fix for THAT, not just a
+                // cosmetic trim -- vs. the previous fix (a settling delay + instant scroll), which
+                // targeted a stale-measurement theory that evidently wasn't the actual cause.
+                // Desktop keeps the full density/glow exactly as before.
+                const isMobileWidth = window.matchMedia('(max-width: 900px)').matches;
+                const sparkSlots = isMobileWidth ? 1 : 3;
+                const sparkChance = isMobileWidth ? 0.4 : 0.6;
+
                 function frame(now) {
                     const t = Math.min((now - startTime) / duration, 1);
                     const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
@@ -4298,10 +4314,10 @@ Thank you for supporting my small business and understanding the handmade nature
                     flyer.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scale})`;
                     flyer.style.opacity = t < 0.85 ? '1' : `${Math.max(0, 1 - (t - 0.85) / 0.15)}`;
 
-                    // Dense, varied trail -- up to three sparks a frame, each independently sized
-                    // and tinted, instead of a uniform dotted line.
-                    for (let n = 0; n < 3; n++) {
-                        if (Math.random() >= 0.6) continue;
+                    // Dense, varied trail on desktop -- lighter (see sparkSlots/sparkChance above)
+                    // on mobile, where the per-frame DOM+paint cost matters more than the density.
+                    for (let n = 0; n < sparkSlots; n++) {
+                        if (Math.random() >= sparkChance) continue;
                         const spark = document.createElement('div');
                         spark.className = 'cart-flyer-spark';
                         // left/top, not transform -- the CSS keyframe animation on this class
@@ -4316,7 +4332,11 @@ Thank you for supporting my small business and understanding the handmade nature
                         spark.style.height = `${size}px`;
                         const color = SPARK_COLORS[(Math.random() * SPARK_COLORS.length) | 0];
                         spark.style.background = color;
-                        spark.style.boxShadow = `0 0 ${size + 4}px ${color}`;
+                        // Blurred box-shadow is the single most expensive part of a spark to paint
+                        // -- a small FIXED blur on mobile instead of one that scales with size
+                        // keeps the sparkle without the growing GPU cost of larger, more blurred
+                        // ones. Desktop keeps the full size-scaled glow.
+                        spark.style.boxShadow = isMobileWidth ? `0 0 3px ${color}` : `0 0 ${size + 4}px ${color}`;
                         document.body.appendChild(spark);
                         setTimeout(() => spark.remove(), 550);
                     }
@@ -4351,8 +4371,19 @@ Thank you for supporting my small business and understanding the handmade nature
             const cartBtn = document.querySelector('.cart-btn');
             if (!sourceEl || !cartBtn) return;
 
+            // MOBILE: smaller bursts (see animateFlight's own matching mobile spark reduction for
+            // the full reasoning) -- each burst particle carries a triple box-shadow glow
+            // (.spark-particle), and several firing at once is real simultaneous paint work.
+            // Trimming the count here, on top of the trail already being lighter on mobile, is
+            // what actually fixes dropped-frame choppiness -- an earlier attempt at this bug fixed
+            // a stale-measurement theory (a settling delay + instant scroll) that, in hindsight,
+            // wasn't the real cause; that harmless instant-scroll change is kept below, the
+            // ineffective delay has been removed.
+            const isMobileWidth = window.matchMedia('(max-width: 900px)').matches;
+            const burstCounts = isMobileWidth ? { launch: 6, icon: 7, land: 8 } : { launch: 12, icon: 14, land: 16 };
+
             const fromPoint = rectCenter(sourceEl);
-            burstAt(fromPoint.x, fromPoint.y, 12);
+            burstAt(fromPoint.x, fromPoint.y, burstCounts.launch);
 
             const iconPoint = rectCenter(cartBtn);
             const flyer = await animateFlight({
@@ -4364,21 +4395,6 @@ Thank you for supporting my small business and understanding the handmade nature
             if (targetEl && document.body.contains(targetEl)) {
                 cartBtn.classList.add('cart-btn-bump');
                 setTimeout(() => cartBtn.classList.remove('cart-btn-bump'), 350);
-
-                // MOBILE ONLY: the cart drawer there is a height:auto bottom sheet, anchored to
-                // the bottom edge -- adding a second (or later) item grows it taller, which pushes
-                // its TOP edge further up the screen (everything inside, including this target,
-                // shifts position as a result). That resize is applied synchronously the moment
-                // updateCartUI() ran back in the click handler, but this extra beat gives it (and
-                // the scrollIntoView call alongside it) a guaranteed settled moment before the
-                // authoritative measurement just below -- without it, this could occasionally read
-                // a half-settled position and visibly snap from a wrong spot (often right around
-                // the pinned Checkout button at the top of the sheet) to the real one. Desktop's
-                // drawer is a fixed-height side panel with none of this content-driven resizing,
-                // so it never needs this and stays exactly as fast as before.
-                if (window.matchMedia('(max-width: 900px)').matches) {
-                    await new Promise((resolve) => setTimeout(resolve, 150));
-                }
 
                 // Clamped to stay on-screen -- a cart with enough items that the new one landed
                 // below the drawer's own visible scroll fold would otherwise fly toward a real
@@ -4395,11 +4411,11 @@ Thank you for supporting my small business and understanding the handmade nature
                     existingFlyer: flyer,
                 });
                 flyer.remove();
-                burstAt(landPoint.x, landPoint.y, 16);
+                burstAt(landPoint.x, landPoint.y, burstCounts.land);
                 if (opts.onLand) opts.onLand();
             } else {
                 flyer.remove();
-                burstAt(iconPoint.x, iconPoint.y, 14);
+                burstAt(iconPoint.x, iconPoint.y, burstCounts.icon);
                 cartBtn.classList.add('cart-btn-bump');
                 setTimeout(() => cartBtn.classList.remove('cart-btn-bump'), 350);
             }
