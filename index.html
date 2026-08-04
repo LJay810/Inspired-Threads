@@ -4365,6 +4365,21 @@ Thank you for supporting my small business and understanding the handmade nature
                 cartBtn.classList.add('cart-btn-bump');
                 setTimeout(() => cartBtn.classList.remove('cart-btn-bump'), 350);
 
+                // MOBILE ONLY: the cart drawer there is a height:auto bottom sheet, anchored to
+                // the bottom edge -- adding a second (or later) item grows it taller, which pushes
+                // its TOP edge further up the screen (everything inside, including this target,
+                // shifts position as a result). That resize is applied synchronously the moment
+                // updateCartUI() ran back in the click handler, but this extra beat gives it (and
+                // the scrollIntoView call alongside it) a guaranteed settled moment before the
+                // authoritative measurement just below -- without it, this could occasionally read
+                // a half-settled position and visibly snap from a wrong spot (often right around
+                // the pinned Checkout button at the top of the sheet) to the real one. Desktop's
+                // drawer is a fixed-height side panel with none of this content-driven resizing,
+                // so it never needs this and stays exactly as fast as before.
+                if (window.matchMedia('(max-width: 900px)').matches) {
+                    await new Promise((resolve) => setTimeout(resolve, 150));
+                }
+
                 // Clamped to stay on-screen -- a cart with enough items that the new one landed
                 // below the drawer's own visible scroll fold would otherwise fly toward a real
                 // but invisible/off-screen point. Doesn't chase the drawer's scroll position, just
@@ -4973,7 +4988,14 @@ Thank you for supporting my small business and understanding the handmade nature
                     // even while the drawer is still off-screen (translate() doesn't affect
                     // scrollable content, only paint position), so this can safely run before, or
                     // in parallel with, the drawer's own open transition below.
-                    if (cartItemNode) cartItemNode.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // Instant (not smooth) on mobile specifically -- removes one more thing that
+                    // could still be settling by the time flyToCart's second leg measures its
+                    // landing point there (see the matching mobile-only wait in flyToCart itself).
+                    // The flyer is elsewhere on screen at this exact moment either way, so an
+                    // instant scroll here isn't visually jarring. Desktop keeps the smooth scroll
+                    // unchanged -- its fixed-height side panel has no equivalent race to guard against.
+                    const isMobileWidth = window.matchMedia('(max-width: 900px)').matches;
+                    if (cartItemNode) cartItemNode.scrollIntoView({ behavior: isMobileWidth ? 'auto' : 'smooth', block: 'nearest' });
 
                     // Opened HERE, in parallel with flyToCart's first leg below -- not awaited
                     // first. That first leg alone (850ms) takes noticeably longer than the
