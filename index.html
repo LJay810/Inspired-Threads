@@ -1917,31 +1917,27 @@
         .live-status-label { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 900; letter-spacing: 0.12em; color: #ff2d55; }
         .live-status-note { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .live-status-cta { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; color: var(--accent-pink); text-transform: uppercase; white-space: nowrap; flex-shrink: 0; margin-left: 4px; }
-        /* Mobile: NOT a floating overlay -- home's hero cards stack full-height right at the top
-           of the page there, so a fixed pill has nowhere open to float without sitting on top of
-           one of them. Instead this becomes a full-width bar in normal document flow, positioned
-           in the DOM right before #home (see the HTML) -- pushing the page's own content down
-           when it appears rather than covering it. Animated open/closed via max-height, same
-           trick already used by .policy-panel's accordion elsewhere in this file (no native way
-           to transition to/from an unknown "auto" height, so this animates toward a fixed cap
-           instead). JS sets margin-top (not `top` -- that's a no-op on a non-fixed/absolute
-           element) to clear the fixed header's real height; see positionLiveStatusBanner(). */
+        /* Mobile: same floating pill as desktop (just smaller), still fixed + centered below the
+           header via positionLiveStatusBanner() below. The pill itself never affects layout --
+           .live-status-spacer (below) is what actually reserves room for it, see that comment. */
         @media (max-width: 900px) {
             .live-status-banner {
-                position: relative; left: auto; transform: none;
-                width: 100%; max-width: 100%; border-radius: 0;
-                border-left: none; border-right: none; border-top: none; box-shadow: none;
-                justify-content: center; padding: 10px 16px;
-                max-height: 0; opacity: 1; overflow: hidden; pointer-events: none;
-                transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1), margin-top 0.3s ease;
+                padding: 9px 18px 9px 13px; gap: 9px;
+                max-width: min(90vw, 320px);
+                border-radius: 30px;
             }
-            /* Overrides the base .active rule's transform: translate(-50%, 0) -- that's the
-               desktop centering trick (paired with left: 50%), and without cancelling it here
-               it still wins on mobile once .active is added (higher specificity than the plain
-               .live-status-banner override above), shoving this full-width bar half its own
-               width off-screen to the left. */
-            .live-status-banner.active { max-height: 90px; pointer-events: all; transform: none; }
+            .live-status-dot { width: 9px; height: 9px; }
+            .live-status-label { font-size: 0.66rem; }
+            .live-status-note { font-size: 0.72rem; }
+            .live-status-cta { display: none; } /* no room for a third text element on a phone-sized pill -- tapping the pill itself still works */
         }
+        /* Real, in-flow, invisible -- height set by updateLiveStatusSpacer() in JS to exactly
+           match the floating pill's own rendered height (plus a small gap) whenever it's live on
+           mobile, pushing the hero cards down by that same amount so the pill has clear room to
+           float in without covering them. Zero height (and thus zero effect) on desktop and
+           whenever not live -- desktop already has open space around its centered pill, and this
+           whole mechanism only exists to work around mobile's tightly stacked layout. */
+        .live-status-spacer { height: 0; transition: height 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
         /* A little bigger on desktop, same idiom as the social icons/TikTok button's own
            desktop-only size bump elsewhere in this file. */
         @media (min-width: 901px) {
@@ -2040,6 +2036,11 @@
         </div>
         <span class="live-status-cta">Shop Claims →</span>
     </div>
+    <!-- Invisible, mobile-only -- the banner above is purely a floating pill (fixed position,
+         doesn't affect layout), but on mobile the hero image starts almost immediately below the
+         header with no natural gap for it to float into. This reserves that gap for real (see
+         updateLiveStatusSpacer()) so the pill has room without covering the image. -->
+    <div class="live-status-spacer" id="liveStatusSpacer"></div>
 
     <!-- Cart drawer layout = three regions in a flex column (see .cart-drawer / .drawer-body /
          .drawer-totals CSS). This is the ROBUST replacement for the old hardcoded-height +
@@ -7235,24 +7236,33 @@ Thank you for supporting my small business and understanding the handmade nature
             // touch-only device can still report a fine pointer). Same 900px breakpoint the
             // rest of the site already keys off (see updateBodyScrollLock).
             const isMobileWidth = window.matchMedia('(max-width: 900px)').matches;
-            const headerHeight = header.getBoundingClientRect().height;
-            if (isMobileWidth) {
-                // Mobile is an in-flow full-width bar (see the .live-status-banner CSS), not a
-                // fixed overlay -- `top` does nothing for a normally-flowing element, margin-top
-                // is what actually clears the fixed header's real (wraps-to-2-rows) height.
-                banner.style.top = '';
-                banner.style.marginTop = `${Math.round(headerHeight)}px`;
-            } else {
-                banner.style.marginTop = '';
-                banner.style.top = `${Math.round(headerHeight + 16)}px`;
-            }
+            // A slightly bigger gap on mobile than desktop -- the header there wraps to 2 rows
+            // and sits closer to the stacked hero cards underneath, so this pill needs a bit
+            // more breathing room to stay clear of them than the desktop gap alone would give it.
+            const gap = isMobileWidth ? 18 : 16;
+            banner.style.top = `${Math.round(header.getBoundingClientRect().height + gap)}px`;
+        }
+
+        // See the .live-status-spacer CSS comment -- mobile's hero image starts almost
+        // immediately below the header with no natural gap, so the floating pill (which never
+        // affects layout on its own) needs this real, in-flow, invisible element to actually
+        // reserve room for it. offsetHeight (not getBoundingClientRect()) deliberately -- the
+        // pill's SLIDE animation is a `transform`, which never changes its layout box size, so
+        // this reads correctly regardless of whether that transition has finished yet.
+        function updateLiveStatusSpacer() {
+            const spacer = document.getElementById('liveStatusSpacer');
+            const banner = document.getElementById('liveStatusBanner');
+            if (!spacer || !banner) return;
+            const isMobileWidth = window.matchMedia('(max-width: 900px)').matches;
+            const shouldReserve = isMobileWidth && currentLiveStatus.is_live;
+            spacer.style.height = shouldReserve ? `${banner.offsetHeight + 14}px` : '0px';
         }
 
         let bannerPositionTicking = false;
         function onBannerResizeThrottled() {
             if (bannerPositionTicking) return;
             bannerPositionTicking = true;
-            requestAnimationFrame(() => { positionLiveStatusBanner(); bannerPositionTicking = false; });
+            requestAnimationFrame(() => { positionLiveStatusBanner(); updateLiveStatusSpacer(); bannerPositionTicking = false; });
         }
         window.addEventListener('resize', onBannerResizeThrottled);
         positionLiveStatusBanner(); // as early as possible, before any data has even loaded
@@ -7279,6 +7289,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
             banner.classList.toggle('active', isLive);
             if (chip) chip.classList.toggle('active', isLive);
+            updateLiveStatusSpacer();
 
             // A little extra flourish the FIRST moment it actually goes live (not on the plain
             // initial page-load read, and not while it's already live) -- reuses the same spark
