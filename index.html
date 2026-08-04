@@ -552,8 +552,13 @@
             cursor: pointer; transition: opacity 0.2s ease;
         }
         .review-card-photo:hover { opacity: 0.85; }
+        /* Mobile/default: plain stacked block, centered like before -- the header-row above it
+           only becomes a real side-by-side row at the desktop breakpoint below, so on mobile this
+           just falls into normal flow right after the header/subtitle (ahead of every review
+           card), instead of centered margin-auto fighting a flex row that doesn't exist yet. */
+        .reviews-header-row { margin-bottom: 40px; }
         .review-submission-area {
-            max-width: 480px; margin: 0 auto; padding: 26px; border: 1px solid var(--border-subtle); border-radius: 16px;
+            max-width: 480px; margin: 30px auto 0; padding: 26px; border: 1px solid var(--border-subtle); border-radius: 16px;
             background: rgba(255,255,255,0.02); box-shadow: 0 0 30px rgba(255,0,127,0.06);
         }
 
@@ -561,6 +566,14 @@
            existing 900px breakpoint (mobile uses max-width:900px elsewhere) so none of this
            touches mobile's rendering at all, not even incidentally. */
         @media (min-width: 901px) {
+            /* Header/subtitle on the left, the review-submission card on the right -- same row,
+               vertically aligned at the top like the reference mockup. flex-grow on the text side
+               (vs. a fixed width on the form side) means this stays correct no matter how long
+               the subtitle text ever gets. */
+            .reviews-header-row { display: flex; align-items: flex-start; gap: 40px; margin-bottom: 50px; }
+            .reviews-header-text { flex: 1 1 auto; max-width: 640px; }
+            .reviews-header-row .review-submission-area { flex: 0 0 420px; margin: 0; }
+
             /* Same fixed-height, dark-background, cropped-to-fill treatment as the DTF product
                cards (.product-image-zone) -- makes review photos uniform instead of each one
                being whatever size the uploaded image happened to be. */
@@ -2783,17 +2796,26 @@
     </section>
 
     <section id="reviews" class="page-section">
-        <h2 class="section-header reveal">Reviews</h2>
-        <!-- Blur (text-glass-bg) is deliberately on an INNER element, separate from the outer
-             .reveal wrapper that gets transform/opacity-transitioned on scroll-into-view --
-             Android Chrome flickers/artifacts when a backdrop-filter blur sits on the same
-             element as an active CSS transform transition (it has to re-composite the blurred
-             backdrop mid-transition). Splitting them onto two elements avoids that entirely,
-             same visual result. -->
-        <div class="reveal" style="max-width: 640px; margin: 0 auto 40px;">
-            <p class="text-glass-bg" style="color: var(--text-muted); text-align: center; font-size: 0.95rem;">
-                What real customers say about Inspired Threads.
-            </p>
+        <!-- Review submission form now lives up here, next to the header, instead of after the
+             whole reviews-grid -- desktop sits it beside the header/subtitle as a two-column row
+             (see .reviews-header-row's desktop-only rule below), mobile just stacks it right
+             after the subtitle, ahead of every review card, instead of at the very bottom. -->
+        <div class="reviews-header-row">
+            <div class="reviews-header-text">
+                <h2 class="section-header reveal">Reviews</h2>
+                <!-- Blur (text-glass-bg) is deliberately on an INNER element, separate from the
+                     outer .reveal wrapper that gets transform/opacity-transitioned on
+                     scroll-into-view -- Android Chrome flickers/artifacts when a backdrop-filter
+                     blur sits on the same element as an active CSS transform transition (it has
+                     to re-composite the blurred backdrop mid-transition). Splitting them onto two
+                     elements avoids that entirely, same visual result. -->
+                <div class="reveal">
+                    <p class="text-glass-bg" style="color: var(--text-muted); font-size: 0.95rem; margin-top: 8px;">
+                        What real customers say about Inspired Threads.
+                    </p>
+                </div>
+            </div>
+            <div class="review-submission-area" id="reviewSubmissionArea"></div>
         </div>
 
         <div class="reviews-grid" id="approvedReviewsGrid">
@@ -2831,8 +2853,6 @@
                 <div class="skel-bar" style="height:10px; width:80%;"></div>
             </div>
         </div>
-
-        <div class="review-submission-area" id="reviewSubmissionArea"></div>
     </section>
 
     <section id="leaderboard" class="page-section">
