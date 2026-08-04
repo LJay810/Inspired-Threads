@@ -211,6 +211,7 @@
         <button class="admin-nav-btn" data-tab="restock" onclick="switchTab('restock')">Restock</button>
         <button class="admin-nav-btn" data-tab="promocodes" onclick="switchTab('promocodes')">Promo Codes</button>
         <button class="admin-nav-btn" data-tab="cartaddons" onclick="switchTab('cartaddons')">Cart Addons</button>
+        <button class="admin-nav-btn" data-tab="live" onclick="switchTab('live')">Live Status</button>
         <div class="admin-nav-divider"></div>
         <a class="admin-nav-link" href="/#account">← Customers / Reviews (existing tools)</a>
         <a class="admin-nav-link" href="/">← Back to storefront</a>
@@ -329,6 +330,35 @@
                     <thead><tr><th></th><th>Name</th><th>Price</th><th>Stock</th><th>Published</th><th></th></tr></thead>
                     <tbody id="cartAddonsTableBody"><tr><td colspan="6" class="empty-state">Loading...</td></tr></tbody>
                 </table>
+            </div>
+        </section>
+
+        <!-- ===================== LIVE STATUS TAB ===================== -->
+        <section class="admin-tab-panel" id="tab-live">
+            <div class="admin-modal" style="max-width: 640px; margin: 0; padding: 24px;">
+                <h2 style="font-size:1rem; margin-bottom:6px;">TikTok Live Status</h2>
+                <div class="settings-field-hint" style="margin-bottom:18px;">
+                    Toggling this shows/hides a "we're live now" banner on the storefront instantly via Supabase Realtime -- shoppers already on the site see it appear or disappear immediately, no refresh needed.
+                </div>
+                <div id="liveStatusError"></div>
+                <div class="admin-field">
+                    <label>Status</label>
+                    <button type="button" class="admin-btn" id="liveStatusToggleBtn" onclick="toggleLiveStatus()">Loading…</button>
+                </div>
+                <div class="admin-field"><label>Banner note (optional)</label><input type="text" id="live_note" placeholder="e.g. Sale tier open now!"></div>
+                <div class="admin-field"><label>Live TikTok URL (optional -- links the banner straight to your stream)</label><input type="text" id="live_url" placeholder="https://www.tiktok.com/@..."></div>
+                <div class="admin-field">
+                    <label>Default claim tier while live (optional -- pre-selects this in the Live Claims modal)</label>
+                    <select id="live_default_tier">
+                        <option value="">None</option>
+                        <option value="destash">Destash</option>
+                        <option value="sale">Sale</option>
+                        <option value="new">New</option>
+                    </select>
+                </div>
+                <div class="admin-modal-actions" style="justify-content:flex-start;">
+                    <button type="button" class="admin-btn secondary" onclick="saveLiveStatusDetails()">Save Details</button>
+                </div>
             </div>
         </section>
     </main>
@@ -550,6 +580,7 @@ function switchTab(tab) {
     if (tab === 'restock') loadRestockTab();
     if (tab === 'promocodes') loadPromoCodes();
     if (tab === 'cartaddons') loadCartAddons();
+    if (tab === 'live') loadLiveStatus();
 }
 
 async function adminApi(endpoint, body) {
@@ -1901,6 +1932,79 @@ async function deactivatePromoCode(promotionCodeId) {
         await loadPromoCodes();
     } catch (err) {
         alert(err.message);
+    }
+}
+
+// ===================== LIVE STATUS =====================
+// Writes go straight to Supabase (RLS-gated to admins, see sql/live_status_schema.sql) rather
+// than through a new API route -- this project is already at Vercel Hobby's 12-function cap
+// (see the comment in api/products.js). index.html subscribes to this same row via Supabase
+// Realtime, so a toggle here reflects on the storefront within a second or two, no refresh needed.
+
+let liveStatusCache = { is_live: false };
+
+async function loadLiveStatus() {
+    document.getElementById('liveStatusError').innerHTML = '';
+    try {
+        const { data, error } = await supabaseClient.from('site_status').select('*').eq('id', 'main').single();
+        if (error) throw error;
+        liveStatusCache = data;
+        renderLiveStatus();
+    } catch (err) {
+        document.getElementById('liveStatusError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+function renderLiveStatus() {
+    const btn = document.getElementById('liveStatusToggleBtn');
+    btn.textContent = liveStatusCache.is_live ? '⚫ End Live' : '🔴 Go Live';
+    btn.className = liveStatusCache.is_live ? 'admin-btn danger' : 'admin-btn';
+    document.getElementById('live_note').value = liveStatusCache.live_note || '';
+    document.getElementById('live_url').value = liveStatusCache.live_url || '';
+    document.getElementById('live_default_tier').value = liveStatusCache.default_tier || '';
+}
+
+function readLiveStatusFormFields() {
+    return {
+        live_note: document.getElementById('live_note').value.trim() || null,
+        live_url: document.getElementById('live_url').value.trim() || null,
+        default_tier: document.getElementById('live_default_tier').value || null,
+        updated_at: new Date().toISOString(),
+        updated_by: session.user.id,
+    };
+}
+
+async function toggleLiveStatus() {
+    const btn = document.getElementById('liveStatusToggleBtn');
+    btn.disabled = true;
+    try {
+        const { data, error } = await supabaseClient.from('site_status')
+            .update({ is_live: !liveStatusCache.is_live, ...readLiveStatusFormFields() })
+            .eq('id', 'main').select().single();
+        if (error) throw error;
+        liveStatusCache = data;
+        renderLiveStatus();
+    } catch (err) {
+        document.getElementById('liveStatusError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Saves the note/URL/default tier WITHOUT flipping is_live -- e.g. updating the note mid-stream.
+async function saveLiveStatusDetails() {
+    document.getElementById('liveStatusError').innerHTML = '';
+    try {
+        const { data, error } = await supabaseClient.from('site_status')
+            .update(readLiveStatusFormFields())
+            .eq('id', 'main').select().single();
+        if (error) throw error;
+        liveStatusCache = data;
+        renderLiveStatus();
+        document.getElementById('liveStatusError').innerHTML = '<div style="color:#4ade80; font-size:0.82rem; margin-bottom:14px;">Saved ✓</div>';
+        setTimeout(() => { document.getElementById('liveStatusError').innerHTML = ''; }, 2000);
+    } catch (err) {
+        document.getElementById('liveStatusError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
     }
 }
 

@@ -1881,6 +1881,56 @@
     .site-footer p { font-size: 0.7rem; letter-spacing: 0.05em; }
 }
 
+        /* --- TIKTOK LIVE STATUS BANNER --- */
+        /* Toggled by an admin from admin.html's Live Status tab, pushed here instantly via
+           Supabase Realtime (see subscribeLiveStatusRealtime() below) -- no polling, no page
+           refresh. Fixed + centered like the install-prompt-card, but slides down from the top
+           instead of up from the bottom. */
+        .live-status-banner {
+            position: fixed; top: 14px; left: 50%; z-index: 1500;
+            display: flex; align-items: center; gap: 12px;
+            max-width: min(92vw, 460px);
+            background: rgba(15, 15, 15, 0.97); border: 1px solid var(--accent-pink); border-radius: 40px;
+            padding: 10px 20px 10px 14px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6), 0 0 25px rgba(255,0,127,0.35);
+            cursor: none; opacity: 0; pointer-events: none;
+            transform: translate(-50%, -140%);
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease;
+        }
+        .live-status-banner.active { opacity: 1; pointer-events: all; transform: translate(-50%, 0); }
+        .live-status-dot {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+            background: #ff2d55; box-shadow: 0 0 8px rgba(255,45,85,0.9);
+            animation: liveDotPulse 1.4s ease-in-out infinite;
+        }
+        @keyframes liveDotPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.7); }
+        }
+        .live-status-text { display: flex; flex-direction: column; min-width: 0; }
+        .live-status-label { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 900; letter-spacing: 0.12em; color: #ff2d55; }
+        .live-status-note { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .live-status-cta { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; color: var(--accent-pink); text-transform: uppercase; white-space: nowrap; flex-shrink: 0; margin-left: 4px; }
+        @media (max-width: 900px) {
+            .live-status-banner { top: 8px; padding: 8px 14px 8px 12px; gap: 8px; }
+            .live-status-cta { display: none; } /* not enough room on small phones -- tapping the banner still works */
+        }
+
+        /* Small "LIVE" chip pinned to the corner of the hero TikTok button, same on/off
+           animation idiom as the banner above. Wrapper is its own inline-block (matching the
+           button's own intrinsic size) so the chip positions against just the button, not the
+           whole flex hero-content column around it. */
+        .tiktok-btn-wrap { position: relative; display: inline-block; }
+        .tiktok-btn-live-chip {
+            position: absolute; top: -10px; right: -10px; z-index: 2;
+            background: #ff2d55; color: #fff;
+            font-family: var(--font-mono); font-size: 0.6rem; font-weight: 900; letter-spacing: 0.08em;
+            padding: 4px 9px; border-radius: 20px; box-shadow: 0 0 12px rgba(255,45,85,0.7);
+            opacity: 0; transform: scale(0.5); pointer-events: none;
+            transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .tiktok-btn-live-chip.active { opacity: 1; transform: scale(1); }
+
     </style>
 </head>
 <body>
@@ -1941,7 +1991,20 @@
     
 
     <div class="drawer-overlay" id="drawerOverlay" onclick="closeAllDrawers()"></div>
-    
+
+    <!-- TikTok Live status banner -- hidden/shown + animated by applyLiveStatus() below, driven
+         by admin.html's Live Status tab via Supabase Realtime. Static in the DOM from the start
+         (not injected later) so it's already picked up by the desktop custom-cursor's
+         attachHoverTargets() pass. -->
+    <div class="live-status-banner hover-target" id="liveStatusBanner" onclick="handleLiveBannerClick()">
+        <div class="live-status-dot"></div>
+        <div class="live-status-text">
+            <span class="live-status-label">LIVE NOW</span>
+            <span class="live-status-note" id="liveStatusNote" style="display:none;"></span>
+        </div>
+        <span class="live-status-cta">Shop Claims →</span>
+    </div>
+
     <!-- Cart drawer layout = three regions in a flex column (see .cart-drawer / .drawer-body /
          .drawer-totals CSS). This is the ROBUST replacement for the old hardcoded-height +
          computeItemsPerPage()-measurement approach, which kept breaking on real devices whenever
@@ -2507,7 +2570,10 @@
                     <img src="images/WelcomeToInspiredThreads.png" class="glow-img home-card-img hover-target" alt="Welcome to the Crew" onclick="openLightbox(this.src)">
                 </div>
                 <div class="hero-content" style="margin-top: 0;">
-                    <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
+                    <div class="tiktok-btn-wrap">
+                        <button class="tiktok-btn magnetic-btn hover-target" onclick="openTikTokModal()">TikTok Live Claims</button>
+                        <span class="tiktok-btn-live-chip" id="tiktokBtnLiveChip">🔴 LIVE</span>
+                    </div>
                 </div>
                 <div class="home-img-wrapper reveal stagger-2">
                     <img src="images/TikTokLiveSchedule.png" alt="Live Sale Schedule" class="glow-img home-card-img hover-target" onclick="openLightbox(this.src)">
@@ -7111,6 +7177,76 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
 
+        // --- TIKTOK LIVE STATUS (Supabase Realtime) ---
+        // Reads/subscribes directly to the site_status table (see sql/live_status_schema.sql) --
+        // deliberately no serverless function involved, same reasoning as the rest of this
+        // feature (this project is already at Vercel Hobby's 12-function cap). RLS lets anyone
+        // read the row; only admin.html can ever write to it.
+        let liveStatusChannel = null;
+        let currentLiveStatus = { is_live: false };
+
+        // Drives the banner/chip on/off animation -- both are just a CSS class toggle (see
+        // .live-status-banner.active / .tiktok-btn-live-chip.active), so going live and ending
+        // live both animate identically whether this fires from the initial page load or a live
+        // Realtime push from admin.html.
+        function applyLiveStatus(status, opts = {}) {
+            const wasLive = !!currentLiveStatus.is_live;
+            currentLiveStatus = status || { is_live: false };
+            const isLive = !!currentLiveStatus.is_live;
+
+            const banner = document.getElementById('liveStatusBanner');
+            const noteEl = document.getElementById('liveStatusNote');
+            const chip = document.getElementById('tiktokBtnLiveChip');
+            if (!banner) return;
+
+            if (noteEl) {
+                noteEl.textContent = currentLiveStatus.live_note || '';
+                noteEl.style.display = currentLiveStatus.live_note ? 'block' : 'none';
+            }
+
+            banner.classList.toggle('active', isLive);
+            if (chip) chip.classList.toggle('active', isLive);
+
+            // A little extra flourish the FIRST moment it actually goes live (not on the plain
+            // initial page-load read, and not while it's already live) -- reuses the same spark
+            // burst the DTF visualizer fires when a design is attached.
+            if (isLive && !wasLive && !opts.silent && typeof fireSparkBurst === 'function') {
+                fireSparkBurst(banner);
+            }
+        }
+
+        async function loadLiveStatus() {
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient.from('site_status').select('*').eq('id', 'main').single();
+                if (error) throw error;
+                applyLiveStatus(data, { silent: true }); // no spark burst on a plain page load
+            } catch (err) {
+                console.warn('Could not load live status:', err.message);
+            }
+        }
+
+        function subscribeLiveStatusRealtime() {
+            if (!supabaseClient || liveStatusChannel) return;
+            liveStatusChannel = supabaseClient
+                .channel('site_status_changes')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'site_status', filter: 'id=eq.main' },
+                    (payload) => applyLiveStatus(payload.new))
+                .subscribe();
+        }
+
+        // Opens the Live Claims modal (pre-selecting whichever tier the admin flagged as active,
+        // if any) and, if a real stream URL was set, also pops it open in a new tab so a shopper
+        // can watch and claim at the same time.
+        function handleLiveBannerClick() {
+            if (currentLiveStatus.live_url) window.open(currentLiveStatus.live_url, '_blank', 'noopener');
+            openTikTokModal();
+            if (currentLiveStatus.default_tier) {
+                const tier = TIKTOK_TIERS.find(t => t.key === currentLiveStatus.default_tier);
+                if (tier) selectTikTokTier(tier.key);
+            }
+        }
+
         // --- 8. FORMSPREE ENGINE ---
         document.getElementById('contactForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -7589,6 +7725,8 @@ Thank you for supporting my small business and understanding the handmade nature
             loadApprovedReviews();
             loadTrustBadge();
             loadLeaderboard();
+            loadLiveStatus();
+            subscribeLiveStatusRealtime();
         };
 
         // PWA installability -- registers the minimal static-asset-only service worker (see
