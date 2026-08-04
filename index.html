@@ -5246,7 +5246,19 @@ Thank you for supporting my small business and understanding the handmade nature
                 }
             });
 
-            document.getElementById('mainFilterBar').insertAdjacentHTML('afterbegin', html);
+            const filterBarEl = document.getElementById('mainFilterBar');
+            // Clear whatever a PREVIOUS renderFilterBar() call left behind before inserting the
+            // fresh set -- insertAdjacentHTML below only ever ADDS, never replaces, which was
+            // harmless back when initShopEngine() only ever ran once per page load. It no longer
+            // does: the Golden Ticket (and Graveyard) bystander-effect poll can now trigger a
+            // second initShopEngine() while the page is already open, and without this, that
+            // second run just prepended a whole duplicate row of filter buttons in front of the
+            // first, stacking again on every subsequent trigger. #mainDtfSearch is the one static
+            // child (declared once in the HTML, not re-rendered here) that has to survive.
+            Array.from(filterBarEl.children).forEach(child => {
+                if (child.id !== 'mainDtfSearch') child.remove();
+            });
+            filterBarEl.insertAdjacentHTML('afterbegin', html);
             return firstButtonId;
         }
 
