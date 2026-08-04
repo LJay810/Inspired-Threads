@@ -1810,6 +1810,16 @@
         }
         .cart-btn-bump { animation: cartBtnBump 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
+        /* Landing acknowledgment on an EXISTING drawer thumbnail -- used instead of the reveal
+           fade-in when flyToCart's second leg is just bumping a quantity that was already visible
+           in the (already open) drawer, rather than unveiling a brand new line. */
+        @keyframes cartThumbLandedPulse {
+            0% { box-shadow: 0 0 0 rgba(255,0,127,0); transform: scale(1); }
+            40% { box-shadow: 0 0 18px rgba(255,0,127,0.75); transform: scale(1.12); }
+            100% { box-shadow: 0 0 0 rgba(255,0,127,0); transform: scale(1); }
+        }
+        .cart-thumb-landed-pulse { animation: cartThumbLandedPulse 0.5s ease-out; }
+
         /* --- MOBILE RESPONSIVENESS --- */
         @media (max-width: 900px) {
 
@@ -4205,15 +4215,15 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById('dtfOverlayModal').classList.remove('active');
         }
 
-       function fireSparkBurst(overlayElement) {
-            for (let i = 0; i < 8; i++) {
+       function fireSparkBurst(overlayElement, count = 8) {
+            for (let i = 0; i < count; i++) {
                 const spark = document.createElement('div');
                 spark.className = 'spark-particle';
-                
-                // Math to shoot them outward in an 8-point star pattern
-                const angle = (Math.PI * 2 / 8) * i + (Math.random() * 0.4 - 0.2);
-                const distance = 40 + Math.random() * 30; 
-                
+
+                // Math to shoot them outward in an even star pattern around the full circle
+                const angle = (Math.PI * 2 / count) * i + (Math.random() * 0.4 - 0.2);
+                const distance = 40 + Math.random() * 30;
+
                 const tx = Math.cos(angle) * distance;
                 const ty = Math.sin(angle) * distance;
                 const rot = (angle * 180 / Math.PI) + 90; // Aligns the line to the angle of travel
@@ -4221,118 +4231,163 @@ Thank you for supporting my small business and understanding the handmade nature
                 spark.style.setProperty('--tx', `${tx}px`);
                 spark.style.setProperty('--ty', `${ty}px`);
                 spark.style.setProperty('--rot', `${rot}deg`);
-                
+
                 overlayElement.appendChild(spark);
-                
+
                 // Matched to the new 1.5 second animation
                 setTimeout(() => spark.remove(), 1500);
             }
         }
 
-        // A fixed-position, radial 8-point burst anchored at a specific screen point rather than
-        // an existing element -- reuses fireSparkBurst's own particles/timing by giving it a
+        // A fixed-position radial burst anchored at a specific screen point rather than an
+        // existing element -- reuses fireSparkBurst's own particles/timing by giving it a
         // zero-size positioned wrapper to append into, so a launch/landing flourish looks exactly
         // like the DTF visualizer's own "design attached" burst instead of inventing a second
         // particle style. Self-removing, matched to the sparks' own 1.5s lifetime.
-        function burstAt(x, y) {
+        function burstAt(x, y, count = 8) {
             const wrapper = document.createElement('div');
             wrapper.style.cssText = `position:fixed; left:${x}px; top:${y}px; width:0; height:0; z-index:4000; pointer-events:none;`;
             document.body.appendChild(wrapper);
-            fireSparkBurst(wrapper);
+            fireSparkBurst(wrapper, count);
             setTimeout(() => wrapper.remove(), 1600);
         }
 
+        function rectCenter(elOrRect) {
+            const r = elOrRect instanceof Element ? elOrRect.getBoundingClientRect() : elOrRect;
+            return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        }
+
+        // One leg of a flying-to-cart trip -- a quadratic-bezier arc with a tumble and a dense,
+        // varied spark trail. Shared by both legs of flyToCart() below (source-to-icon, then
+        // icon-to-real-thumbnail) so the two legs read as one continuous flight instead of two
+        // visually different animations stitched together. Returns a Promise resolving with the
+        // flyer element once this leg finishes, so the caller can chain a second leg onto it (or
+        // remove it) without any setTimeout guessing at the real duration.
+        function animateFlight({ fromPoint, toPoint, imageUrl, duration, arcHeight, scaleFrom, scaleTo, existingFlyer }) {
+            return new Promise((resolve) => {
+                const flyer = existingFlyer || document.createElement('div');
+                if (!existingFlyer) {
+                    flyer.className = 'cart-flyer';
+                    if (imageUrl) flyer.style.backgroundImage = `url('${imageUrl}')`;
+                    document.body.appendChild(flyer);
+                }
+
+                // Control point lifted above the midpoint -- reads as a genuine toss/lob rather
+                // than a flat slide across the screen.
+                const controlX = (fromPoint.x + toPoint.x) / 2 + (Math.random() - 0.5) * 80;
+                const controlY = Math.min(fromPoint.y, toPoint.y) - arcHeight;
+
+                // A partial tumble over this leg, direction randomized per throw -- purely
+                // decorative, layered on top of the positional transform below.
+                const spinDir = Math.random() < 0.5 ? -1 : 1;
+                const spinTurns = 0.5 + Math.random() * 0.4;
+
+                const startTime = performance.now();
+                const SPARK_COLORS = ['#ff007f', '#ff5fa8', '#ffd7ec']; // pink -> lighter pink -> near-white, for a sparkle mix instead of one flat dot color
+
+                function frame(now) {
+                    const t = Math.min((now - startTime) / duration, 1);
+                    const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+                    const inv = 1 - eased;
+
+                    const x = inv * inv * fromPoint.x + 2 * inv * eased * controlX + eased * eased * toPoint.x;
+                    const y = inv * inv * fromPoint.y + 2 * inv * eased * controlY + eased * eased * toPoint.y;
+                    const scale = scaleFrom + (scaleTo - scaleFrom) * eased;
+                    const rotation = spinDir * spinTurns * 360 * eased;
+
+                    flyer.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scale})`;
+                    flyer.style.opacity = t < 0.85 ? '1' : `${Math.max(0, 1 - (t - 0.85) / 0.15)}`;
+
+                    // Dense, varied trail -- up to three sparks a frame, each independently sized
+                    // and tinted, instead of a uniform dotted line.
+                    for (let n = 0; n < 3; n++) {
+                        if (Math.random() >= 0.6) continue;
+                        const spark = document.createElement('div');
+                        spark.className = 'cart-flyer-spark';
+                        // left/top, not transform -- the CSS keyframe animation on this class
+                        // already animates transform (fade + scale), and a CSS animation always
+                        // wins over an inline transform on the same property, so positioning via
+                        // transform here would get silently overwritten the instant it starts.
+                        const jitter = 7; // small spread so the trail reads as a cluster, not one exact line
+                        spark.style.left = `${x + (Math.random() - 0.5) * jitter * 2}px`;
+                        spark.style.top = `${y + (Math.random() - 0.5) * jitter * 2}px`;
+                        const size = 3 + Math.random() * 6;
+                        spark.style.width = `${size}px`;
+                        spark.style.height = `${size}px`;
+                        const color = SPARK_COLORS[(Math.random() * SPARK_COLORS.length) | 0];
+                        spark.style.background = color;
+                        spark.style.boxShadow = `0 0 ${size + 4}px ${color}`;
+                        document.body.appendChild(spark);
+                        setTimeout(() => spark.remove(), 550);
+                    }
+
+                    if (t < 1) {
+                        requestAnimationFrame(frame);
+                    } else {
+                        resolve(flyer);
+                    }
+                }
+                requestAnimationFrame(frame);
+            });
+        }
+
         // --- FLYING-TO-CART ANIMATION ---
-        // Clones the product's thumbnail and flies it from wherever it was just added (the
-        // clicked button/card) to the cart nav icon, along a tall arc with a gentle tumble and a
-        // dense, varied spark trail, plus a proper radial burst at both the launch and landing
-        // points (see burstAt above) -- landing also bumps the cart icon itself. Purely a visual
-        // flourish, fired fire-and-forget -- never awaited, never blocks or delays the actual
-        // cart mutation that triggered it. Wired into the shop grid's Add to Cart and the
-        // cart-addons popup's +Add; NOT wired into wishlist "Move to Cart" or the TikTok/
-        // Resurrect modals -- those either fire from inside an already-open drawer/modal (nowhere
-        // sensible for a page-wide flight to originate from) or would need to grab the source
-        // element's position before that same click handler removes it from the DOM.
-        function flyToCart(sourceEl, imageUrl) {
+        // Two-leg trip: LEG 1 flies the product's thumbnail from wherever it was just added (the
+        // clicked button/card) to the cart nav icon in the header -- fires instantly on click, so
+        // there's immediate feedback even before anything about the cart drawer is known. LEG 2,
+        // only if opts.targetEl is given, is a short second hop from that icon down into the
+        // ACTUAL thumbnail's resting spot inside the now-open cart drawer, ending with
+        // opts.onLand() (reveals the real thumbnail, or pulses it for a quantity bump) instead of
+        // just vanishing into the header icon. The caller (see attachCartListenerToElement below)
+        // opens the drawer in parallel with LEG 1, not after it -- LEG 1 alone takes noticeably
+        // longer than the drawer's own 0.4s slide-in transition, so by the time LEG 2 starts, the
+        // real thumbnail is already sitting in its final, settled position with no extra waiting
+        // or transitionend listening needed. Purely a visual flourish, fire-and-forget -- never
+        // blocks or delays the actual cart mutation that triggered it. Wired into the shop grid's
+        // Add to Cart (with a real targetEl) and the cart-addons popup's +Add (LEG 1 only, since
+        // that popup never opens the cart drawer) -- NOT wired into wishlist "Move to Cart" or the
+        // TikTok/Resurrect modals, see the git history for this file for why.
+        async function flyToCart(sourceEl, imageUrl, opts = {}) {
             const cartBtn = document.querySelector('.cart-btn');
             if (!sourceEl || !cartBtn) return;
-            const startRect = sourceEl.getBoundingClientRect();
-            const endRect = cartBtn.getBoundingClientRect();
-            const startX = startRect.left + startRect.width / 2;
-            const startY = startRect.top + startRect.height / 2;
-            const endX = endRect.left + endRect.width / 2;
-            const endY = endRect.top + endRect.height / 2;
 
-            burstAt(startX, startY);
+            const fromPoint = rectCenter(sourceEl);
+            burstAt(fromPoint.x, fromPoint.y, 12);
 
-            const flyer = document.createElement('div');
-            flyer.className = 'cart-flyer';
-            if (imageUrl) flyer.style.backgroundImage = `url('${imageUrl}')`;
-            document.body.appendChild(flyer);
+            const iconPoint = rectCenter(cartBtn);
+            const flyer = await animateFlight({
+                fromPoint, toPoint: iconPoint, imageUrl,
+                duration: 850, arcHeight: 150, scaleFrom: 1, scaleTo: 0.5,
+            });
 
-            // A quadratic-bezier arc (control point lifted well above the midpoint), not a
-            // straight line -- reads as a genuine toss/lob rather than a flat slide across the
-            // screen. Taller and slower than the first pass at this (was 90px/650ms) for a more
-            // deliberate, satisfying flight instead of a quick snap.
-            const controlX = (startX + endX) / 2 + (Math.random() - 0.5) * 80;
-            const controlY = Math.min(startY, endY) - 150;
+            const targetEl = opts.targetEl;
+            if (targetEl && document.body.contains(targetEl)) {
+                cartBtn.classList.add('cart-btn-bump');
+                setTimeout(() => cartBtn.classList.remove('cart-btn-bump'), 350);
 
-            // A full lazy tumble over the flight, direction randomized per throw -- purely
-            // decorative, layered on top of the positional transform below.
-            const spinDir = Math.random() < 0.5 ? -1 : 1;
-            const spinTurns = 1 + Math.random() * 0.5; // 1 to 1.5 full rotations
-
-            const DURATION = 950;
-            const startTime = performance.now();
-            const SPARK_COLORS = ['#ff007f', '#ff5fa8', '#ffd7ec']; // pink -> lighter pink -> near-white, for a sparkle mix instead of one flat dot color
-
-            function animate(now) {
-                const t = Math.min((now - startTime) / DURATION, 1);
-                const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
-                const inv = 1 - eased;
-
-                const x = inv * inv * startX + 2 * inv * eased * controlX + eased * eased * endX;
-                const y = inv * inv * startY + 2 * inv * eased * controlY + eased * eased * endY;
-                const scale = 1 - eased * 0.7;
-                const rotation = spinDir * spinTurns * 360 * eased;
-
-                flyer.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${rotation}deg) scale(${scale})`;
-                flyer.style.opacity = t < 0.85 ? '1' : `${Math.max(0, 1 - (t - 0.85) / 0.15)}`;
-
-                // Denser trail than the first pass (was a flat 35% chance, one fixed size/color) --
-                // up to two sparks a frame, each independently sized and tinted for a richer,
-                // more sparkly wake instead of a uniform dotted line.
-                for (let n = 0; n < 2; n++) {
-                    if (Math.random() >= 0.55) continue;
-                    const spark = document.createElement('div');
-                    spark.className = 'cart-flyer-spark';
-                    // left/top, not transform -- the CSS keyframe animation on this class already
-                    // animates transform (fade + scale), and a CSS animation always wins over an
-                    // inline transform on the same property, so positioning via transform here
-                    // would get silently overwritten the instant it starts.
-                    const jitter = 6; // small spread so the trail reads as a cluster, not one exact line
-                    spark.style.left = `${x + (Math.random() - 0.5) * jitter * 2}px`;
-                    spark.style.top = `${y + (Math.random() - 0.5) * jitter * 2}px`;
-                    const size = 3 + Math.random() * 5;
-                    spark.style.width = `${size}px`;
-                    spark.style.height = `${size}px`;
-                    const color = SPARK_COLORS[(Math.random() * SPARK_COLORS.length) | 0];
-                    spark.style.background = color;
-                    spark.style.boxShadow = `0 0 ${size + 4}px ${color}`;
-                    document.body.appendChild(spark);
-                    setTimeout(() => spark.remove(), 500);
-                }
-
-                if (t < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    flyer.remove();
-                    burstAt(endX, endY);
-                    cartBtn.classList.add('cart-btn-bump');
-                    setTimeout(() => cartBtn.classList.remove('cart-btn-bump'), 350);
-                }
+                // Clamped to stay on-screen -- a cart with enough items that the new one landed
+                // below the drawer's own visible scroll fold would otherwise fly toward a real
+                // but invisible/off-screen point. Doesn't chase the drawer's scroll position, just
+                // guarantees SOMEWHERE visible near the drawer to land instead of vanishing.
+                const landPointRaw = rectCenter(targetEl);
+                const landPoint = {
+                    x: Math.min(Math.max(landPointRaw.x, 20), window.innerWidth - 20),
+                    y: Math.min(Math.max(landPointRaw.y, 20), window.innerHeight - 20),
+                };
+                await animateFlight({
+                    fromPoint: iconPoint, toPoint: landPoint, imageUrl,
+                    duration: 400, arcHeight: 30, scaleFrom: 0.5, scaleTo: 1.3,
+                    existingFlyer: flyer,
+                });
+                flyer.remove();
+                burstAt(landPoint.x, landPoint.y, 16);
+                if (opts.onLand) opts.onLand();
+            } else {
+                flyer.remove();
+                burstAt(iconPoint.x, iconPoint.y, 14);
+                cartBtn.classList.add('cart-btn-bump');
+                setTimeout(() => cartBtn.classList.remove('cart-btn-bump'), 350);
             }
-            requestAnimationFrame(animate);
         }
 
         // ================== DTF CONTENT-BOUNDS AUTO-DETECTION ==================
@@ -4865,14 +4920,18 @@ Thank you for supporting my small business and understanding the handmade nature
 
                     // PUSH #1: THE BASE GARMENT
                     const existingBaseItem = cart.find(item => item.priceId === priceId && item.size === size && item.color === color && item.name === baseItemName);
+                    const isNewLine = !existingBaseItem; // tracked for flyToCart below -- a brand new line gets its real thumbnail hidden-then-revealed, an existing one just gets a landing pulse
+                    let baseItemId;
                     if (existingBaseItem) {
                         existingBaseItem.quantity += 1;
+                        baseItemId = existingBaseItem.id;
                     } else {
                         // categoryId stored here (not looked up later) same reasoning as isDtf --
                         // it's what previewBuy3Get1Free() below uses to spot a qualifying T-shirt
                         // without needing to re-derive it from productId at render time.
                         const categoryId = window.productCategoryId ? window.productCategoryId[productId] : null;
-                        cart.push({ id: Date.now(), name: baseItemName, price, priceId, size, color, quantity: 1, image: imageUrl, isDtf, categoryId });
+                        baseItemId = Date.now();
+                        cart.push({ id: baseItemId, name: baseItemName, price, priceId, size, color, quantity: 1, image: imageUrl, isDtf, categoryId });
                     }
 
                     // PUSH #2: THE ATTACHED DTF PRINT (DUAL PAYLOAD) -- always a DTF design by definition
@@ -4885,10 +4944,43 @@ Thank you for supporting my small business and understanding the handmade nature
                         }
                     }
 
-                    flyToCart(btn, imageUrl);
                     saveCart();
-                    updateCartUI();
-                    if(!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
+                    updateCartUI(); // builds/updates the real drawer-item DOM node for baseItemId, even while the drawer itself is still closed/off-screen
+
+                    // The flying thumbnail's SECOND leg needs to land on this item's REAL node
+                    // inside the drawer -- computeCartRenderGroups() may have just rendered it as
+                    // part of a merged combo card (garment + attached print), but either way
+                    // window._cartItemNodes is always keyed by the garment's own id, which is
+                    // exactly baseItemId regardless of which shape it rendered as.
+                    const cartItemNode = window._cartItemNodes && window._cartItemNodes[baseItemId];
+                    const imgWrap = cartItemNode && cartItemNode.querySelector('.drawer-item-img-wrap');
+                    // Hidden (not display:none) so it still occupies its real, correctly-laid-out
+                    // position for rectCenter() to read once the drawer settles -- the flying
+                    // thumbnail becomes visually "what arrives," rather than arriving on top of an
+                    // already-visible duplicate. Only for a genuinely NEW line -- an existing one
+                    // was already visible before this click, so there's nothing to hide/reveal,
+                    // just a landing pulse (see flyToCart's onLand below).
+                    if (isNewLine && imgWrap) imgWrap.style.visibility = 'hidden';
+
+                    // Opened HERE, in parallel with flyToCart's first leg below -- not awaited
+                    // first. That first leg alone (850ms) takes noticeably longer than the
+                    // drawer's own 0.4s slide-in transition, so by the time the second leg starts,
+                    // the real thumbnail is already sitting in its final, settled position with no
+                    // extra waiting or transitionend listening needed.
+                    if (!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
+
+                    flyToCart(btn, imageUrl, {
+                        targetEl: imgWrap,
+                        onLand: () => {
+                            if (!imgWrap) return;
+                            if (isNewLine) {
+                                imgWrap.style.visibility = '';
+                            } else {
+                                imgWrap.classList.add('cart-thumb-landed-pulse');
+                                setTimeout(() => imgWrap.classList.remove('cart-thumb-landed-pulse'), 500);
+                            }
+                        },
+                    });
                 });
             }
 
