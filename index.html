@@ -8216,7 +8216,11 @@ Thank you for supporting my small business and understanding the handmade nature
             fall:   { mode: 'fall',   colors: ['#e8985e', '#c96b3c', '#f2b544'], minSize: 3,   maxSize: 6.5, speedY: [14, 28], sway: 30, rotate: true,  count: { mobile: 16, desktop: 30 } },
         };
 
-        const season = SEASONS[seasonForMonth(new Date().getMonth())];
+        // Testing override -- add ?season=winter (or spring/summer/fall) to the URL to force a
+        // specific look regardless of the real calendar month. Falls back to the real month for
+        // anything missing/invalid, so this is a no-op for every normal visitor.
+        const seasonOverride = new URLSearchParams(window.location.search).get('season');
+        const season = SEASONS[seasonOverride] || SEASONS[seasonForMonth(new Date().getMonth())];
         const particleCount = IS_MOBILE_WIDTH ? season.count.mobile : season.count.desktop;
 
         let W = 0, H = 0;
