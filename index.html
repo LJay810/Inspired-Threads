@@ -2588,8 +2588,8 @@
             </div>
 
             <div class="form-group" id="tiktokCustomAmountRow" style="display: none; margin-bottom: 20px;">
-                <label>Custom Amount</label>
-                <input type="number" id="tiktokCustomAmount" value="25" min="1" max="1000" step="1" oninput="updateTikTokTotal()" onchange="updateTikTokTotal()" style="font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); border-radius: 8px; width: 100%; padding: 10px 12px; outline: none;">
+                <label>Custom Amount ($1.00–$1000.00)</label>
+                <input type="number" id="tiktokCustomAmount" value="25.00" min="1" max="1000" step="0.01" oninput="updateTikTokTotal()" onchange="updateTikTokTotal()" style="font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); border-radius: 8px; width: 100%; padding: 10px 12px; outline: none;">
             </div>
 
             <div class="tiktok-shipping-deposit-row">
@@ -8119,7 +8119,7 @@ Thank you for supporting my small business and understanding the handmade nature
         function openTikTokModal() {
             document.getElementById('tiktokOverlay').classList.add('active');
             document.getElementById('tiktokQty').value = 1; // Resets to 1 natively
-            document.getElementById('tiktokCustomAmount').value = 25; // Same idea, for the custom-amount field
+            document.getElementById('tiktokCustomAmount').value = '25.00'; // Same idea, for the custom-amount field
             selectTikTokTier(TIKTOK_TIERS[0].key);
         }
 
@@ -8221,6 +8221,9 @@ Thank you for supporting my small business and understanding the handmade nature
             let val = parseFloat(input.value);
             if (!Number.isFinite(val)) val = 1;
             val = Math.max(1, Math.min(1000, val));
+            // Round to whole cents so stray float noise (e.g. 33.10000000000001 from repeated
+            // typing/arrow-key edits) never lands in the field or gets sent to the server.
+            val = Math.round(val * 100) / 100;
             input.value = val;
             return val;
         }
