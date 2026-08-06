@@ -2572,24 +2572,11 @@
             <button class="close-tiktok hover-target" onclick="closeTikTokModal()">✕</button>
             <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">Live Claims</h2>
             
-            <div class="form-group" style="margin-bottom: 10px;">
-                <label>Select Claim Tier</label>
-                <div class="tiktok-tier-picker" id="tiktokTierPicker">
-                    <button type="button" class="tiktok-tier-trigger hover-target" id="tiktokTierTrigger" onclick="toggleTikTokTierDropdown()">
-                        <span class="tiktok-tier-trigger-icon" id="tiktokTierTriggerIcon">🧵</span>
-                        <span class="tiktok-tier-trigger-text">
-                            <span class="tiktok-tier-trigger-label" id="tiktokTierTriggerLabel">Destash</span>
-                            <span class="tiktok-tier-trigger-price" id="tiktokTierTriggerPrice">$1.00</span>
-                        </span>
-                        <span class="tiktok-tier-trigger-chevron">▾</span>
-                    </button>
-                    <div class="tiktok-tier-dropdown" id="tiktokTierDropdown"></div>
-                </div>
-            </div>
-
-            <div class="form-group" id="tiktokCustomAmountRow" style="display: none; margin-bottom: 20px;">
+            <div class="form-group" style="margin-bottom: 20px;">
                 <label>Custom Amount ($1.00–$1000.00)</label>
-                <input type="number" id="tiktokCustomAmount" value="25.00" min="1" max="1000" step="0.01" oninput="updateTikTokTotal()" onchange="updateTikTokTotal()" style="font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); border-radius: 8px; width: 100%; padding: 10px 12px; outline: none;">
+                <input type="number" id="tiktokCustomAmount" value="25.00" min="1" max="1000" step="0.01"
+                    oninput="updateTikTokTotal()" onblur="clampTikTokCustomAmount(); updateTikTokTotal();" onfocus="this.select()"
+                    style="font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); border-radius: 8px; width: 100%; padding: 10px 12px; outline: none;">
             </div>
 
             <div class="tiktok-shipping-deposit-row">
@@ -2598,15 +2585,6 @@
                     📦 Shipping Deposit — $9.00 <span class="tiktok-shipping-deposit-arrow">→</span>
                 </button>
                 <p class="tiktok-shipping-deposit-note"></p>
-            </div>
-
-            <div class="form-group" id="tiktokQtyRow" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; margin-top: 20px;">
-                <label style="margin-bottom: 0;">Print Quantity</label>
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <button class="qty-btn hover-target" onclick="changeTikTokQty(-1)">-</button>
-  <input type="number" id="tiktokQty" value="1" min="1" onchange="updateTikTokTotal()" style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: 700; color: var(--text-pure); background: transparent; border: none; width: 60px; text-align: center; outline: none; -moz-appearance: textfield;">
-                    <button class="qty-btn hover-target" onclick="changeTikTokQty(1)">+</button>
-                </div>
             </div>
 
             <div class="cart-total-row" style="border-top: 1px solid var(--border-subtle); padding-top: 20px; margin-bottom: 20px;">
@@ -7894,16 +7872,12 @@ Thank you for supporting my small business and understanding the handmade nature
                 .subscribe();
         }
 
-        // Opens the Live Claims modal (pre-selecting whichever tier the admin flagged as active,
-        // if any) and, if a real stream URL was set, also pops it open in a new tab so a shopper
-        // can watch and claim at the same time.
+        // Opens the Live Claims modal and, if a real stream URL was set, also pops it open in a
+        // new tab so a shopper can watch and claim at the same time. Tiers are gone (Custom
+        // Amount is the only claim path now), so there's no default-tier pre-selection to do.
         function handleLiveBannerClick() {
             if (currentLiveStatus.live_url) window.open(currentLiveStatus.live_url, '_blank', 'noopener');
             openTikTokModal();
-            if (currentLiveStatus.default_tier) {
-                const tier = TIKTOK_TIERS.find(t => t.key === currentLiveStatus.default_tier);
-                if (tier) selectTikTokTier(tier.key);
-            }
         }
 
         // --- 8. FORMSPREE ENGINE ---
@@ -8039,94 +8013,26 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         // --- 10. TIKTOK LIVE CLAIMS ENGINE ---
-        let currentTikTokQty = 1;
+        // The fixed Destash/Sale/New tiers were retired -- Custom Amount is the only way to
+        // claim now, so there's no picker to open/close, just the one amount field below.
 
-        // Standalone, hardcoded Stripe Price IDs (not the admin-managed catalog) -- see
-        // addTikTokToCart()'s own note on why this product stayed out of that migration.
-        // "Shipping Deposit" needs a real one-time Stripe Price created in the Dashboard before
-        // this option will actually work -- the REPLACE_ME placeholder trips the same guard
-        // in addTikTokToCart() that's always protected the other tiers from an unconfigured id.
-        const TIKTOK_TIERS = [
-            { key: 'destash', label: 'Destash', price: 1.00, priceId: 'price_1ToElqFWt379RB9CShnW512b', icon: '🧵', note: 'Grab-bag remnants' },
-            { key: 'sale', label: 'Sale', price: 1.50, priceId: 'price_1ToElqFWt379RB9CTegULiuL', icon: '🔥', note: 'Discounted picks' },
-            { key: 'new', label: 'New', price: 2.00, priceId: 'price_1ToElqFWt379RB9CMDSOkhlt', icon: '✨', note: 'Fresh drops' },
-            // No fixed Stripe Price -- the shopper types their own $1-$1000 amount (see
-            // #tiktokCustomAmount below). isCustom steers every place that otherwise assumes a
-            // fixed .price/.priceId (rendering, totals, add-to-cart) onto a separate path.
-            { key: 'custom', label: 'Custom Amount', price: null, priceId: null, icon: '💵', note: 'Pick your own amount', isCustom: true },
-        ];
-        let tiktokSelectedTierKey = TIKTOK_TIERS[0].key;
-
-        // Deliberately NOT one of the TIKTOK_TIERS above -- that dropdown feeds the normal cart
-        // (addTikTokToCart -> cart.push -> the regular checkout flow), and this $9 flat deposit
-        // sitting in the cart alongside a "Standard Shipping" fulfillment pick would stack a real
-        // shipping fee on top of itself. buyShippingDepositNow() below skips the cart/fulfillment
-        // picker entirely and opens its own one-item Stripe session instead.
+        // Deliberately separate from the custom-amount claim above -- that one feeds the normal
+        // cart (addTikTokToCart -> cart.push -> the regular checkout flow), and this $9 flat
+        // deposit sitting in the cart alongside a "Standard Shipping" fulfillment pick would
+        // stack a real shipping fee on top of itself. buyShippingDepositNow() below skips the
+        // cart/fulfillment picker entirely and opens its own one-item Stripe session instead.
         const SHIPPING_DEPOSIT_PRICE_ID = 'price_1Tyf5hFWt379RB9C3mIPovaT';
         const SHIPPING_DEPOSIT_PRICE = 9.00;
 
-        function renderTikTokTierDropdown() {
-            const dd = document.getElementById('tiktokTierDropdown');
-            dd.innerHTML = TIKTOK_TIERS.map(t => `
-                <button type="button" class="tiktok-tier-option hover-target${t.key === tiktokSelectedTierKey ? ' selected' : ''}" onclick="selectTikTokTier('${t.key}')">
-                    <span class="tiktok-tier-option-icon">${t.icon}</span>
-                    <span class="tiktok-tier-option-text">
-                        <span class="tiktok-tier-option-label">${t.label}</span>
-                        <span class="tiktok-tier-option-note">${t.note}</span>
-                    </span>
-                    <span class="tiktok-tier-option-price">${t.isCustom ? 'Choose' : '$' + t.price.toFixed(2)}</span>
-                </button>
-            `).join('');
-        }
-
-        function toggleTikTokTierDropdown(forceClose) {
-            const dd = document.getElementById('tiktokTierDropdown');
-            const trigger = document.getElementById('tiktokTierTrigger');
-            const shouldOpen = forceClose === true ? false : !dd.classList.contains('open');
-            dd.classList.toggle('open', shouldOpen);
-            trigger.classList.toggle('open', shouldOpen);
-        }
-
-        function selectTikTokTier(key) {
-            tiktokSelectedTierKey = key;
-            const tier = TIKTOK_TIERS.find(t => t.key === key);
-            document.getElementById('tiktokTierTriggerIcon').textContent = tier.icon;
-            document.getElementById('tiktokTierTriggerLabel').textContent = tier.label;
-            document.getElementById('tiktokTierTriggerPrice').textContent = tier.isCustom ? 'Enter amount' : `$${tier.price.toFixed(2)}`;
-            renderTikTokTierDropdown();
-            toggleTikTokTierDropdown(true);
-            // A custom amount is a single lump total, not a per-unit price -- swap the
-            // quantity stepper out for the amount field instead of showing both.
-            document.getElementById('tiktokCustomAmountRow').style.display = tier.isCustom ? 'block' : 'none';
-            document.getElementById('tiktokQtyRow').style.display = tier.isCustom ? 'none' : 'flex';
-            updateTikTokTotal();
-        }
-
-        // Closes the tier dropdown on any click outside it -- the picker/dropdown live inside
-        // .tiktok-modal, whose own backdrop-click-to-close handler stops propagation before it
-        // ever reaches here, so this never fights with closeTikTokModal().
-        document.addEventListener('click', (e) => {
-            const picker = document.getElementById('tiktokTierPicker');
-            // composedPath() (the propagation path frozen at dispatch time) rather than
-            // picker.contains(e.target) -- selecting an option re-renders the dropdown's
-            // innerHTML as part of the SAME click, which detaches the clicked option node from
-            // the document before this listener runs; .contains() would then wrongly read that
-            // detached node as "outside" the picker on every single selection.
-            const path = e.composedPath ? e.composedPath() : [e.target];
-            if (picker && !path.includes(picker)) toggleTikTokTierDropdown(true);
-        });
-
         function openTikTokModal() {
             document.getElementById('tiktokOverlay').classList.add('active');
-            document.getElementById('tiktokQty').value = 1; // Resets to 1 natively
-            document.getElementById('tiktokCustomAmount').value = '25.00'; // Same idea, for the custom-amount field
-            selectTikTokTier(TIKTOK_TIERS[0].key);
+            document.getElementById('tiktokCustomAmount').value = '25.00'; // Resets to a default each time it's opened
+            updateTikTokTotal();
         }
 
         function closeTikTokModal(e) {
             if (e && e.target !== document.getElementById('tiktokOverlay')) return;
             document.getElementById('tiktokOverlay').classList.remove('active');
-            toggleTikTokTierDropdown(true);
         }
 
         // Bypasses the cart entirely -- a completely standalone, one-item Stripe session, so
@@ -8204,101 +8110,54 @@ Thank you for supporting my small business and understanding the handmade nature
             document.getElementById('adminAccordionToggleBtn').classList.toggle('open');
         }
 
-        function changeTikTokQty(change) {
-            const qtyInput = document.getElementById('tiktokQty');
-            let current = parseInt(qtyInput.value) || 1;
-            current += change;
-            if (current < 1) current = 1;
-            qtyInput.value = current;
-            updateTikTokTotal();
-        }
-
-        // Shared by updateTikTokTotal/addTikTokToCart so the field can never leave this modal
-        // holding a value outside $1-$1000 -- clamps in place (mirrors changeTikTokQty's own
-        // "never let this go below 1" safety catch) and returns the clamped number.
+        // The hard clamp -- only ever runs on blur (leaving the field) or right before the
+        // amount is added to cart, NEVER on every keystroke. Rewriting input.value mid-type
+        // (the old oninput-clamp behavior) is exactly what was stomping the cursor position and
+        // eating the decimal point every time someone tried to type cents. Clamps in place and
+        // returns the clamped number.
         function clampTikTokCustomAmount() {
             const input = document.getElementById('tiktokCustomAmount');
             let val = parseFloat(input.value);
             if (!Number.isFinite(val)) val = 1;
             val = Math.max(1, Math.min(1000, val));
             // Round to whole cents so stray float noise (e.g. 33.10000000000001 from repeated
-            // typing/arrow-key edits) never lands in the field or gets sent to the server.
+            // arrow-key edits) never lands in the field or gets sent to the server.
             val = Math.round(val * 100) / 100;
             input.value = val;
             return val;
         }
 
         function updateTikTokTotal() {
-            const tier = TIKTOK_TIERS.find(t => t.key === tiktokSelectedTierKey) || TIKTOK_TIERS[0];
-            let total;
-
-            if (tier.isCustom) {
-                total = clampTikTokCustomAmount();
-            } else {
-                const qtyInput = document.getElementById('tiktokQty');
-                let current = parseInt(qtyInput.value) || 1;
-
-                // Safety catch: If user types "0" or negative, force it back to 1
-                if (current < 1) {
-                    current = 1;
-                    qtyInput.value = 1;
-                }
-
-                total = tier.price * current;
-            }
-
+            // Lenient, read-only parse while the shopper is still typing -- reflects the total
+            // live without touching the field itself (see clampTikTokCustomAmount's comment).
+            // Out-of-range/partial values (e.g. "" or "33.") just show as $0.00/best-effort until
+            // the field is committed (blur), when the real clamp runs.
+            const raw = parseFloat(document.getElementById('tiktokCustomAmount').value);
+            const total = Number.isFinite(raw) ? raw : 0;
             document.getElementById('tiktokTotal').innerText = `$${total.toFixed(2)}`;
         }
 
         function addTikTokToCart() {
-            const tier = TIKTOK_TIERS.find(t => t.key === tiktokSelectedTierKey) || TIKTOK_TIERS[0];
-
-            if (tier.isCustom) {
-                // No fixed priceId to merge on, and each custom claim is its own deliberate
-                // amount -- always a new cart line, never combined into an existing one.
-                // tiktokCustomAmountCents is the marker api/checkout.js uses to build a dynamic
-                // price_data line instead of looking up a Stripe Price (see TIKTOK_ANCHOR_PRICE_ID
-                // there) -- the dollar amount is reclamped server-side too, since this client-side
-                // clamp is just UX, not the actual guarantee.
-                const amount = clampTikTokCustomAmount();
-                cart.push({
-                    id: Date.now(),
-                    name: 'TikTok Live Claim (Custom Amount)',
-                    price: amount,
-                    priceId: null,
-                    size: null, color: null,
-                    quantity: 1,
-                    tiktokCustomAmountCents: Math.round(amount * 100),
-                });
-                saveCart();
-                updateCartUI();
-                closeTikTokModal();
-                if (!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
-                return;
-            }
-
-            const price = tier.price;
-            const priceId = tier.priceId;
-            const quantity = parseInt(document.getElementById('tiktokQty').value) || 1;
-
-            const name = `TikTok Live Claim (${tier.label})`;
-
-            if (priceId.includes("REPLACE_ME")) {
-                alert("SYSTEM HALT: Stripe Price IDs have not been configured in the HTML.");
-                return;
-            }
-
-            const existingItem = cart.find(item => item.priceId === priceId);
-            if (existingItem) {
-                existingItem.quantity += quantity;
-            } else {
-                cart.push({ id: Date.now(), name, price, priceId, size: null, color: null, quantity });
-            }
-
+            // Always a new cart line, never merged into an existing one -- there's no fixed
+            // priceId to key a merge off of, and each custom claim is its own deliberate amount.
+            // tiktokCustomAmountCents is the marker api/checkout.js looks for to build a dynamic
+            // price_data line instead of looking up a Stripe Price (see TIKTOK_ANCHOR_PRICE_ID
+            // there) -- the dollar amount is reclamped server-side too, since this client-side
+            // clamp is just UX, not the actual guarantee.
+            const amount = clampTikTokCustomAmount();
+            cart.push({
+                id: Date.now(),
+                name: 'TikTok Live Claim (Custom Amount)',
+                price: amount,
+                priceId: null,
+                size: null, color: null,
+                quantity: 1,
+                tiktokCustomAmountCents: Math.round(amount * 100),
+            });
             saveCart();
             updateCartUI();
             closeTikTokModal();
-            if(!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
+            if (!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
         }
 
         // --- 11. SMART SEARCH ENGINE ---

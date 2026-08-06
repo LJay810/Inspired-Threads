@@ -347,15 +347,6 @@
                 </div>
                 <div class="admin-field"><label>Banner note (optional)</label><input type="text" id="live_note" placeholder="e.g. Sale tier open now!"></div>
                 <div class="admin-field"><label>Live TikTok URL (optional -- links the banner straight to your stream)</label><input type="text" id="live_url" placeholder="https://www.tiktok.com/@..."></div>
-                <div class="admin-field">
-                    <label>Default claim tier while live (optional -- pre-selects this in the Live Claims modal)</label>
-                    <select id="live_default_tier">
-                        <option value="">None</option>
-                        <option value="destash">Destash</option>
-                        <option value="sale">Sale</option>
-                        <option value="new">New</option>
-                    </select>
-                </div>
                 <div class="admin-modal-actions" style="justify-content:flex-start;">
                     <button type="button" class="admin-btn secondary" onclick="saveLiveStatusDetails()">Save Details</button>
                 </div>
@@ -1967,14 +1958,12 @@ function renderLiveStatus() {
     btn.className = liveStatusCache.is_live ? 'admin-btn danger' : 'admin-btn';
     document.getElementById('live_note').value = liveStatusCache.live_note || '';
     document.getElementById('live_url').value = liveStatusCache.live_url || '';
-    document.getElementById('live_default_tier').value = liveStatusCache.default_tier || '';
 }
 
 function readLiveStatusFormFields() {
     return {
         live_note: document.getElementById('live_note').value.trim() || null,
         live_url: document.getElementById('live_url').value.trim() || null,
-        default_tier: document.getElementById('live_default_tier').value || null,
         updated_at: new Date().toISOString(),
         updated_by: session.user.id,
     };
@@ -1997,7 +1986,7 @@ async function toggleLiveStatus() {
     }
 }
 
-// Saves the note/URL/default tier WITHOUT flipping is_live -- e.g. updating the note mid-stream.
+// Saves the note/URL WITHOUT flipping is_live -- e.g. updating the note mid-stream.
 async function saveLiveStatusDetails() {
     document.getElementById('liveStatusError').innerHTML = '';
     try {

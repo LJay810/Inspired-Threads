@@ -14,12 +14,13 @@ const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_
     ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     : null;
 
-// A "Custom Amount" TikTok Live Claim (see index.html's TIKTOK_TIERS) has no fixed Stripe
-// Price of its own -- it's built as a dynamic price_data line at checkout time instead (same
-// idiom as the golden ticket / BUY-3-GET-1-FREE $0 lines below). This anchors that dynamic
-// line to the SAME underlying Stripe product as the fixed tiers (any one of them works --
-// 'destash' here matches TIKTOK_TIERS[0] in index.html) so it still shows up under one
-// product on the Dashboard/receipt instead of creating a second, orphaned TikTok product.
+// A "Custom Amount" TikTok Live Claim (see addTikTokToCart() in index.html) has no fixed
+// Stripe Price of its own -- it's built as a dynamic price_data line at checkout time instead
+// (same idiom as the golden ticket / BUY-3-GET-1-FREE $0 lines below). This anchors that
+// dynamic line to a real Stripe product (the original "Destash" tier product, from back when
+// TikTok Live Claims had multiple fixed-price tiers) purely so it still shows up under one
+// product on the Dashboard/receipt instead of creating a second, orphaned TikTok product --
+// the price itself is never used, only the product it belongs to.
 const TIKTOK_ANCHOR_PRICE_ID = 'price_1ToElqFWt379RB9CShnW512b';
 
 // One reusable Stripe Coupon per standing-discount percentage (5% for Gold, 10% for VIP),
