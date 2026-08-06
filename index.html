@@ -6420,15 +6420,19 @@ Thank you for supporting my small business and understanding the handmade nature
                             || localStorage.getItem('pendingReferralCode');
                         if (pendingRef && !profile.referred_by && profile.order_count === 0 && pendingRef !== referralCode) {
                             try {
-                                // profiles' RLS only allows reading your OWN row, so looking up
-                                // a different user's id by their referral code has to go through
-                                // this RPC (SECURITY DEFINER, returns only the id) rather than a
-                                // direct .select() -- a direct query here would silently return
-                                // nothing every time, which is exactly what was happening before.
-                                const { data: referrerId } = await supabaseClient.rpc('lookup_referrer_id', { p_code: pendingRef });
-                                if (referrerId) {
-                                    await supabaseClient.from('profiles').update({ referred_by: referrerId }).eq('id', session.user.id);
-                                    profile.referred_by = referrerId;
+                                // link_referral_code (SECURITY DEFINER) re-validates everything
+                                // server-side -- not already linked, no orders placed yet, code
+                                // resolves to a real, different user -- and is the only way
+                                // referred_by can still change now that profiles' own
+                                // protect_loyalty_and_referral_columns trigger locks it against a
+                                // direct client update (see sql/protect_loyalty_columns.sql;
+                                // without this RPC, a raw update here would just silently no-op).
+                                // Returns true only if it actually linked something.
+                                const { data: linked } = await supabaseClient.rpc('link_referral_code', { p_code: pendingRef });
+                                if (linked) {
+                                    // The exact id isn't returned/needed -- every downstream check
+                                    // only ever asks "is referred_by set at all," never its value.
+                                    profile.referred_by = true;
                                 }
                             } catch (err) {
                                 console.warn('Could not link referral code:', err.message);
