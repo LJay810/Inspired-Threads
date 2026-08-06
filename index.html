@@ -6156,7 +6156,7 @@ Thank you for supporting my small business and understanding the handmade nature
             saveProfileFields({ stock_alert_phone: phone.trim() || null });
         }
 
-        function renderTierAndBadges(tierSpend, grandfatheredTier, earnedBadges, birthdayCode, birthdayCodeExpires) {
+        function renderTierAndBadges(tierSpend, grandfatheredTier, earnedBadges, birthdayCode, birthdayCodeExpires, birthdayCodeUsed) {
             currentEarnedBadges = earnedBadges;
 
             const currentTierName = effectiveTierName(tierSpend, grandfatheredTier);
@@ -6164,7 +6164,7 @@ Thank you for supporting my small business and understanding the handmade nature
             const currentIndex = TIERS.indexOf(currentTier);
             const nextTier = currentIndex > 0 ? TIERS[currentIndex - 1] : null;
 
-            renderPerks(currentTier.name, birthdayCode, birthdayCodeExpires);
+            renderPerks(currentTier.name, birthdayCode, birthdayCodeExpires, birthdayCodeUsed);
 
             document.getElementById('profileTierName').textContent = currentTier.name;
             animateNumber(document.getElementById('profileXpLabel'), window._lastRenderedXp || 0, Math.round(tierSpend), 900, ' spent', '$');
@@ -6199,13 +6199,16 @@ Thank you for supporting my small business and understanding the handmade nature
             }).join('');
         }
 
-        function renderPerks(tierName, birthdayCode, birthdayCodeExpires) {
+        function renderPerks(tierName, birthdayCode, birthdayCodeExpires, birthdayCodeUsed) {
             document.getElementById('perksList').innerHTML =
                 perkLinesForTier(tierName).map(line => `<li>${line}</li>`).join('');
 
             const banner = document.getElementById('birthdayCouponBanner');
             const isExpired = birthdayCodeExpires && new Date(birthdayCodeExpires) < new Date();
-            if (birthdayCode && !isExpired) {
+            // Once redeemed -- whether through this banner's manual code at Stripe checkout, or
+            // through the cart's Discount picker (see computeDiscountOptions) -- hide it rather
+            // than keep showing a code that will no longer actually work at Stripe's page.
+            if (birthdayCode && !isExpired && !birthdayCodeUsed) {
                 document.getElementById('birthdayCouponCode').textContent = birthdayCode;
                 document.getElementById('birthdayCouponPct').textContent = PERKS[tierName].birthdayDiscountPct;
                 document.getElementById('birthdayCouponExpires').textContent = new Date(birthdayCodeExpires).toLocaleDateString();
@@ -6365,7 +6368,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     );
                     const fetchProfile = supabaseClient
                         .from('profiles')
-                        .select('username, tier_spend, grandfathered_tier, badges, birthday, birthday_code, birthday_code_expires, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_signup_discount_used, referral_count, order_count, is_admin, avatar_url, selected_badge, spin_claimed_at, spin_prize_type, spin_prize_pct, spin_prize_used, credit_balance')
+                        .select('username, tier_spend, grandfathered_tier, badges, birthday, birthday_code, birthday_code_expires, birthday_code_used, birthday_promo_code_id, stock_alerts_enabled, stock_alert_method, stock_alert_phone, referral_code, referred_by, referral_reward_pending, referral_signup_discount_used, referral_count, order_count, is_admin, avatar_url, selected_badge, spin_claimed_at, spin_prize_type, spin_prize_pct, spin_prize_used, credit_balance')
                         .eq('id', session.user.id)
                         .single();
 
@@ -6376,7 +6379,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         // round-trip -- everything it needs was already fetched right here.
                         window._currentProfile = profile;
                         if (profile.username) displayName = profile.username;
-                        renderTierAndBadges(profile.tier_spend || 0, profile.grandfathered_tier, profile.badges || [], profile.birthday_code, profile.birthday_code_expires);
+                        renderTierAndBadges(profile.tier_spend || 0, profile.grandfathered_tier, profile.badges || [], profile.birthday_code, profile.birthday_code_expires, profile.birthday_code_used);
                         document.getElementById('crewCashAmount').textContent = `$${(parseFloat(profile.credit_balance) || 0).toFixed(2)}`;
                         document.getElementById('birthdayInput').value = profile.birthday || '';
 
@@ -6578,6 +6581,21 @@ Thank you for supporting my small business and understanding the handmade nature
             if (!profile || subtotalDollars <= 0) return null;
 
             const options = [];
+            const tierName = effectiveTierName(profile.tier_spend || 0, profile.grandfathered_tier);
+
+            // Only ever shown/selectable here -- never part of the "best deal" auto pick below,
+            // so it has to be a deliberate choice. Same eligibility api/checkout.js re-validates
+            // server-side: a real, unexpired, not-yet-used code. Selecting this redeems the
+            // shopper's own actual Stripe promotion code directly (see birthdayPromoCodeId in
+            // checkout.js) -- not a generic reusable coupon -- so it shares the same one-time
+            // limit as manually typing that code at Stripe's hosted checkout page instead.
+            if (profile.birthday_code && profile.birthday_promo_code_id && !profile.birthday_code_used
+                && profile.birthday_code_expires && new Date(profile.birthday_code_expires) > new Date()) {
+                const pct = (PERKS[tierName] && PERKS[tierName].birthdayDiscountPct) || 0;
+                if (pct > 0) {
+                    options.push({ value: 'birthday', label: `🎂 Birthday Coupon — ${pct}% off ($${(subtotalDollars * pct / 100).toFixed(2)})` });
+                }
+            }
             if ((profile.referral_reward_pending || 0) > 0) {
                 options.push({ value: 'referral_reward', label: `Referral Reward — 15% off ($${(subtotalDollars * 0.15).toFixed(2)})` });
             }
@@ -6588,7 +6606,6 @@ Thank you for supporting my small business and understanding the handmade nature
                 const pct = profile.spin_prize_pct || 0;
                 options.push({ value: 'spin_percent', label: `🎡 Spin Wheel Prize — ${pct}% off ($${(subtotalDollars * pct / 100).toFixed(2)})` });
             }
-            const tierName = effectiveTierName(profile.tier_spend || 0, profile.grandfathered_tier);
             const standingPct = (PERKS[tierName] && PERKS[tierName].standingDiscountPct) || 0;
             if (standingPct > 0) {
                 options.push({ value: 'standing', label: `⭐ ${tierName} Standing Discount — ${standingPct}% off ($${(subtotalDollars * standingPct / 100).toFixed(2)})` });

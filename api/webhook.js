@@ -406,6 +406,20 @@ export default async function handler(req, res) {
         }
       }
 
+      // Same idea for a reserved-but-unused birthday coupon redeemed through the cart's
+      // Discount picker -- releases OUR birthday_code_used flag. The actual Stripe promotion
+      // code itself was never touched at session-creation time (see checkout.js's
+      // birthdayPromoCodeId comment), so there's nothing to reactivate on the Stripe side; it's
+      // already still fully valid and unredeemed there.
+      if (metadata.birthday_discount_used === 'true' && metadata.supabase_user_id && supabaseAdmin) {
+        const birthdayReleaseMarker = `birthday_discount_released_${session.id}`;
+        const claimed = await kv.set(birthdayReleaseMarker, '1', { nx: true, ex: 86400 });
+        if (claimed) {
+          const { error: releaseErr } = await supabaseAdmin.rpc('release_birthday_discount', { p_user_id: metadata.supabase_user_id });
+          if (releaseErr) throw releaseErr;
+        }
+      }
+
       // Same idea for a reserved-but-unused Crew Cash amount.
       if (metadata.crew_cash_used && metadata.supabase_user_id && supabaseAdmin) {
         const creditReleaseMarker = `crew_cash_released_${session.id}`;

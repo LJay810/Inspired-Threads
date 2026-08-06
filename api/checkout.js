@@ -413,7 +413,7 @@ export default async function handler(req, res) {
             try {
                 const { data: profile } = await supabaseAdmin
                     .from('profiles')
-                    .select('tier_spend, grandfathered_tier, referred_by, referral_signup_discount_used, referral_reward_pending, order_count, spin_prize_type, spin_prize_pct, spin_prize_used, credit_balance')
+                    .select('tier_spend, grandfathered_tier, referred_by, referral_signup_discount_used, referral_reward_pending, order_count, spin_prize_type, spin_prize_pct, spin_prize_used, credit_balance, birthday_code, birthday_code_used, birthday_code_expires, birthday_promo_code_id')
                     .eq('id', supabaseUserId)
                     .single();
                 if (profile) {
@@ -469,6 +469,14 @@ export default async function handler(req, res) {
 
         let discountPct = perks.standingDiscountPct;
         let referralDiscountType = null; // 'reward' | 'signup' | null, stamped into metadata below
+        // Only ever set explicitly (see discountChoice === 'birthday' below) -- never part of the
+        // 'auto' best-deal cascade, so a shopper has to actively pick it from the cart's Discount
+        // dropdown. Holds the shopper's OWN real Stripe PromotionCode id (not a generic reusable
+        // coupon), applied directly via `discounts: [{ promotion_code }]` below -- Stripe's own
+        // max_redemptions: 1 on that exact object is what stops it from also still being usable
+        // manually at Stripe's hosted checkout page after being redeemed here (or vice versa), no
+        // separate deactivate/reactivate bookkeeping needed on our end.
+        let birthdayPromoCodeId = null;
         let spinPrizeClaimed = false;
         // Distinct from spinPrizeClaimed below: only true when the percent branch actually wins
         // the discount slot. A physical prize (pop socket, pen, etc.) also sets spinPrizeClaimed,
@@ -665,6 +673,23 @@ export default async function handler(req, res) {
                             console.warn('Crew Cash reservation failed, proceeding without it:', err.message);
                         }
                     }
+                } else if (discountChoice === 'birthday'
+                    && referralProfile.birthday_code
+                    && referralProfile.birthday_promo_code_id
+                    && !referralProfile.birthday_code_used
+                    && referralProfile.birthday_code_expires
+                    && new Date(referralProfile.birthday_code_expires) > new Date()) {
+                    try {
+                        const { data: reserved } = await supabaseAdmin.rpc('reserve_birthday_discount', {
+                            p_user_id: supabaseUserId,
+                        });
+                        if (reserved) {
+                            birthdayPromoCodeId = referralProfile.birthday_promo_code_id;
+                            sessionMetadata['birthday_discount_used'] = 'true';
+                        }
+                    } catch (err) {
+                        console.warn('Birthday discount reservation failed, falling back to tier discount:', err.message);
+                    }
                 } else if (discountChoice === 'none') {
                     // Shopper explicitly declined every automatic discount -- e.g. to use their
                     // own manual promo code instead, which Stripe can't combine with a pre-
@@ -700,9 +725,10 @@ export default async function handler(req, res) {
 
         // Stripe Checkout can't combine a pre-applied `discounts` coupon with customer-entered
         // `allow_promotion_codes` on the same session -- so whenever an automatic discount
-        // (Crew Cash, referral, standing, or spin) applies, manual promo-code entry is disabled
-        // for that one checkout. Everyone else (Bronze/Silver with no referral reward/guests, or
-        // anyone who explicitly chose "none") keeps the ability to enter a promo code as before.
+        // (Crew Cash, referral, standing, spin, or birthday) applies, manual promo-code entry is
+        // disabled for that one checkout. Everyone else (Bronze/Silver with no referral
+        // reward/guests, or anyone who explicitly chose "none") keeps the ability to enter a
+        // promo code as before.
         if (crewCashUsed > 0) {
             // Unlike the standing-discount coupons, this amount is unique to this shopper's
             // balance and this cart -- created fresh each time rather than looked up/reused.
@@ -714,6 +740,8 @@ export default async function handler(req, res) {
                 max_redemptions: 1,
             });
             sessionConfig.discounts = [{ coupon: creditCoupon.id }];
+        } else if (birthdayPromoCodeId) {
+            sessionConfig.discounts = [{ promotion_code: birthdayPromoCodeId }];
         } else if (discountPct > 0) {
             const coupon = await ensureStandingDiscountCoupon(discountPct);
             sessionConfig.discounts = [{ coupon: coupon.id }];

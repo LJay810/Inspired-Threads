@@ -79,7 +79,12 @@ export default async function handler(req, res) {
             // 'coupon', coupon }` rather than a flat top-level `coupon` field (Stripe's newer
             // generalized Promotions schema, in case non-coupon promotion types are added
             // later) -- same fix already applied in api/admin-user.js's own promotionCodes.create.
-            await stripe.promotionCodes.create({
+            // Captures the real Stripe object id (not just the human-readable code) so
+            // checkout.js can deactivate this exact promotion code the moment it's redeemed
+            // through the cart's "Discount" picker -- see sql/birthday_discount_redeem.sql for
+            // why that matters (without it, the cart-picker path and manually typing the code
+            // at Stripe's hosted checkout would each get their own independent use).
+            const promotionCode = await stripe.promotionCodes.create({
                 promotion: { type: 'coupon', coupon: coupon.id },
                 code,
                 max_redemptions: 1,
@@ -92,6 +97,8 @@ export default async function handler(req, res) {
                     birthday_code: code,
                     birthday_code_expires: new Date(expiresAtSeconds * 1000).toISOString(),
                     birthday_code_year: thisYear,
+                    birthday_promo_code_id: promotionCode.id,
+                    birthday_code_used: false, // fresh coupon cycle -- clear last year's flag even if it was somehow left set
                 })
                 .eq('id', profile.id);
             if (updateErr) throw updateErr;
