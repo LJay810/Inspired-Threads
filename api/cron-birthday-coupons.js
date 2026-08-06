@@ -75,8 +75,12 @@ export default async function handler(req, res) {
             const expiresAtSeconds = Math.floor(endOfMonth.getTime() / 1000);
             const code = randomCode();
 
+            // This SDK/API version nests the coupon reference under `promotion: { type:
+            // 'coupon', coupon }` rather than a flat top-level `coupon` field (Stripe's newer
+            // generalized Promotions schema, in case non-coupon promotion types are added
+            // later) -- same fix already applied in api/admin-user.js's own promotionCodes.create.
             await stripe.promotionCodes.create({
-                coupon: coupon.id,
+                promotion: { type: 'coupon', coupon: coupon.id },
                 code,
                 max_redemptions: 1,
                 expires_at: expiresAtSeconds,
