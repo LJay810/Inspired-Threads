@@ -8128,13 +8128,18 @@ Thank you for supporting my small business and understanding the handmade nature
         }
 
         function updateTikTokTotal() {
-            // Lenient, read-only parse while the shopper is still typing -- reflects the total
-            // live without touching the field itself (see clampTikTokCustomAmount's comment).
-            // Out-of-range/partial values (e.g. "" or "33.") just show as $0.00/best-effort until
-            // the field is committed (blur), when the real clamp runs.
-            const raw = parseFloat(document.getElementById('tiktokCustomAmount').value);
-            const total = Number.isFinite(raw) ? raw : 0;
-            document.getElementById('tiktokTotal').innerText = `$${total.toFixed(2)}`;
+            // Read-only parse while the shopper is still typing -- never rewrites input.value
+            // here (that's what broke typing decimals before, see clampTikTokCustomAmount's
+            // comment). The TOTAL shown is still clamped to $1-$1000 though, so typing something
+            // wildly out of range (e.g. "15151515") can't flash a bogus total or make it look
+            // like Add to Cart is about to charge that -- only the field's own text is left
+            // untouched mid-edit; the displayed price and the real clamp (on blur, or right
+            // before add-to-cart) never let an out-of-range amount through.
+            const input = document.getElementById('tiktokCustomAmount');
+            const raw = parseFloat(input.value);
+            const clamped = Number.isFinite(raw) ? Math.max(1, Math.min(1000, raw)) : 1;
+            input.style.borderColor = (Number.isFinite(raw) && raw !== clamped) ? '#ff3b5c' : '';
+            document.getElementById('tiktokTotal').innerText = `$${clamped.toFixed(2)}`;
         }
 
         function addTikTokToCart() {
