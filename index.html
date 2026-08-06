@@ -1082,12 +1082,6 @@
         .perks-panel-title { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
         .perks-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
         .perks-list li { font-size: 0.8rem; color: var(--text-pure); }
-        .birthday-coupon-banner {
-            margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 0.75rem; line-height: 1.5;
-            background: rgba(255,0,127,0.1); border: 1px solid var(--accent-pink); color: var(--text-pure);
-        }
-        .birthday-coupon-banner strong { font-family: var(--font-mono); letter-spacing: 0.05em; color: var(--accent-pink); }
-
         /* --- ADMIN TOOLS ACCORDION -- same collapse mechanic as .policy-toggle-btn/.policy-panel
            on the Contact page, sized to this dropdown's own (smaller) type scale instead of that
            page-level accordion's larger padding/font-size. */
@@ -2406,10 +2400,6 @@
                     <div class="perks-panel">
                         <div class="perks-panel-title">Your Perks</div>
                         <ul class="perks-list" id="perksList"></ul>
-                        <div class="birthday-coupon-banner" id="birthdayCouponBanner" style="display:none;">
-                            🎂 Birthday treat! Code <strong id="birthdayCouponCode"></strong> —
-                            <span id="birthdayCouponPct"></span>% off, expires <span id="birthdayCouponExpires"></span>
-                        </div>
                         <button type="button" class="spin-teaser-btn hover-target" id="spinTeaserBtn" onclick="openSpinWheel()">🎡 Spin & Win</button>
                     </div>
 
@@ -6156,7 +6146,7 @@ Thank you for supporting my small business and understanding the handmade nature
             saveProfileFields({ stock_alert_phone: phone.trim() || null });
         }
 
-        function renderTierAndBadges(tierSpend, grandfatheredTier, earnedBadges, birthdayCode, birthdayCodeExpires, birthdayCodeUsed) {
+        function renderTierAndBadges(tierSpend, grandfatheredTier, earnedBadges) {
             currentEarnedBadges = earnedBadges;
 
             const currentTierName = effectiveTierName(tierSpend, grandfatheredTier);
@@ -6164,7 +6154,7 @@ Thank you for supporting my small business and understanding the handmade nature
             const currentIndex = TIERS.indexOf(currentTier);
             const nextTier = currentIndex > 0 ? TIERS[currentIndex - 1] : null;
 
-            renderPerks(currentTier.name, birthdayCode, birthdayCodeExpires, birthdayCodeUsed);
+            renderPerks(currentTier.name);
 
             document.getElementById('profileTierName').textContent = currentTier.name;
             animateNumber(document.getElementById('profileXpLabel'), window._lastRenderedXp || 0, Math.round(tierSpend), 900, ' spent', '$');
@@ -6199,23 +6189,14 @@ Thank you for supporting my small business and understanding the handmade nature
             }).join('');
         }
 
-        function renderPerks(tierName, birthdayCode, birthdayCodeExpires, birthdayCodeUsed) {
+        // The active birthday code itself is never surfaced here anymore -- it's applied
+        // automatically from the cart's Discount picker instead (see computeDiscountOptions),
+        // so there's nothing left to manually copy/enter. This just lists the tier's general
+        // perks (including the "Birthday coupon: X% off" line, which is about the PERK, not
+        // whether one happens to be active right now).
+        function renderPerks(tierName) {
             document.getElementById('perksList').innerHTML =
                 perkLinesForTier(tierName).map(line => `<li>${line}</li>`).join('');
-
-            const banner = document.getElementById('birthdayCouponBanner');
-            const isExpired = birthdayCodeExpires && new Date(birthdayCodeExpires) < new Date();
-            // Once redeemed -- whether through this banner's manual code at Stripe checkout, or
-            // through the cart's Discount picker (see computeDiscountOptions) -- hide it rather
-            // than keep showing a code that will no longer actually work at Stripe's page.
-            if (birthdayCode && !isExpired && !birthdayCodeUsed) {
-                document.getElementById('birthdayCouponCode').textContent = birthdayCode;
-                document.getElementById('birthdayCouponPct').textContent = PERKS[tierName].birthdayDiscountPct;
-                document.getElementById('birthdayCouponExpires').textContent = new Date(birthdayCodeExpires).toLocaleDateString();
-                banner.style.display = 'block';
-            } else {
-                banner.style.display = 'none';
-            }
         }
 
         async function saveBirthday(value) {
@@ -6379,7 +6360,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         // round-trip -- everything it needs was already fetched right here.
                         window._currentProfile = profile;
                         if (profile.username) displayName = profile.username;
-                        renderTierAndBadges(profile.tier_spend || 0, profile.grandfathered_tier, profile.badges || [], profile.birthday_code, profile.birthday_code_expires, profile.birthday_code_used);
+                        renderTierAndBadges(profile.tier_spend || 0, profile.grandfathered_tier, profile.badges || []);
                         document.getElementById('crewCashAmount').textContent = `$${(parseFloat(profile.credit_balance) || 0).toFixed(2)}`;
                         document.getElementById('birthdayInput').value = profile.birthday || '';
 
