@@ -2587,6 +2587,11 @@
                 </div>
             </div>
 
+            <div class="form-group" id="tiktokCustomAmountRow" style="display: none; margin-bottom: 20px;">
+                <label>Custom Amount ($1–$1000)</label>
+                <input type="number" id="tiktokCustomAmount" value="25" min="1" max="1000" step="1" oninput="updateTikTokTotal()" onchange="updateTikTokTotal()" style="font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); border-radius: 8px; width: 100%; padding: 10px 12px; outline: none;">
+            </div>
+
             <div class="tiktok-shipping-deposit-row">
                 <div class="tiktok-shipping-deposit-divider"><span>or</span></div>
                 <button type="button" class="tiktok-shipping-deposit-btn hover-target" id="shippingDepositBtn" onclick="buyShippingDepositNow()">
@@ -2595,7 +2600,7 @@
                 <p class="tiktok-shipping-deposit-note"></p>
             </div>
 
-            <div class="form-group" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; margin-top: 20px;">
+            <div class="form-group" id="tiktokQtyRow" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; margin-top: 20px;">
                 <label style="margin-bottom: 0;">Print Quantity</label>
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <button class="qty-btn hover-target" onclick="changeTikTokQty(-1)">-</button>
@@ -8045,6 +8050,10 @@ Thank you for supporting my small business and understanding the handmade nature
             { key: 'destash', label: 'Destash', price: 1.00, priceId: 'price_1ToElqFWt379RB9CShnW512b', icon: '🧵', note: 'Grab-bag remnants' },
             { key: 'sale', label: 'Sale', price: 1.50, priceId: 'price_1ToElqFWt379RB9CTegULiuL', icon: '🔥', note: 'Discounted picks' },
             { key: 'new', label: 'New', price: 2.00, priceId: 'price_1ToElqFWt379RB9CMDSOkhlt', icon: '✨', note: 'Fresh drops' },
+            // No fixed Stripe Price -- the shopper types their own $1-$1000 amount (see
+            // #tiktokCustomAmount below). isCustom steers every place that otherwise assumes a
+            // fixed .price/.priceId (rendering, totals, add-to-cart) onto a separate path.
+            { key: 'custom', label: 'Custom Amount', price: null, priceId: null, icon: '💵', note: 'Pick your own amount', isCustom: true },
         ];
         let tiktokSelectedTierKey = TIKTOK_TIERS[0].key;
 
@@ -8065,7 +8074,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         <span class="tiktok-tier-option-label">${t.label}</span>
                         <span class="tiktok-tier-option-note">${t.note}</span>
                     </span>
-                    <span class="tiktok-tier-option-price">$${t.price.toFixed(2)}</span>
+                    <span class="tiktok-tier-option-price">${t.isCustom ? 'Choose' : '$' + t.price.toFixed(2)}</span>
                 </button>
             `).join('');
         }
@@ -8083,9 +8092,13 @@ Thank you for supporting my small business and understanding the handmade nature
             const tier = TIKTOK_TIERS.find(t => t.key === key);
             document.getElementById('tiktokTierTriggerIcon').textContent = tier.icon;
             document.getElementById('tiktokTierTriggerLabel').textContent = tier.label;
-            document.getElementById('tiktokTierTriggerPrice').textContent = `$${tier.price.toFixed(2)}`;
+            document.getElementById('tiktokTierTriggerPrice').textContent = tier.isCustom ? 'Enter amount' : `$${tier.price.toFixed(2)}`;
             renderTikTokTierDropdown();
             toggleTikTokTierDropdown(true);
+            // A custom amount is a single lump total, not a per-unit price -- swap the
+            // quantity stepper out for the amount field instead of showing both.
+            document.getElementById('tiktokCustomAmountRow').style.display = tier.isCustom ? 'block' : 'none';
+            document.getElementById('tiktokQtyRow').style.display = tier.isCustom ? 'none' : 'flex';
             updateTikTokTotal();
         }
 
@@ -8106,6 +8119,7 @@ Thank you for supporting my small business and understanding the handmade nature
         function openTikTokModal() {
             document.getElementById('tiktokOverlay').classList.add('active');
             document.getElementById('tiktokQty').value = 1; // Resets to 1 natively
+            document.getElementById('tiktokCustomAmount').value = 25; // Same idea, for the custom-amount field
             selectTikTokTier(TIKTOK_TIERS[0].key);
         }
 
@@ -8199,23 +8213,66 @@ Thank you for supporting my small business and understanding the handmade nature
             updateTikTokTotal();
         }
 
+        // Shared by updateTikTokTotal/addTikTokToCart so the field can never leave this modal
+        // holding a value outside $1-$1000 -- clamps in place (mirrors changeTikTokQty's own
+        // "never let this go below 1" safety catch) and returns the clamped number.
+        function clampTikTokCustomAmount() {
+            const input = document.getElementById('tiktokCustomAmount');
+            let val = parseFloat(input.value);
+            if (!Number.isFinite(val)) val = 1;
+            val = Math.max(1, Math.min(1000, val));
+            input.value = val;
+            return val;
+        }
+
         function updateTikTokTotal() {
-            const qtyInput = document.getElementById('tiktokQty');
-            let current = parseInt(qtyInput.value) || 1;
-            
-            // Safety catch: If user types "0" or negative, force it back to 1
-            if (current < 1) {
-                current = 1;
-                qtyInput.value = 1;
-            }
-            
             const tier = TIKTOK_TIERS.find(t => t.key === tiktokSelectedTierKey) || TIKTOK_TIERS[0];
-            const total = tier.price * current;
+            let total;
+
+            if (tier.isCustom) {
+                total = clampTikTokCustomAmount();
+            } else {
+                const qtyInput = document.getElementById('tiktokQty');
+                let current = parseInt(qtyInput.value) || 1;
+
+                // Safety catch: If user types "0" or negative, force it back to 1
+                if (current < 1) {
+                    current = 1;
+                    qtyInput.value = 1;
+                }
+
+                total = tier.price * current;
+            }
+
             document.getElementById('tiktokTotal').innerText = `$${total.toFixed(2)}`;
         }
 
         function addTikTokToCart() {
             const tier = TIKTOK_TIERS.find(t => t.key === tiktokSelectedTierKey) || TIKTOK_TIERS[0];
+
+            if (tier.isCustom) {
+                // No fixed priceId to merge on, and each custom claim is its own deliberate
+                // amount -- always a new cart line, never combined into an existing one.
+                // tiktokCustomAmountCents is the marker api/checkout.js uses to build a dynamic
+                // price_data line instead of looking up a Stripe Price (see TIKTOK_ANCHOR_PRICE_ID
+                // there) -- the dollar amount is reclamped server-side too, since this client-side
+                // clamp is just UX, not the actual guarantee.
+                const amount = clampTikTokCustomAmount();
+                cart.push({
+                    id: Date.now(),
+                    name: 'TikTok Live Claim (Custom Amount)',
+                    price: amount,
+                    priceId: null,
+                    size: null, color: null,
+                    quantity: 1,
+                    tiktokCustomAmountCents: Math.round(amount * 100),
+                });
+                saveCart();
+                updateCartUI();
+                closeTikTokModal();
+                if (!document.getElementById('cartDrawer').classList.contains('open')) toggleCart();
+                return;
+            }
 
             const price = tier.price;
             const priceId = tier.priceId;

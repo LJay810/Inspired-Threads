@@ -14,6 +14,14 @@ const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_
     ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     : null;
 
+// A "Custom Amount" TikTok Live Claim (see index.html's TIKTOK_TIERS) has no fixed Stripe
+// Price of its own -- it's built as a dynamic price_data line at checkout time instead (same
+// idiom as the golden ticket / BUY-3-GET-1-FREE $0 lines below). This anchors that dynamic
+// line to the SAME underlying Stripe product as the fixed tiers (any one of them works --
+// 'destash' here matches TIKTOK_TIERS[0] in index.html) so it still shows up under one
+// product on the Dashboard/receipt instead of creating a second, orphaned TikTok product.
+const TIKTOK_ANCHOR_PRICE_ID = 'price_1ToElqFWt379RB9CShnW512b';
+
 // One reusable Stripe Coupon per standing-discount percentage (5% for Gold, 10% for VIP),
 // looked up-or-created on first use so nothing needs to be pre-configured in the Stripe Dashboard.
 async function ensureStandingDiscountCoupon(percentOff) {
@@ -57,10 +65,25 @@ export default async function handler(req, res) {
         for (let i = 0; i < cartItems.length; i++) {
             const item = cartItems[i];
 
+            // Every line item below gets `adjustable_quantity: { enabled: true, minimum: 1 }`
+            // with no explicit `maximum`, so Stripe defaults maximum to 99 -- if a client-supplied
+            // quantity ever exceeds that (e.g. the TikTok Live Claims quantity stepper in
+            // index.html has no upper bound, and it's a Stripe-fallback product with no stock
+            // tracking to cap it another way), session creation fails outright with "You cannot
+            // specify `adjustable_quantity[maximum]` to be less than `quantity`." Clamping here,
+            // for every item regardless of path, keeps quantity within what that implicit
+            // maximum allows.
+            item.quantity = Math.max(1, Math.min(99, parseInt(item.quantity, 10) || 1));
+
+            // TikTok Live Claims "Custom Amount" (see addTikTokToCart() in index.html) carries
+            // no priceId at all -- it's never a catalog row, so skip the Supabase lookup
+            // entirely rather than querying with a null/undefined stripe_price_id.
+            const isTiktokCustomAmount = !!item.tiktokCustomAmountCents;
+
             // Catalog lookup is now Supabase, keyed by the Stripe price id the cart already
             // carries (unchanged from the shopper's perspective -- priceId still comes from
             // /api/products, which now sources it from products.stripe_price_id).
-            const { data: dbProduct } = await supabaseAdmin
+            const { data: dbProduct } = isTiktokCustomAmount ? { data: null } : await supabaseAdmin
                 .from('products')
                 .select('*, product_variants(*)')
                 .eq('stripe_price_id', item.priceId)
@@ -137,6 +160,30 @@ export default async function handler(req, res) {
                         item.quantity = 1;
                     }
                 }
+            } else if (isTiktokCustomAmount) {
+                // CUSTOM AMOUNT: no fixed Stripe Price exists for this -- the shopper picked
+                // their own figure client-side (see addTikTokToCart() in index.html). Never
+                // trust that number as-is; it's just a UI convenience the client sent along, and
+                // this is real money, so reclamp it here to the advertised $1-$1000 range no
+                // matter what actually arrived in the request body.
+                const amountCents = Math.max(100, Math.min(100000, Math.round(Number(item.tiktokCustomAmountCents)) || 100));
+                item.quantity = 1; // a lump custom claim, never quantity-adjustable -- see the line-item push below
+
+                let anchorPrice;
+                try {
+                    anchorPrice = await stripe.prices.retrieve(TIKTOK_ANCHOR_PRICE_ID, { expand: ['product'] });
+                } catch (err) {
+                    return res.status(400).json({ error: 'TikTok Live Claims is not available right now.' });
+                }
+                const anchorProduct = anchorPrice.product;
+                if (!anchorProduct || !anchorProduct.active) {
+                    return res.status(400).json({ error: 'TikTok Live Claims is not available right now.' });
+                }
+                product = { id: anchorProduct.id, name: anchorProduct.name, price_cents: amountCents };
+                hasVariants = false;
+                stripeMetaKey = 'stock';
+                redisKey = `stock_${anchorProduct.id}_${stripeMetaKey}`;
+                hasStockLimit = false; // custom claims were never stock-tracked, same as the fixed tiers
             } else {
                 // FALLBACK: not in the admin-managed catalog -- e.g. the standalone TikTok Live
                 // Claims product, which uses its own hardcoded Stripe Price IDs (see index.html)
@@ -220,6 +267,15 @@ export default async function handler(req, res) {
                 });
                 sessionMetadata['golden_ticket_won'] = 'true';
                 sessionMetadata['golden_ticket_product_id'] = product.id;
+            } else if (isTiktokCustomAmount) {
+                // Same dynamic price_data idiom as the golden ticket line above -- there's no
+                // fixed Price to reference for a shopper-chosen amount, and it's never
+                // quantity-adjustable (that would just let them multiply their own chosen total).
+                lineItems.push({
+                    price_data: { currency: 'usd', product: product.id, unit_amount: product.price_cents },
+                    quantity: 1,
+                    adjustable_quantity: { enabled: false },
+                });
             } else {
                 lineItems.push({
                     price: item.priceId,
@@ -236,7 +292,8 @@ export default async function handler(req, res) {
             // is technically still recoverable from item_N above but not readable at a glance.
             const variantLabel = hasVariants ? ` (${item.size}/${item.color})` : '';
             const goldenLabel = goldenTicketWonThisItem ? ' [GOLDEN TICKET - 50% OFF]' : '';
-            packSummary.push(`${item.quantity}x ${item.name}${variantLabel}${goldenLabel}`);
+            const customAmountLabel = isTiktokCustomAmount ? ` ($${(product.price_cents / 100).toFixed(2)})` : '';
+            packSummary.push(`${item.quantity}x ${item.name}${variantLabel}${goldenLabel}${customAmountLabel}`);
         }
 
         // BUY 3, GET THE 4TH FREE -- automatic store promo (Mom's idea), deliberately NOT a
