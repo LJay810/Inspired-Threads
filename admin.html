@@ -1030,41 +1030,40 @@ async function uploadProductImages(evt) {
     evt.target.value = '';
 }
 
-// Resizes/re-compresses an image client-side before it ever reaches Supabase Storage -- phone
+// Losslessly re-encodes an image client-side before it ever reaches Supabase Storage -- phone
 // photos routinely come in at 3-8MB, and with 190+ products (plus every variant color photo
 // and category size chart, which all funnel through this same uploadToStorage()) that adds up
-// fast against Supabase's free-tier Storage bandwidth (Cached Egress). Keeps PNG lossless --
-// just re-encoded smaller by virtue of fewer pixels -- since some product/DTF images rely on
-// transparency for the visualizer overlay; re-encodes anything else as JPEG. Skips images
-// that are already small (e.g. already run through TinyPNG), and never returns something
-// bigger than what came in.
-const COMPRESS_MAX_DIMENSION = 1600;
-const COMPRESS_JPEG_QUALITY = 0.85;
+// fast against Supabase's free-tier Storage bandwidth (Cached Egress). PNG is the only format
+// touched: its own deflate compressor sometimes shrinks a file usefully with the EXACT same
+// pixels (no resize, no quality drop) since some product/DTF images rely on transparency for
+// the visualizer overlay and can't just become JPEG. Everything else (JPEG, WebP, etc.) is
+// passed straight through untouched -- there's no browser API for genuinely lossless
+// recompression of those formats, only lossy re-encodes (real quality loss even at "quality
+// 1.0", from the decode/re-encode round-trip and chroma subsampling), which would silently
+// degrade product photos just to shave bytes. Skips PNGs that are already small (e.g. already
+// run through TinyPNG), and never returns something bigger than what came in.
 const COMPRESS_SKIP_UNDER_BYTES = 250 * 1024;
 
 function compressImage(file) {
     return new Promise((resolve) => {
-        if (!file.type.startsWith('image/') || file.size < COMPRESS_SKIP_UNDER_BYTES) { resolve(file); return; }
+        if (file.type !== 'image/png' || file.size < COMPRESS_SKIP_UNDER_BYTES) { resolve(file); return; }
 
         const img = new Image();
         const objectUrl = URL.createObjectURL(file);
         img.onload = () => {
             URL.revokeObjectURL(objectUrl);
 
-            const scale = Math.min(1, COMPRESS_MAX_DIMENSION / Math.max(img.naturalWidth, img.naturalHeight));
+            // Canvas drawn at the image's own natural size -- never downscaled -- so the
+            // re-encode is pixel-for-pixel identical to the source, just re-compressed.
             const canvas = document.createElement('canvas');
-            canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
-            canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            canvas.getContext('2d').drawImage(img, 0, 0);
 
-            const isPng = file.type === 'image/png';
-            const outputType = isPng ? 'image/png' : 'image/jpeg';
             canvas.toBlob((blob) => {
                 if (!blob || blob.size >= file.size) { resolve(file); return; } // never make it bigger
-                const ext = isPng ? 'png' : 'jpg';
-                const newName = file.name.replace(/\.[^.]+$/, '') + '.' + ext;
-                resolve(new File([blob], newName, { type: outputType }));
-            }, outputType, isPng ? undefined : COMPRESS_JPEG_QUALITY);
+                resolve(new File([blob], file.name, { type: 'image/png' }));
+            }, 'image/png');
         };
         img.onerror = () => resolve(file); // never let a decode failure block the actual upload
         img.src = objectUrl;

@@ -2573,7 +2573,7 @@
             <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">Live Claims</h2>
             
             <div class="form-group" style="margin-bottom: 20px;">
-                <label>Custom Amount</label>
+                <label>Custom Amount ($1.00–$1000.00)</label>
                 <input type="number" id="tiktokCustomAmount" value="25.00" min="1" max="1000" step="0.01"
                     oninput="updateTikTokTotal()" onblur="clampTikTokCustomAmount(); updateTikTokTotal();" onfocus="this.select()"
                     style="font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); border-radius: 8px; width: 100%; padding: 10px 12px; outline: none;">
@@ -3859,40 +3859,41 @@ Thank you for supporting my small business and understanding the handmade nature
             });
         }
 
-        // Resizes/re-compresses an image client-side before it ever reaches Supabase Storage --
+        // Losslessly re-encodes an image client-side before it ever reaches Supabase Storage --
         // phone photos routinely come in at 3-8MB, which adds up fast against Supabase's
         // free-tier Storage bandwidth (Cached Egress) once real shoppers are uploading review
-        // photos and avatars regularly. Keeps PNG lossless (just re-encoded smaller by virtue
-        // of fewer pixels) and re-encodes anything else as JPEG. Skips images that are already
-        // small, and never returns something bigger than what came in. Same helper duplicated
-        // in admin.html (no build step to share it from) -- see the comment there for the fuller
+        // photos and avatars regularly. PNG is the only format touched: its own deflate
+        // compressor sometimes shrinks a file usefully with the EXACT same pixels (no resize,
+        // no quality drop). Everything else (JPEG, etc.) is passed straight through untouched
+        // -- there's no browser API for genuinely lossless recompression of those formats, only
+        // lossy re-encodes (real quality loss even at "quality 1.0"), which would silently
+        // degrade a shopper's own photo just to shave bytes. Skips PNGs that are already small,
+        // and never returns something bigger than what came in. Same helper duplicated in
+        // admin.html (no build step to share it from) -- see the comment there for the fuller
         // reasoning.
-        const COMPRESS_JPEG_QUALITY = 0.85;
         const COMPRESS_SKIP_UNDER_BYTES = 250 * 1024;
 
-        function compressImage(file, maxDimension) {
+        function compressImage(file) {
             return new Promise((resolve) => {
-                if (!file.type.startsWith('image/') || file.size < COMPRESS_SKIP_UNDER_BYTES) { resolve(file); return; }
+                if (file.type !== 'image/png' || file.size < COMPRESS_SKIP_UNDER_BYTES) { resolve(file); return; }
 
                 const img = new Image();
                 const objectUrl = URL.createObjectURL(file);
                 img.onload = () => {
                     URL.revokeObjectURL(objectUrl);
 
-                    const scale = Math.min(1, maxDimension / Math.max(img.naturalWidth, img.naturalHeight));
+                    // Canvas drawn at the image's own natural size -- never downscaled -- so
+                    // the re-encode is pixel-for-pixel identical to the source, just
+                    // re-compressed.
                     const canvas = document.createElement('canvas');
-                    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
-                    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    canvas.width = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    canvas.getContext('2d').drawImage(img, 0, 0);
 
-                    const isPng = file.type === 'image/png';
-                    const outputType = isPng ? 'image/png' : 'image/jpeg';
                     canvas.toBlob((blob) => {
                         if (!blob || blob.size >= file.size) { resolve(file); return; } // never make it bigger
-                        const ext = isPng ? 'png' : 'jpg';
-                        const newName = file.name.replace(/\.[^.]+$/, '') + '.' + ext;
-                        resolve(new File([blob], newName, { type: outputType }));
-                    }, outputType, isPng ? undefined : COMPRESS_JPEG_QUALITY);
+                        resolve(new File([blob], file.name, { type: 'image/png' }));
+                    }, 'image/png');
                 };
                 img.onerror = () => resolve(file); // never let a decode failure block the actual upload
                 img.src = objectUrl;
@@ -3903,7 +3904,7 @@ Thank you for supporting my small business and understanding the handmade nature
         // policies on the review-photos bucket only let them write into their own folder, so
         // this can't be used to overwrite or impersonate anyone else's upload.
         async function uploadReviewPhoto(file, userId) {
-            const compressed = await compressImage(file, 1200); // review cards show these at a modest size
+            const compressed = await compressImage(file); // lossless PNG recompression only -- no resize, full original resolution kept
             const ext = (compressed.name.split('.').pop() || 'jpg').toLowerCase();
             const path = `${userId}/${Date.now()}.${ext}`;
             const { error } = await supabaseClient.storage.from('review-photos').upload(path, compressed, { upsert: true });
@@ -6249,7 +6250,7 @@ Thank you for supporting my small business and understanding the handmade nature
 
             statusEl.textContent = 'Uploading…';
             try {
-                const compressed = await compressImage(file, 500); // avatars only ever render small/circular
+                const compressed = await compressImage(file); // lossless PNG recompression only -- no resize, full original resolution kept
                 const ext = (compressed.name.split('.').pop() || 'jpg').toLowerCase();
                 const path = `${session.user.id}/avatar.${ext}`;
                 const { error: uploadErr } = await supabaseClient.storage.from('avatars').upload(path, compressed, { upsert: true });

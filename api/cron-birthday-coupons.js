@@ -38,7 +38,6 @@ export default async function handler(req, res) {
     try {
         const today = new Date();
         const todayMonth = today.getUTCMonth() + 1;
-        const todayDay = today.getUTCDate();
         const thisYear = today.getUTCFullYear();
 
         // Supabase's JS client can't filter on "month/day of a date column" directly, so pull
@@ -55,14 +54,25 @@ export default async function handler(req, res) {
         for (const profile of profiles || []) {
             if (profile.birthday_code_year === thisYear) continue; // already issued this year
 
+            // Month-only match (not the exact day) -- this fires once, the first time the cron
+            // runs after entering a shopper's birthday month (normally day 1 of that month),
+            // and the birthday_code_year guard above is what keeps it from firing again on every
+            // later day of that same month. The code itself stays valid through the LAST day of
+            // the birthday month (below), not a fixed 30-day window, so it works the entire
+            // month no matter which day within it actually gets used to claim it.
             const bday = new Date(profile.birthday);
-            if (bday.getUTCMonth() + 1 !== todayMonth || bday.getUTCDate() !== todayDay) continue;
+            if (bday.getUTCMonth() + 1 !== todayMonth) continue;
 
             const tierName = effectiveTierName(profile.tier_spend || 0, profile.grandfathered_tier);
             const percentOff = perksForTier(tierName).birthdayDiscountPct;
             const coupon = await ensureBirthdayCoupon(percentOff);
 
-            const expiresAtSeconds = Math.floor(Date.now() / 1000) + 30 * 86400; // valid 30 days
+            // Last moment (23:59:59 UTC) of the birthday month, whatever day within it this
+            // actually runs on -- Date.UTC's day-0 rollback trick: passing the 1-indexed
+            // birthday month as the (0-indexed) month argument with day 0 lands on the last day
+            // of the PREVIOUS 0-indexed month, which is exactly the birthday month itself.
+            const endOfMonth = new Date(Date.UTC(thisYear, todayMonth, 0, 23, 59, 59));
+            const expiresAtSeconds = Math.floor(endOfMonth.getTime() / 1000);
             const code = randomCode();
 
             await stripe.promotionCodes.create({
