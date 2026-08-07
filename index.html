@@ -1058,6 +1058,11 @@
         .support-chat-msg-bubble { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 8px 12px; font-size: 0.82rem; line-height: 1.45; color: var(--text-pure); }
         .support-chat-msg-row.mine .support-chat-msg-bubble { background: rgba(255,0,127,0.18); border-color: rgba(255,0,127,0.35); }
         .support-chat-msg-bubble img { max-width: 180px; border-radius: 10px; display: block; margin-top: 6px; }
+        .typing-dots { display: flex; gap: 4px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 9px 12px; }
+        .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: supportTypingBounce 1.2s infinite ease-in-out; }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes supportTypingBounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
 
         .support-chat-guest-name-row { padding: 14px 16px; border-top: 1px solid var(--border-subtle); flex-shrink: 0; }
         .support-chat-guest-name-row p { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; }
@@ -2785,7 +2790,7 @@
         <div class="support-chat-input-row">
             <button type="button" class="support-chat-attach-btn hover-target" onclick="document.getElementById('supportChatImageInput').click()" title="Attach image">📎</button>
             <input type="file" id="supportChatImageInput" accept="image/*" style="display:none;" onchange="handleSupportChatImageSelected(event)">
-            <textarea id="supportChatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendSupportChatMessage();}"></textarea>
+            <textarea id="supportChatInput" placeholder="Type a message…" oninput="broadcastSupportChatTyping()" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendSupportChatMessage();}"></textarea>
             <button type="button" class="support-chat-send-btn hover-target" id="supportChatSendBtn" onclick="sendSupportChatMessage()">➤</button>
         </div>
         <a class="support-chat-footer-cta hover-target" href="https://www.tiktok.com/@lost81o" target="_blank" rel="noopener">Like The Website? Reach Out For Setup And Creation</a>
@@ -8007,6 +8012,15 @@ Thank you for supporting my small business and understanding the handmade nature
         let supportChatPendingImageFile = null;
         let supportChatUnreadCount = 0;
 
+        // Typing indicator: Realtime BROADCAST, not postgres_changes -- pure ephemeral pub/sub
+        // with no table behind it, so it works for a guest too without touching RLS (channel
+        // name scoped to the conversation's own uuid, same trust model as the rest of this
+        // feature). Mirrors admin.html's own copy of this same idea.
+        let supportChatTypingChannel = null;
+        let supportChatTypingIndicatorTimeout = null;
+        let supportChatTypingBroadcastThrottle = null;
+        let supportChatShowTypingIndicator = false; // baked into renderSupportChatMessages' own output, not a separately DOM-appended node -- that render function does a full innerHTML replacement on every new message, which would silently wipe out a node appended any other way
+
         async function initSupportChat() {
             if (!supabaseClient) return;
             loadSupportChatStatus();
@@ -8024,6 +8038,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         supportChatConversationId = data.id;
                         await loadSupportChatMessages();
                         subscribeSupportChatMessagesRealtime();
+                        subscribeSupportChatTypingChannel(data.id);
                     }
                 } catch (err) {
                     console.warn('Could not load existing support conversation:', err.message);
@@ -8036,6 +8051,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 if (stored) {
                     supportChatConversationId = stored;
                     await loadSupportChatMessages(); // one-time catch-up; polling only runs while the panel is open
+                    subscribeSupportChatTypingChannel(stored);
                 }
             }
         }
@@ -8115,8 +8131,10 @@ Thank you for supporting my small business and understanding the handmade nature
         function mergeSupportChatMessages(rows) {
             const existingIds = new Set(supportChatMessages.map(m => m.id));
             let newAdminCount = 0;
+            let hasNewRows = false;
             for (const row of rows) {
                 if (existingIds.has(row.id)) continue;
+                hasNewRows = true;
                 supportChatMessages.push(row);
                 existingIds.add(row.id);
                 if (row.sender_type === 'admin' && !supportChatPanelOpen) newAdminCount++;
@@ -8124,6 +8142,34 @@ Thank you for supporting my small business and understanding the handmade nature
             supportChatMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             renderSupportChatMessages();
             if (newAdminCount > 0) bumpSupportChatUnreadBadge(newAdminCount);
+            // Closure always arrives as a new message (the farewell text from
+            // admin_close_conversation), so only worth checking when something new landed.
+            if (hasNewRows) checkSupportChatConversationClosed();
+        }
+
+        async function checkSupportChatConversationClosed() {
+            if (!supportChatConversationId) return;
+            try {
+                const { data, error } = await supabaseClient.rpc('get_support_conversation_status', { p_conversation_id: supportChatConversationId });
+                if (error) throw error;
+                const row = Array.isArray(data) ? data[0] : data;
+                if (row && row.closed_at) resetSupportChatConversation();
+            } catch (err) {
+                console.warn('Could not check support chat status:', err.message);
+            }
+        }
+
+        // The conversation was closed (see admin_close_conversation in
+        // sql/support_chat_schema.sql) -- the farewell message stays visible in the thread, but
+        // everything else resets so the shopper's NEXT message starts a brand new conversation
+        // via the same lazy-creation logic already in sendSupportChatMessage, rather than trying
+        // to keep posting into a conversation nobody's monitoring anymore.
+        function resetSupportChatConversation() {
+            stopSupportChatGuestPolling();
+            if (supportChatMsgRealtimeChannel) { supabaseClient.removeChannel(supportChatMsgRealtimeChannel); supportChatMsgRealtimeChannel = null; }
+            unsubscribeSupportChatTypingChannel();
+            supportChatConversationId = null;
+            localStorage.removeItem('supportChatConversationId');
         }
 
         function supportChatAvatarHtml(m) {
@@ -8134,8 +8180,14 @@ Thank you for supporting my small business and understanding the handmade nature
 
         function renderSupportChatMessages() {
             const body = document.getElementById('supportChatBody');
+            const typingHtml = supportChatShowTypingIndicator
+                ? '<div class="support-chat-msg-row"><div class="typing-dots"><span></span><span></span><span></span></div></div>'
+                : '';
             if (supportChatMessages.length === 0) {
-                body.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:24px 10px;">Send a message and we'll get back to you!</div>`;
+                body.innerHTML = supportChatShowTypingIndicator
+                    ? typingHtml
+                    : `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:24px 10px;">Send a message and we'll get back to you!</div>`;
+                body.scrollTop = body.scrollHeight;
                 return;
             }
             body.innerHTML = supportChatMessages.map(m => `
@@ -8146,8 +8198,46 @@ Thank you for supporting my small business and understanding the handmade nature
                         ${m.image_url ? `<img src="${escapeHtml(m.image_url)}" alt="attachment">` : ''}
                     </div>
                 </div>
-            `).join('');
+            `).join('') + typingHtml;
             body.scrollTop = body.scrollHeight;
+        }
+
+        // Switches to a fresh channel scoped to whichever conversation is now active -- each
+        // conversation gets its own channel name, so this always tears down the previous one first.
+        function subscribeSupportChatTypingChannel(conversationId) {
+            unsubscribeSupportChatTypingChannel();
+            supportChatTypingChannel = supabaseClient
+                .channel(`support_typing_${conversationId}`)
+                .on('broadcast', { event: 'typing' }, (payload) => {
+                    if (payload.payload && payload.payload.from === 'admin') showSupportChatTypingIndicator();
+                })
+                .subscribe();
+        }
+
+        function unsubscribeSupportChatTypingChannel() {
+            if (supportChatTypingChannel) { supabaseClient.removeChannel(supportChatTypingChannel); supportChatTypingChannel = null; }
+            clearTimeout(supportChatTypingIndicatorTimeout);
+            if (supportChatShowTypingIndicator) { supportChatShowTypingIndicator = false; renderSupportChatMessages(); }
+        }
+
+        // Self-clearing rather than waiting for an explicit "stopped typing" signal -- simpler,
+        // and correctly handles the admin just navigating away mid-type instead of leaving the
+        // indicator stuck on forever.
+        function showSupportChatTypingIndicator() {
+            supportChatShowTypingIndicator = true;
+            renderSupportChatMessages();
+            clearTimeout(supportChatTypingIndicatorTimeout);
+            supportChatTypingIndicatorTimeout = setTimeout(() => {
+                supportChatShowTypingIndicator = false;
+                renderSupportChatMessages();
+            }, 3000);
+        }
+
+        // Throttled to at most once every 2s -- no need to broadcast on every single keystroke.
+        function broadcastSupportChatTyping() {
+            if (!supportChatTypingChannel || supportChatTypingBroadcastThrottle) return;
+            supportChatTypingBroadcastThrottle = setTimeout(() => { supportChatTypingBroadcastThrottle = null; }, 2000);
+            supportChatTypingChannel.send({ type: 'broadcast', event: 'typing', payload: { from: 'customer' } });
         }
 
         function clearSupportChatUnreadBadge() {
@@ -8226,6 +8316,7 @@ Thank you for supporting my small business and understanding the handmade nature
                     document.getElementById('supportChatGuestNameRow').style.display = 'none';
                     if (session) subscribeSupportChatMessagesRealtime();
                     else startSupportChatGuestPolling();
+                    subscribeSupportChatTypingChannel(newId);
                 }
 
                 let imageUrl = null;

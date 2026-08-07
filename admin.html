@@ -119,12 +119,23 @@
     /* ===================== SUPPORT CHAT TAB ===================== */
     .support-chat-layout { display: flex; gap: 0; border: 1px solid var(--border-subtle); border-radius: 10px; overflow: hidden; height: 620px; }
     .support-chat-list { width: 280px; flex-shrink: 0; border-right: 1px solid var(--border-subtle); overflow-y: auto; background: var(--bg-surface); }
-    .support-chat-list-item { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border-subtle); padding: 12px 14px; cursor: pointer; color: var(--text-pure); }
+    .support-chat-list-item { position: relative; display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border-subtle); padding: 12px 34px 12px 14px; cursor: pointer; color: var(--text-pure); }
     .support-chat-list-item:hover { background: var(--bg-card); }
     .support-chat-list-item.active { background: rgba(255,0,127,0.1); }
     .support-chat-list-item-name { font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
     .support-chat-list-item-name .guest-tag { font-size: 0.62rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
     .support-chat-list-item-preview { font-size: 0.78rem; color: var(--text-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .support-chat-list-item-close {
+        position: absolute; top: 10px; right: 8px; width: 20px; height: 20px; border-radius: 50%;
+        background: none; border: none; color: var(--text-muted); font-size: 0.85rem; line-height: 1; cursor: pointer;
+    }
+    .support-chat-list-item-close:hover { color: #ff6b8a; background: rgba(255,107,138,0.12); }
+    .support-chat-typing-row { display: flex; align-items: flex-end; gap: 8px; max-width: 78%; }
+    .typing-dots { display: flex; gap: 4px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 10px 13px; }
+    .typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); animation: supportTypingBounce 1.2s infinite ease-in-out; }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes supportTypingBounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
     .support-chat-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-pink); flex-shrink: 0; }
     .support-chat-thread { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .support-chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
@@ -401,7 +412,7 @@
                     <div class="support-chat-reply-row">
                         <button type="button" class="support-chat-attach-btn" onclick="document.getElementById('supportChatImageInput').click()" title="Attach image">📎</button>
                         <input type="file" id="supportChatImageInput" accept="image/*" style="display:none;" onchange="handleSupportChatImageSelected(event)">
-                        <textarea id="supportChatReplyInput" placeholder="Type a reply…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendAdminReply();}"></textarea>
+                        <textarea id="supportChatReplyInput" placeholder="Type a reply…" oninput="broadcastAdminTyping()" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendAdminReply();}"></textarea>
                         <button type="button" class="admin-btn" id="supportChatSendBtn" onclick="sendAdminReply()">Send</button>
                     </div>
                 </div>
@@ -2082,6 +2093,15 @@ let pendingSupportChatOpenId = null; // set by boot() when landing here via an e
 let supportChatRealtimeChannel = null;
 let pendingSupportImageFile = null; // staged by handleSupportChatImageSelected, sent (and cleared) by sendAdminReply
 
+// Typing indicator: Realtime BROADCAST, not postgres_changes -- pure ephemeral pub/sub with no
+// table behind it at all, so it works for a guest customer too without touching RLS (the same
+// "unguessable conversation id = access" trust model already used everywhere else in this
+// feature -- the channel name itself is scoped to the conversation's own uuid).
+let supportTypingChannel = null;
+let supportTypingIndicatorTimeout = null;
+let supportTypingBroadcastThrottle = null;
+let supportTypingIndicatorShown = false;
+
 async function loadSupportChat() {
     document.getElementById('supportChatError').innerHTML = '';
     try {
@@ -2132,7 +2152,7 @@ async function toggleSupportOnline() {
 
 async function loadConversationList() {
     const { data, error } = await supabaseClient.from('support_conversations')
-        .select('*').order('last_message_at', { ascending: false });
+        .select('*').is('closed_at', null).order('last_message_at', { ascending: false });
     if (error) throw error;
     supportConversations = data || [];
     renderConversationList();
@@ -2156,6 +2176,7 @@ function renderConversationList() {
         const unread = isConversationUnread(c);
         return `
             <button type="button" class="support-chat-list-item${c.id === currentSupportConversationId ? ' active' : ''}" onclick="openConversation('${c.id}')">
+                <button type="button" class="support-chat-list-item-close" onclick="closeSupportConversation(event, '${c.id}')" title="End chat">✕</button>
                 <div class="support-chat-list-item-name">
                     ${unread ? '<span class="support-chat-unread-dot"></span>' : ''}
                     ${escapeHtml(name)}
@@ -2167,9 +2188,37 @@ function renderConversationList() {
     }).join('');
 }
 
+// Soft-close, not an instant delete -- see the comment on admin_close_conversation in
+// sql/support_chat_schema.sql for why (guarantees the farewell message actually reaches the
+// customer). stopPropagation so clicking the X doesn't also trigger the row's own
+// openConversation() click handler underneath it.
+async function closeSupportConversation(event, id) {
+    event.stopPropagation();
+    if (!confirm('End this chat? The customer will see a "conversation resolved" message, and it\'ll be removed from this list.')) return;
+
+    try {
+        const { error } = await supabaseClient.rpc('admin_close_conversation', { p_conversation_id: id });
+        if (error) throw error;
+        supportConversations = supportConversations.filter(c => c.id !== id);
+        renderConversationList();
+        if (currentSupportConversationId === id) {
+            currentSupportConversationId = null;
+            // Unsubscribe FIRST -- if the typing indicator happened to be showing, its own
+            // internal re-render (via supportChatLastRenderedMessages) would otherwise stomp the
+            // "Select a conversation" placeholder set right after it.
+            unsubscribeSupportTypingChannel();
+            supportChatLastRenderedMessages = [];
+            document.getElementById('supportChatMessages').innerHTML = '<div class="empty-state">Select a conversation.</div>';
+        }
+    } catch (err) {
+        document.getElementById('supportChatError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
 async function openConversation(id) {
     currentSupportConversationId = id;
     renderConversationList(); // just to reflect the .active highlight immediately
+    subscribeSupportTypingChannel(id);
 
     try {
         await supabaseClient.rpc('admin_mark_conversation_read', { p_conversation_id: id });
@@ -2194,10 +2243,17 @@ function supportChatAvatarHtml(msg) {
     return `<div class="support-chat-avatar-fallback">${escapeHtml(initial)}</div>`;
 }
 
+let supportChatLastRenderedMessages = []; // renderThread's own last input -- lets show/hideAdminSideTypingIndicator re-render without needing a fresh fetch
+
 function renderThread(messages) {
+    supportChatLastRenderedMessages = messages;
     const wrap = document.getElementById('supportChatMessages');
+    const typingHtml = supportTypingIndicatorShown
+        ? '<div class="support-chat-typing-row"><div class="typing-dots"><span></span><span></span><span></span></div></div>'
+        : '';
     if (messages.length === 0) {
-        wrap.innerHTML = '<div class="empty-state">No messages yet.</div>';
+        wrap.innerHTML = supportTypingIndicatorShown ? typingHtml : '<div class="empty-state">No messages yet.</div>';
+        wrap.scrollTop = wrap.scrollHeight;
         return;
     }
     wrap.innerHTML = messages.map(m => `
@@ -2208,8 +2264,52 @@ function renderThread(messages) {
                 ${m.image_url ? `<img src="${escapeHtml(m.image_url)}" alt="attachment">` : ''}
             </div>
         </div>
-    `).join('');
+    `).join('') + typingHtml;
     wrap.scrollTop = wrap.scrollHeight;
+}
+
+// Switches to a fresh channel scoped to whichever conversation is now open -- each conversation
+// gets its own channel name, so this always tears down the previous one first.
+function subscribeSupportTypingChannel(conversationId) {
+    unsubscribeSupportTypingChannel();
+    supportTypingChannel = supabaseClient
+        .channel(`support_typing_${conversationId}`)
+        .on('broadcast', { event: 'typing' }, (payload) => {
+            if (payload.payload && payload.payload.from === 'customer') showAdminSideTypingIndicator();
+        })
+        .subscribe();
+}
+
+function unsubscribeSupportTypingChannel() {
+    if (supportTypingChannel) {
+        supabaseClient.removeChannel(supportTypingChannel);
+        supportTypingChannel = null;
+    }
+    clearTimeout(supportTypingIndicatorTimeout);
+    if (supportTypingIndicatorShown) { supportTypingIndicatorShown = false; renderThread(supportChatLastRenderedMessages); }
+}
+
+// Self-clearing rather than waiting for an explicit "stopped typing" signal -- simpler, and
+// correctly handles the customer just closing their tab mid-type instead of leaving the
+// indicator stuck on forever. Baked into renderThread's own output (via
+// supportTypingIndicatorShown) rather than a separately DOM-appended node -- renderThread does a
+// full innerHTML replacement on every new message, which would silently wipe out a node appended
+// any other way.
+function showAdminSideTypingIndicator() {
+    supportTypingIndicatorShown = true;
+    renderThread(supportChatLastRenderedMessages);
+    clearTimeout(supportTypingIndicatorTimeout);
+    supportTypingIndicatorTimeout = setTimeout(() => {
+        supportTypingIndicatorShown = false;
+        renderThread(supportChatLastRenderedMessages);
+    }, 3000);
+}
+
+// Throttled to at most once every 2s -- no need to broadcast on every single keystroke.
+function broadcastAdminTyping() {
+    if (!supportTypingChannel || supportTypingBroadcastThrottle) return;
+    supportTypingBroadcastThrottle = setTimeout(() => { supportTypingBroadcastThrottle = null; }, 2000);
+    supportTypingChannel.send({ type: 'broadcast', event: 'typing', payload: { from: 'admin' } });
 }
 
 // Admin sees every conversation live (RLS bypass via is_admin -- see sql/support_chat_schema.sql)
