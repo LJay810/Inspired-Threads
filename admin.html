@@ -127,7 +127,8 @@
     .support-chat-list-item-preview { font-size: 0.78rem; color: var(--text-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .support-chat-list-item-close {
         position: absolute; top: 10px; right: 8px; width: 20px; height: 20px; border-radius: 50%;
-        background: none; border: none; color: var(--text-muted); font-size: 0.85rem; line-height: 1; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        color: var(--text-muted); font-size: 0.85rem; line-height: 1; cursor: pointer;
     }
     .support-chat-list-item-close:hover { color: #ff6b8a; background: rgba(255,107,138,0.12); }
     .support-chat-typing-row { display: flex; align-items: flex-end; gap: 8px; max-width: 78%; }
@@ -2176,7 +2177,7 @@ function renderConversationList() {
         const unread = isConversationUnread(c);
         return `
             <button type="button" class="support-chat-list-item${c.id === currentSupportConversationId ? ' active' : ''}" onclick="openConversation('${c.id}')">
-                <button type="button" class="support-chat-list-item-close" onclick="closeSupportConversation(event, '${c.id}')" title="End chat">✕</button>
+                <span class="support-chat-list-item-close" onclick="closeSupportConversation(event, '${c.id}')" title="End chat">✕</span>
                 <div class="support-chat-list-item-name">
                     ${unread ? '<span class="support-chat-unread-dot"></span>' : ''}
                     ${escapeHtml(name)}
