@@ -148,8 +148,45 @@ export default async function handler(req, res) {
             resetCount++;
         }
 
+        // SUPPORT CHAT CLEANUP -------------------------------------------------
+        // Piggybacks this same daily cron slot for the same reason as the annual tier reset
+        // above -- this project is already at Vercel Hobby's 12-function cap. Conversations
+        // closed via admin_close_conversation (sql/support_chat_schema.sql) are only ever
+        // soft-closed at that moment, specifically so the farewell message is guaranteed to
+        // reach the customer -- this is the actual cleanup that reclaims the storage a "delete
+        // them from storage" close was meant to free up, just on a 30-day delay rather than
+        // instantly. support_messages rows cascade-delete automatically via their own foreign
+        // key, so only the conversation row itself needs deleting here.
+        const thirtyDaysAgoIso = new Date(Date.now() - 30 * 86400 * 1000).toISOString();
+        const { data: staleConversations, error: staleErr } = await supabaseAdmin
+            .from('support_conversations')
+            .select('id')
+            .not('closed_at', 'is', null)
+            .lt('closed_at', thirtyDaysAgoIso);
+        if (staleErr) throw staleErr;
+
+        let purgedCount = 0;
+        for (const conv of staleConversations || []) {
+            // Best-effort -- never let an orphaned/already-empty storage folder block the
+            // actual row deletion, which is the part that matters most (stops the conversation
+            // from ever showing up anywhere again).
+            try {
+                const { data: files } = await supabaseAdmin.storage.from('support-chat-images').list(conv.id);
+                if (files && files.length > 0) {
+                    await supabaseAdmin.storage.from('support-chat-images').remove(files.map(f => `${conv.id}/${f.name}`));
+                }
+            } catch (err) {
+                console.warn('Could not clean up storage for conversation', conv.id, ':', err.message);
+            }
+
+            const { error: deleteErr } = await supabaseAdmin.from('support_conversations').delete().eq('id', conv.id);
+            if (deleteErr) throw deleteErr;
+
+            purgedCount++;
+        }
+
         res.status(200).json({
-            message: `Issued ${issuedCount} birthday coupon(s). Reset ${resetCount} profile(s) for annual tier requalification.`,
+            message: `Issued ${issuedCount} birthday coupon(s). Reset ${resetCount} profile(s) for annual tier requalification. Purged ${purgedCount} closed support conversation(s).`,
         });
     } catch (error) {
         console.error('Birthday/tier-reset cron error:', error);
