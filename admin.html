@@ -116,6 +116,32 @@
         background: var(--bg-card); border: 1px solid var(--border-subtle); vertical-align: middle;
     }
 
+    /* ===================== SUPPORT CHAT TAB ===================== */
+    .support-chat-layout { display: flex; gap: 0; border: 1px solid var(--border-subtle); border-radius: 10px; overflow: hidden; height: 620px; }
+    .support-chat-list { width: 280px; flex-shrink: 0; border-right: 1px solid var(--border-subtle); overflow-y: auto; background: var(--bg-surface); }
+    .support-chat-list-item { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--border-subtle); padding: 12px 14px; cursor: pointer; color: var(--text-pure); }
+    .support-chat-list-item:hover { background: var(--bg-card); }
+    .support-chat-list-item.active { background: rgba(255,0,127,0.1); }
+    .support-chat-list-item-name { font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    .support-chat-list-item-name .guest-tag { font-size: 0.62rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .support-chat-list-item-preview { font-size: 0.78rem; color: var(--text-muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .support-chat-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-pink); flex-shrink: 0; }
+    .support-chat-thread { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .support-chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .support-chat-bubble-row { display: flex; align-items: flex-end; gap: 8px; max-width: 78%; }
+    .support-chat-bubble-row.admin { align-self: flex-end; flex-direction: row-reverse; }
+    .support-chat-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--bg-card); border: 1px solid var(--border-subtle); }
+    .support-chat-avatar-fallback { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; background: var(--bg-card); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
+    .support-chat-bubble { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 9px 13px; font-size: 0.85rem; line-height: 1.45; }
+    .support-chat-bubble-row.admin .support-chat-bubble { background: rgba(255,0,127,0.14); border-color: rgba(255,0,127,0.3); }
+    .support-chat-bubble img { max-width: 220px; border-radius: 8px; display: block; margin-top: 6px; }
+    .support-chat-reply-row { display: flex; gap: 8px; align-items: center; padding: 12px; border-top: 1px solid var(--border-subtle); background: var(--bg-surface); }
+    .support-chat-reply-row textarea { flex: 1; resize: none; min-height: 40px; max-height: 100px; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-pure); border-radius: 8px; padding: 9px 11px; font-size: 0.85rem; font-family: var(--font-sans); }
+    .support-chat-attach-btn { background: none; border: 1px solid var(--border-subtle); color: var(--text-muted); width: 40px; height: 40px; border-radius: 8px; cursor: pointer; font-size: 1rem; flex-shrink: 0; }
+    .support-chat-attach-btn:hover { color: var(--text-pure); border-color: var(--text-muted); }
+    .support-chat-online-dot { width: 9px; height: 9px; border-radius: 50%; background: #555; display: inline-block; margin-right: 6px; }
+    .support-chat-online-dot.on { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+
     /* Active Stock / Graveyard side-by-side split, divided by a center line -- Graveyard items
        are always at 0 by definition, so mixing them into the lowest-first Active list buried them
        among ordinary low-stock items instead of standing out as their own deliberate category. */
@@ -212,6 +238,7 @@
         <button class="admin-nav-btn" data-tab="promocodes" onclick="switchTab('promocodes')">Promo Codes</button>
         <button class="admin-nav-btn" data-tab="cartaddons" onclick="switchTab('cartaddons')">Cart Addons</button>
         <button class="admin-nav-btn" data-tab="live" onclick="switchTab('live')">Live Status</button>
+        <button class="admin-nav-btn" data-tab="supportchat" onclick="switchTab('supportchat')">Support Chat</button>
         <div class="admin-nav-divider"></div>
         <a class="admin-nav-link" href="/#account">← Customers / Reviews (existing tools)</a>
         <a class="admin-nav-link" href="/">← Back to storefront</a>
@@ -349,6 +376,34 @@
                 <div class="admin-field"><label>Live TikTok URL (optional -- links the banner straight to your stream)</label><input type="text" id="live_url" placeholder="https://www.tiktok.com/@..."></div>
                 <div class="admin-modal-actions" style="justify-content:flex-start;">
                     <button type="button" class="admin-btn secondary" onclick="saveLiveStatusDetails()">Save Details</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===================== SUPPORT CHAT TAB ===================== -->
+        <section class="admin-tab-panel" id="tab-supportchat">
+            <div class="admin-toolbar" style="justify-content:space-between;">
+                <div style="font-size:0.85rem; color:var(--text-muted);">
+                    <span class="support-chat-online-dot" id="supportOnlineDot"></span>
+                    <span id="supportOnlineLabel">Loading…</span>
+                </div>
+                <button type="button" class="admin-btn" id="supportOnlineToggleBtn" onclick="toggleSupportOnline()">Loading…</button>
+            </div>
+            <div id="supportChatError"></div>
+            <div class="support-chat-layout">
+                <div class="support-chat-list" id="supportChatList">
+                    <div class="empty-state">Loading…</div>
+                </div>
+                <div class="support-chat-thread">
+                    <div class="support-chat-messages" id="supportChatMessages">
+                        <div class="empty-state">Select a conversation.</div>
+                    </div>
+                    <div class="support-chat-reply-row">
+                        <button type="button" class="support-chat-attach-btn" onclick="document.getElementById('supportChatImageInput').click()" title="Attach image">📎</button>
+                        <input type="file" id="supportChatImageInput" accept="image/*" style="display:none;" onchange="handleSupportChatImageSelected(event)">
+                        <textarea id="supportChatReplyInput" placeholder="Type a reply…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendAdminReply();}"></textarea>
+                        <button type="button" class="admin-btn" id="supportChatSendBtn" onclick="sendAdminReply()">Send</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -564,7 +619,17 @@ async function boot() {
     if (!session) return;
     document.getElementById('whoAmI').textContent = session.profile.username || session.user.email;
     await loadCategories();
-    switchTab('categories');
+
+    // Support chat email alerts link here as #support-chat=<conversationId> (see
+    // notifySupportMessage in lib/notify.js) -- land straight on that thread instead of the
+    // default tab, forcing whoever clicks the email through an extra manual click every time.
+    const chatMatch = /^#support-chat=(.+)$/.exec(window.location.hash);
+    if (chatMatch) {
+        switchTab('supportchat');
+        pendingSupportChatOpenId = chatMatch[1];
+    } else {
+        switchTab('categories');
+    }
 }
 boot();
 
@@ -576,6 +641,7 @@ function switchTab(tab) {
     if (tab === 'promocodes') loadPromoCodes();
     if (tab === 'cartaddons') loadCartAddons();
     if (tab === 'live') loadLiveStatus();
+    if (tab === 'supportchat') loadSupportChat();
 }
 
 async function adminApi(endpoint, body) {
@@ -1999,6 +2065,232 @@ async function saveLiveStatusDetails() {
         setTimeout(() => { document.getElementById('liveStatusError').innerHTML = ''; }, 2000);
     } catch (err) {
         document.getElementById('liveStatusError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+// ===================== SUPPORT CHAT =====================
+// Writes/reads go straight to Supabase under RLS (or through the RPCs in
+// sql/support_chat_schema.sql for the shopper-facing write path), same "no new API route, this
+// project is already at Vercel Hobby's 12-function cap" reasoning as Live Status above. The one
+// piece that DOES need a server call (the email alert) is folded into api/cancel-session.js
+// instead of getting its own file -- see that file's comment.
+
+let supportStatusCache = { is_online: false };
+let supportConversations = [];
+let currentSupportConversationId = null;
+let pendingSupportChatOpenId = null; // set by boot() when landing here via an email's #support-chat=<id> link
+let supportChatRealtimeChannel = null;
+let pendingSupportImageFile = null; // staged by handleSupportChatImageSelected, sent (and cleared) by sendAdminReply
+
+async function loadSupportChat() {
+    document.getElementById('supportChatError').innerHTML = '';
+    try {
+        const { data: status, error: statusErr } = await supabaseClient.from('support_status').select('*').eq('id', 'main').single();
+        if (statusErr) throw statusErr;
+        supportStatusCache = status;
+        renderSupportOnlineToggle();
+
+        await loadConversationList();
+        subscribeSupportChatRealtime();
+
+        if (pendingSupportChatOpenId) {
+            const id = pendingSupportChatOpenId;
+            pendingSupportChatOpenId = null;
+            if (supportConversations.some(c => c.id === id)) openConversation(id);
+        }
+    } catch (err) {
+        document.getElementById('supportChatError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+function renderSupportOnlineToggle() {
+    const dot = document.getElementById('supportOnlineDot');
+    const label = document.getElementById('supportOnlineLabel');
+    const btn = document.getElementById('supportOnlineToggleBtn');
+    dot.classList.toggle('on', !!supportStatusCache.is_online);
+    label.textContent = supportStatusCache.is_online ? 'Online' : 'Offline';
+    btn.textContent = supportStatusCache.is_online ? 'Go Offline' : 'Go Online';
+    btn.className = supportStatusCache.is_online ? 'admin-btn danger' : 'admin-btn';
+}
+
+async function toggleSupportOnline() {
+    const btn = document.getElementById('supportOnlineToggleBtn');
+    btn.disabled = true;
+    try {
+        const { data, error } = await supabaseClient.from('support_status')
+            .update({ is_online: !supportStatusCache.is_online, updated_at: new Date().toISOString() })
+            .eq('id', 'main').select().single();
+        if (error) throw error;
+        supportStatusCache = data;
+        renderSupportOnlineToggle();
+    } catch (err) {
+        document.getElementById('supportChatError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function loadConversationList() {
+    const { data, error } = await supabaseClient.from('support_conversations')
+        .select('*').order('last_message_at', { ascending: false });
+    if (error) throw error;
+    supportConversations = data || [];
+    renderConversationList();
+}
+
+// Unread is purely admin_last_read_at vs last_message_at -- deliberately independent of the
+// online/offline toggle, so anything received while offline still shows up as unread whenever
+// this tab is next opened, rather than being missed.
+function isConversationUnread(c) {
+    return !c.admin_last_read_at || new Date(c.admin_last_read_at) < new Date(c.last_message_at);
+}
+
+function renderConversationList() {
+    const list = document.getElementById('supportChatList');
+    if (supportConversations.length === 0) {
+        list.innerHTML = '<div class="empty-state">No conversations yet.</div>';
+        return;
+    }
+    list.innerHTML = supportConversations.map(c => {
+        const name = c.customer_display_name || (c.user_id ? 'Shopper' : 'Guest');
+        const unread = isConversationUnread(c);
+        return `
+            <button type="button" class="support-chat-list-item${c.id === currentSupportConversationId ? ' active' : ''}" onclick="openConversation('${c.id}')">
+                <div class="support-chat-list-item-name">
+                    ${unread ? '<span class="support-chat-unread-dot"></span>' : ''}
+                    ${escapeHtml(name)}
+                    ${!c.user_id ? '<span class="guest-tag">Guest</span>' : ''}
+                </div>
+                <div class="support-chat-list-item-preview">${new Date(c.last_message_at).toLocaleString()}</div>
+            </button>
+        `;
+    }).join('');
+}
+
+async function openConversation(id) {
+    currentSupportConversationId = id;
+    renderConversationList(); // just to reflect the .active highlight immediately
+
+    try {
+        await supabaseClient.rpc('admin_mark_conversation_read', { p_conversation_id: id });
+        const conv = supportConversations.find(c => c.id === id);
+        if (conv) conv.admin_last_read_at = new Date().toISOString();
+        renderConversationList();
+
+        const { data, error } = await supabaseClient.from('support_messages')
+            .select('*').eq('conversation_id', id).order('created_at', { ascending: true });
+        if (error) throw error;
+        renderThread(data || []);
+    } catch (err) {
+        document.getElementById('supportChatError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    }
+}
+
+function supportChatAvatarHtml(msg) {
+    if (msg.sender_avatar_url) {
+        return `<img class="support-chat-avatar" src="${escapeHtml(msg.sender_avatar_url)}" alt="">`;
+    }
+    const initial = (msg.sender_name || '?').trim().charAt(0).toUpperCase() || '?';
+    return `<div class="support-chat-avatar-fallback">${escapeHtml(initial)}</div>`;
+}
+
+function renderThread(messages) {
+    const wrap = document.getElementById('supportChatMessages');
+    if (messages.length === 0) {
+        wrap.innerHTML = '<div class="empty-state">No messages yet.</div>';
+        return;
+    }
+    wrap.innerHTML = messages.map(m => `
+        <div class="support-chat-bubble-row${m.sender_type === 'admin' ? ' admin' : ''}">
+            ${supportChatAvatarHtml(m)}
+            <div class="support-chat-bubble">
+                ${m.body ? escapeHtml(m.body).replace(/\n/g, '<br>') : ''}
+                ${m.image_url ? `<img src="${escapeHtml(m.image_url)}" alt="attachment">` : ''}
+            </div>
+        </div>
+    `).join('');
+    wrap.scrollTop = wrap.scrollHeight;
+}
+
+// Admin sees every conversation live (RLS bypass via is_admin -- see sql/support_chat_schema.sql)
+// -- no filter needed, unlike the storefront widget's own per-conversation subscription.
+function subscribeSupportChatRealtime() {
+    if (supportChatRealtimeChannel) return;
+    supportChatRealtimeChannel = supabaseClient
+        .channel('admin_support_chat')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' }, (payload) => {
+            const msg = payload.new;
+            const conv = supportConversations.find(c => c.id === msg.conversation_id);
+            if (conv) {
+                conv.last_message_at = msg.created_at;
+                supportConversations.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+            } else {
+                loadConversationList(); // a brand new conversation -- simplest to just refetch the list
+                return;
+            }
+            renderConversationList();
+            if (msg.conversation_id === currentSupportConversationId) {
+                openConversation(currentSupportConversationId); // re-marks read + re-renders the thread
+            }
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_conversations' }, () => {
+            loadConversationList();
+        })
+        .subscribe();
+}
+
+async function handleSupportChatImageSelected(event) {
+    const file = event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    const maxBytes = 10 * 1024 * 1024;
+    if (file.size > maxBytes) {
+        document.getElementById('supportChatError').innerHTML = '<div class="admin-error-banner">That image is too large (max 10MB).</div>';
+        return;
+    }
+    pendingSupportImageFile = file;
+    document.getElementById('supportChatSendBtn').textContent = 'Send 📎';
+}
+
+async function uploadSupportChatImage(file, conversationId) {
+    const compressed = await compressImage(file); // lossless PNG recompression only -- no resize, full original resolution kept
+    const ext = (compressed.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${conversationId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabaseClient.storage.from('support-chat-images').upload(path, compressed);
+    if (error) throw error;
+    const { data } = supabaseClient.storage.from('support-chat-images').getPublicUrl(path);
+    return data.publicUrl;
+}
+
+async function sendAdminReply() {
+    if (!currentSupportConversationId) return;
+    const input = document.getElementById('supportChatReplyInput');
+    const body = input.value.trim();
+    if (!body && !pendingSupportImageFile) return;
+
+    const btn = document.getElementById('supportChatSendBtn');
+    btn.disabled = true;
+    try {
+        let imageUrl = null;
+        if (pendingSupportImageFile) {
+            imageUrl = await uploadSupportChatImage(pendingSupportImageFile, currentSupportConversationId);
+            pendingSupportImageFile = null;
+        }
+        const { error } = await supabaseClient.rpc('send_support_message', {
+            p_conversation_id: currentSupportConversationId,
+            p_body: body || null,
+            p_image_url: imageUrl,
+        });
+        if (error) throw error;
+        input.value = '';
+        btn.textContent = 'Send';
+        // No optimistic local render -- the realtime subscription above picks this exact insert
+        // back up and re-renders the thread, same single-source-of-truth reasoning used
+        // everywhere else Realtime is already relied on in this codebase (e.g. site_status).
+    } catch (err) {
+        document.getElementById('supportChatError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
+    } finally {
+        btn.disabled = false;
     }
 }
 

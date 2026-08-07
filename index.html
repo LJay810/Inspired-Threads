@@ -990,7 +990,10 @@
         }
 
         /* --- TOAST / CELEBRATION SYSTEM --- */
-        .toast-container { position: fixed; bottom: max(20px, env(safe-area-inset-bottom)); right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 12px; max-width: 380px; pointer-events: none; }
+        /* bottom offset reserves the corner below it for .support-chat-bubble (fixed at
+           bottom:20px, ~56px tall) so a celebration toast never stacks on top of the chat
+           bubble -- see the SUPPORT CHAT WIDGET block further down. */
+        .toast-container { position: fixed; bottom: max(92px, calc(72px + env(safe-area-inset-bottom))); right: 20px; z-index: 5000; display: flex; flex-direction: column; gap: 12px; max-width: 380px; pointer-events: none; }
         .toast {
             position: relative; background: rgba(15,15,15,0.97); border: 1px solid var(--accent-pink); border-radius: 14px; padding: 18px 34px 18px 20px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 24px rgba(255,0,127,0.2);
@@ -1007,7 +1010,86 @@
         .toast-close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--text-muted); font-size: 1rem; cursor: none !important; line-height: 1; }
         .toast-close:hover { color: var(--text-pure); }
         @media (max-width: 900px) {
-            .toast-container { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); max-width: none; }
+            .toast-container { left: 12px; right: 12px; bottom: max(84px, calc(64px + env(safe-area-inset-bottom))); max-width: none; }
+        }
+
+        /* --- SUPPORT CHAT WIDGET --- */
+        .support-chat-bubble {
+            position: fixed; bottom: max(20px, env(safe-area-inset-bottom)); right: 20px; z-index: 4400;
+            width: 56px; height: 56px; border-radius: 50%; background: var(--accent-pink); border: none; cursor: none !important;
+            display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+            box-shadow: 0 8px 24px rgba(255,0,127,0.4), 0 0 0 rgba(255,0,127,0.4); transition: transform 0.25s cubic-bezier(0.25,1,0.5,1), box-shadow 0.25s ease;
+        }
+        .support-chat-bubble:hover { transform: scale(1.08); box-shadow: 0 10px 30px rgba(255,0,127,0.55); }
+        .support-chat-bubble.open { transform: scale(0.9); }
+        .support-chat-unread-badge {
+            position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; border-radius: 9px; padding: 0 4px;
+            background: #ff3b5c; border: 2px solid var(--bg-main); color: #fff; font-family: var(--font-mono); font-size: 0.62rem; font-weight: 800;
+            display: none; align-items: center; justify-content: center;
+        }
+        .support-chat-unread-badge.show { display: flex; }
+
+        .support-chat-panel {
+            position: fixed; bottom: max(86px, calc(66px + env(safe-area-inset-bottom))); right: 20px; z-index: 4400;
+            width: 360px; max-width: calc(100vw - 32px); height: min(520px, calc(100vh - 140px));
+            background: rgba(15, 15, 15, 0.97); border: 1px solid var(--accent-pink); border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 30px rgba(255,0,127,0.15);
+            display: flex; flex-direction: column; overflow: hidden;
+            opacity: 0; transform: translateY(20px) scale(0.97); pointer-events: none; transition: transform 0.3s cubic-bezier(0.25,1,0.5,1), opacity 0.25s ease;
+        }
+        .support-chat-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+
+        .support-chat-panel-header { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+        .support-chat-panel-title { font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.82rem; color: var(--text-pure); flex: 1; }
+        .support-chat-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; flex-shrink: 0; }
+        .support-chat-status-dot.online { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+        .support-chat-status-label { font-size: 0.68rem; color: var(--text-muted); }
+        .support-chat-panel-close { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: none !important; }
+        .support-chat-panel-close:hover { color: var(--accent-pink); }
+
+        .support-chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .support-chat-msg-row { display: flex; align-items: flex-end; gap: 8px; max-width: 82%; }
+        .support-chat-msg-row.mine { align-self: flex-end; flex-direction: row-reverse; }
+        .support-chat-msg-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--bg-card); border: 1px solid var(--border-subtle); }
+        .support-chat-msg-avatar-fallback {
+            width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; background: var(--bg-card); border: 1px solid var(--border-subtle);
+            display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; color: var(--text-muted);
+        }
+        .support-chat-msg-bubble { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 14px; padding: 8px 12px; font-size: 0.82rem; line-height: 1.45; color: var(--text-pure); }
+        .support-chat-msg-row.mine .support-chat-msg-bubble { background: rgba(255,0,127,0.18); border-color: rgba(255,0,127,0.35); }
+        .support-chat-msg-bubble img { max-width: 180px; border-radius: 10px; display: block; margin-top: 6px; }
+
+        .support-chat-guest-name-row { padding: 14px 16px; border-top: 1px solid var(--border-subtle); flex-shrink: 0; }
+        .support-chat-guest-name-row p { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px; }
+        .support-chat-guest-name-row input {
+            width: 100%; background: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-pure);
+            padding: 9px 11px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 8px;
+        }
+
+        .support-chat-input-row { display: flex; gap: 8px; align-items: center; padding: 12px 14px; border-top: 1px solid var(--border-subtle); flex-shrink: 0; }
+        .support-chat-input-row textarea {
+            flex: 1; resize: none; min-height: 38px; max-height: 90px; background: var(--bg-card); border: 1px solid var(--border-subtle);
+            color: var(--text-pure); border-radius: 10px; padding: 8px 11px; font-size: 0.82rem; font-family: var(--font-sans);
+        }
+        .support-chat-input-row button { background: none; border: none; cursor: none !important; flex-shrink: 0; }
+        .support-chat-attach-btn { color: var(--text-muted); font-size: 1.1rem; width: 34px; height: 34px; }
+        .support-chat-attach-btn:hover { color: var(--accent-pink); }
+        .support-chat-send-btn {
+            background: var(--accent-pink); color: #fff; width: 34px; height: 34px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+        }
+        .support-chat-send-btn:hover { background: var(--accent-pink-hover); }
+        .support-chat-send-btn:disabled { opacity: 0.5; }
+
+        .support-chat-footer-cta {
+            display: block; text-align: center; padding: 9px; font-size: 0.68rem; font-family: var(--font-mono); text-transform: uppercase;
+            letter-spacing: 0.04em; color: var(--accent-pink); text-decoration: none; border-top: 1px solid var(--border-subtle); flex-shrink: 0;
+        }
+        .support-chat-footer-cta:hover { background: rgba(255,0,127,0.08); }
+
+        @media (max-width: 900px) {
+            .support-chat-bubble { bottom: max(16px, env(safe-area-inset-bottom)); right: 16px; width: 52px; height: 52px; }
+            .support-chat-panel { right: 12px; bottom: max(78px, calc(58px + env(safe-area-inset-bottom))); width: calc(100vw - 24px); height: min(70vh, 560px); }
         }
 
         /* --- INSTALL APP PROMPT (one-time, mobile only) --- */
@@ -2563,7 +2645,7 @@
             <h2 style="font-family: var(--font-mono); color: var(--accent-pink); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 0.1em; text-align: center;">Live Claims</h2>
             
             <div class="form-group" style="margin-bottom: 20px;">
-                <label>Custom Amount</label>
+                <label>Custom Amount ($1.00–$1000.00)</label>
                 <input type="number" id="tiktokCustomAmount" value="25.00" min="1" max="1000" step="0.01"
                     oninput="updateTikTokTotal()" onblur="clampTikTokCustomAmount(); updateTikTokTotal();" onfocus="this.select()"
                     style="font-family: var(--font-mono); font-size: 1.1rem; font-weight: 700; color: var(--text-pure); background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); border-radius: 8px; width: 100%; padding: 10px 12px; outline: none;">
@@ -2679,6 +2761,35 @@
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ===================== SUPPORT CHAT WIDGET ===================== -->
+    <button type="button" class="support-chat-bubble hover-target" id="supportChatBubble" onclick="toggleSupportChatPanel()" aria-label="Chat with us">
+        💬
+        <span class="support-chat-unread-badge" id="supportChatUnreadBadge"></span>
+    </button>
+
+    <div class="support-chat-panel" id="supportChatPanel">
+        <div class="support-chat-panel-header">
+            <span class="support-chat-status-dot" id="supportChatStatusDot"></span>
+            <span class="support-chat-panel-title">Chat With Us</span>
+            <span class="support-chat-status-label" id="supportChatStatusLabel"></span>
+            <button type="button" class="support-chat-panel-close hover-target" onclick="toggleSupportChatPanel()" aria-label="Close chat">✕</button>
+        </div>
+        <div class="support-chat-body" id="supportChatBody">
+            <div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:24px 10px;">Send a message and we'll get back to you!</div>
+        </div>
+        <div class="support-chat-guest-name-row" id="supportChatGuestNameRow" style="display:none;">
+            <p>What's your name?</p>
+            <input type="text" id="supportChatGuestNameInput" placeholder="Your name" maxlength="60">
+        </div>
+        <div class="support-chat-input-row">
+            <button type="button" class="support-chat-attach-btn hover-target" onclick="document.getElementById('supportChatImageInput').click()" title="Attach image">📎</button>
+            <input type="file" id="supportChatImageInput" accept="image/*" style="display:none;" onchange="handleSupportChatImageSelected(event)">
+            <textarea id="supportChatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); sendSupportChatMessage();}"></textarea>
+            <button type="button" class="support-chat-send-btn hover-target" id="supportChatSendBtn" onclick="sendSupportChatMessage()">➤</button>
+        </div>
+        <a class="support-chat-footer-cta hover-target" href="https://www.tiktok.com/@lost81o" target="_blank" rel="noopener">Like The Website? Reach Out For Setup And Creation</a>
+    </div>
 
     <div class="install-prompt-card" id="installPromptCard">
         <button class="install-prompt-close hover-target" onclick="dismissInstallPrompt()" aria-label="Dismiss">✕</button>
@@ -7875,6 +7986,280 @@ Thank you for supporting my small business and understanding the handmade nature
                 .subscribe();
         }
 
+        // ===================== SUPPORT CHAT WIDGET =====================
+        // Reads/writes go straight to Supabase -- RLS for logged-in shoppers/admin, SECURITY
+        // DEFINER RPCs for guests (see sql/support_chat_schema.sql for the full reasoning; short
+        // version: profiles isn't cross-readable and a guest has no auth.uid() at all, so
+        // sender_name/sender_avatar_url are denormalized onto each message at write time, and
+        // guests never get a direct table grant). The one server call this feature needs (the
+        // email alert) is folded into api/cancel-session.js rather than a new file -- this
+        // project is already at Vercel Hobby's 12-function cap.
+        //
+        // Logged-in shoppers get true Supabase Realtime push (RLS-authorized). Guests don't (no
+        // RLS grant = no realtime authorization for them) -- they get short polling instead,
+        // only while the panel is actually open.
+        let supportChatConversationId = null;
+        let supportChatMessages = []; // local, deduped-by-id cache -- rendered from here, not straight from each fetch
+        let supportChatPollTimer = null;
+        let supportChatMsgRealtimeChannel = null;
+        let supportChatStatusChannel = null;
+        let supportChatPanelOpen = false;
+        let supportChatPendingImageFile = null;
+        let supportChatUnreadCount = 0;
+
+        async function initSupportChat() {
+            if (!supabaseClient) return;
+            loadSupportChatStatus();
+            subscribeSupportChatStatusRealtime();
+
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session) {
+                // A logged-in shopper's own conversation (if any) is looked up fresh via RLS --
+                // never trusts a stale guest id left in localStorage from before they logged in.
+                try {
+                    const { data } = await supabaseClient.from('support_conversations')
+                        .select('id').eq('user_id', session.user.id)
+                        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+                    if (data) {
+                        supportChatConversationId = data.id;
+                        await loadSupportChatMessages();
+                        subscribeSupportChatMessagesRealtime();
+                    }
+                } catch (err) {
+                    console.warn('Could not load existing support conversation:', err.message);
+                }
+            } else {
+                // Guests have no RLS access to look this up any other way -- localStorage (set
+                // the moment their first message creates a conversation, see
+                // sendSupportChatMessage) is the only record, same idiom as pendingReferralCode.
+                const stored = localStorage.getItem('supportChatConversationId');
+                if (stored) {
+                    supportChatConversationId = stored;
+                    await loadSupportChatMessages(); // one-time catch-up; polling only runs while the panel is open
+                }
+            }
+        }
+
+        async function loadSupportChatStatus() {
+            try {
+                const { data, error } = await supabaseClient.from('support_status').select('*').eq('id', 'main').single();
+                if (error) throw error;
+                applySupportChatStatus(data);
+            } catch (err) {
+                console.warn('Could not load support chat status:', err.message);
+            }
+        }
+
+        function applySupportChatStatus(status) {
+            document.getElementById('supportChatStatusDot').classList.toggle('online', !!status.is_online);
+            document.getElementById('supportChatStatusLabel').textContent = status.is_online ? 'Online' : 'Away';
+        }
+
+        function subscribeSupportChatStatusRealtime() {
+            if (supportChatStatusChannel) return;
+            supportChatStatusChannel = supabaseClient
+                .channel('support_status_changes')
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_status', filter: 'id=eq.main' },
+                    (payload) => applySupportChatStatus(payload.new))
+                .subscribe();
+        }
+
+        function toggleSupportChatPanel() {
+            supportChatPanelOpen = !supportChatPanelOpen;
+            document.getElementById('supportChatPanel').classList.toggle('open', supportChatPanelOpen);
+            document.getElementById('supportChatBubble').classList.toggle('open', supportChatPanelOpen);
+
+            if (supportChatPanelOpen) {
+                clearSupportChatUnreadBadge();
+                renderSupportChatGuestNamePromptIfNeeded();
+                if (supportChatConversationId) {
+                    loadSupportChatMessages();
+                    startSupportChatGuestPolling(); // no-op for a logged-in shopper -- see inside
+                }
+                document.getElementById('supportChatInput').focus();
+            } else {
+                stopSupportChatGuestPolling();
+            }
+        }
+
+        // Shown only for a guest who hasn't started a conversation yet -- a logged-in shopper
+        // never needs this (their identity is already known), and once a guest's first message
+        // creates a conversation, this never shows again for the rest of their session.
+        function renderSupportChatGuestNamePromptIfNeeded() {
+            const needsName = !window._isLoggedIn && !supportChatConversationId;
+            document.getElementById('supportChatGuestNameRow').style.display = needsName ? 'block' : 'none';
+        }
+
+        function startSupportChatGuestPolling() {
+            if (window._isLoggedIn || supportChatPollTimer) return; // logged-in shoppers get realtime instead
+            supportChatPollTimer = setInterval(() => {
+                if (supportChatConversationId) loadSupportChatMessages();
+            }, 4000);
+        }
+
+        function stopSupportChatGuestPolling() {
+            if (supportChatPollTimer) { clearInterval(supportChatPollTimer); supportChatPollTimer = null; }
+        }
+
+        async function loadSupportChatMessages() {
+            if (!supportChatConversationId) return;
+            try {
+                const { data, error } = await supabaseClient.rpc('get_support_messages', { p_conversation_id: supportChatConversationId });
+                if (error) throw error;
+                mergeSupportChatMessages(data || []);
+            } catch (err) {
+                console.warn('Could not load support chat messages:', err.message);
+            }
+        }
+
+        function mergeSupportChatMessages(rows) {
+            const existingIds = new Set(supportChatMessages.map(m => m.id));
+            let newAdminCount = 0;
+            for (const row of rows) {
+                if (existingIds.has(row.id)) continue;
+                supportChatMessages.push(row);
+                existingIds.add(row.id);
+                if (row.sender_type === 'admin' && !supportChatPanelOpen) newAdminCount++;
+            }
+            supportChatMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            renderSupportChatMessages();
+            if (newAdminCount > 0) bumpSupportChatUnreadBadge(newAdminCount);
+        }
+
+        function supportChatAvatarHtml(m) {
+            if (m.sender_avatar_url) return `<img class="support-chat-msg-avatar" src="${escapeHtml(m.sender_avatar_url)}" alt="">`;
+            const initial = (m.sender_name || '?').trim().charAt(0).toUpperCase() || '?';
+            return `<div class="support-chat-msg-avatar-fallback">${escapeHtml(initial)}</div>`;
+        }
+
+        function renderSupportChatMessages() {
+            const body = document.getElementById('supportChatBody');
+            if (supportChatMessages.length === 0) {
+                body.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; text-align:center; padding:24px 10px;">Send a message and we'll get back to you!</div>`;
+                return;
+            }
+            body.innerHTML = supportChatMessages.map(m => `
+                <div class="support-chat-msg-row${m.sender_type === 'customer' ? ' mine' : ''}">
+                    ${supportChatAvatarHtml(m)}
+                    <div class="support-chat-msg-bubble">
+                        ${m.body ? escapeHtml(m.body).replace(/\n/g, '<br>') : ''}
+                        ${m.image_url ? `<img src="${escapeHtml(m.image_url)}" alt="attachment">` : ''}
+                    </div>
+                </div>
+            `).join('');
+            body.scrollTop = body.scrollHeight;
+        }
+
+        function clearSupportChatUnreadBadge() {
+            supportChatUnreadCount = 0;
+            const badge = document.getElementById('supportChatUnreadBadge');
+            badge.classList.remove('show');
+            badge.textContent = '';
+        }
+
+        function bumpSupportChatUnreadBadge(by) {
+            supportChatUnreadCount += by;
+            const badge = document.getElementById('supportChatUnreadBadge');
+            badge.textContent = supportChatUnreadCount > 9 ? '9+' : String(supportChatUnreadCount);
+            badge.classList.add('show');
+        }
+
+        function subscribeSupportChatMessagesRealtime() {
+            if (!supportChatConversationId || supportChatMsgRealtimeChannel) return;
+            supportChatMsgRealtimeChannel = supabaseClient
+                .channel(`support_chat_${supportChatConversationId}`)
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `conversation_id=eq.${supportChatConversationId}` },
+                    (payload) => mergeSupportChatMessages([payload.new]))
+                .subscribe();
+        }
+
+        async function handleSupportChatImageSelected(event) {
+            const file = event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+            const maxBytes = 10 * 1024 * 1024;
+            if (file.size > maxBytes) {
+                alert('That image is too large (max 10MB).');
+                return;
+            }
+            supportChatPendingImageFile = file;
+            document.getElementById('supportChatSendBtn').textContent = '📎';
+        }
+
+        async function uploadSupportChatImage(file, conversationId) {
+            const compressed = await compressImage(file); // lossless PNG recompression only -- no resize, full original resolution kept
+            const ext = (compressed.name.split('.').pop() || 'jpg').toLowerCase();
+            const path = `${conversationId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+            const { error } = await supabaseClient.storage.from('support-chat-images').upload(path, compressed);
+            if (error) throw error;
+            const { data } = supabaseClient.storage.from('support-chat-images').getPublicUrl(path);
+            return data.publicUrl;
+        }
+
+        async function sendSupportChatMessage() {
+            const input = document.getElementById('supportChatInput');
+            const body = input.value.trim();
+            if (!body && !supportChatPendingImageFile) return;
+
+            const sendBtn = document.getElementById('supportChatSendBtn');
+            sendBtn.disabled = true;
+            try {
+                if (!supportChatConversationId) {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    let newId;
+                    if (session) {
+                        const { data, error } = await supabaseClient.rpc('create_support_conversation');
+                        if (error) throw error;
+                        newId = data;
+                    } else {
+                        const guestName = document.getElementById('supportChatGuestNameInput').value.trim();
+                        if (!guestName) {
+                            alert('Please enter your name first.');
+                            return;
+                        }
+                        const { data, error } = await supabaseClient.rpc('create_support_conversation', { p_guest_name: guestName });
+                        if (error) throw error;
+                        newId = data;
+                        localStorage.setItem('supportChatConversationId', newId);
+                    }
+                    supportChatConversationId = newId;
+                    document.getElementById('supportChatGuestNameRow').style.display = 'none';
+                    if (session) subscribeSupportChatMessagesRealtime();
+                    else startSupportChatGuestPolling();
+                }
+
+                let imageUrl = null;
+                if (supportChatPendingImageFile) {
+                    imageUrl = await uploadSupportChatImage(supportChatPendingImageFile, supportChatConversationId);
+                    supportChatPendingImageFile = null;
+                    sendBtn.textContent = '➤';
+                }
+
+                const { data: newMessage, error } = await supabaseClient.rpc('send_support_message', {
+                    p_conversation_id: supportChatConversationId,
+                    p_body: body || null,
+                    p_image_url: imageUrl,
+                });
+                if (error) throw error;
+
+                input.value = '';
+                mergeSupportChatMessages([newMessage]);
+
+                // Fire-and-forget -- the email alert is a nice-to-have that should never block or
+                // error out the chat itself if it fails (see api/cancel-session.js).
+                fetch('/api/cancel-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'notify_support_message', conversationId: supportChatConversationId, messageId: newMessage.id }),
+                }).catch(() => {});
+            } catch (err) {
+                console.error('Could not send support chat message:', err.message);
+                alert('Could not send your message -- please try again.');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
         // Opens the Live Claims modal and, if a real stream URL was set, also pops it open in a
         // new tab so a shopper can watch and claim at the same time. Tiers are gone (Custom
         // Amount is the only claim path now), so there's no default-tier pre-selection to do.
@@ -8308,6 +8693,7 @@ Thank you for supporting my small business and understanding the handmade nature
             loadLeaderboard();
             loadLiveStatus();
             subscribeLiveStatusRealtime();
+            initSupportChat();
         };
 
         // PWA installability -- registers the minimal static-asset-only service worker (see
