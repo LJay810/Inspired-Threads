@@ -4151,11 +4151,11 @@ Thank you for supporting my small business and understanding the handmade nature
                 window._currentGoldenTicketProductId = null; // reset here so pollLiveStock correctly notices "no longer any golden ticket at all," not just a switch between two products
                 window.dtfRegistry = []; // Reset local memory
 
-                // Cart Addons: simple, cheap items ("Wait! One more cute thing?") shown only in
-                // the pre-checkout popup (see openCartAddonsModal), never in the normal shop grid
-                // or filter bar -- pulled straight from this same already-fetched response instead
-                // of a second network round-trip.
-                window.cartAddonProducts = products.filter(p => p.metadata && p.metadata.category === 'cart-addons');
+                // Full product list, kept around for the smart cart-addon matcher (see
+                // computeCartAddonMatches near processCheckout) -- it needs to search the whole
+                // catalog for theme matches, not just one pre-filtered category, and this avoids
+                // a second network round-trip.
+                window.allProducts = products;
                 const shopCategoryList = categoryList.filter(c => c.id !== 'cart-addons');
 
                 const firstFilterBtnId = renderFilterBar(shopCategoryList);
@@ -5198,7 +5198,7 @@ Thank you for supporting my small business and understanding the handmade nature
                         if (existingDtf) {
                             existingDtf.quantity += 1;
                         } else {
-                            cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(attachedDtf.price), priceId: attachedDtf.priceId, size: null, color: null, quantity: 1, image: attachedDtf.image, isDtf: true });
+                            cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(attachedDtf.price), priceId: attachedDtf.priceId, size: null, color: null, quantity: 1, image: attachedDtf.image, isDtf: true, productId: attachedDtf.id, categoryId: (window.productCategoryId && window.productCategoryId[attachedDtf.id]) || null });
                         }
                     }
 
@@ -7657,7 +7657,7 @@ Thank you for supporting my small business and understanding the handmade nature
                 if (existingDtf) {
                     existingDtf.quantity += 1;
                 } else {
-                    cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(item.attachedDtf.price), priceId: item.attachedDtf.priceId, size: null, color: null, quantity: 1, image: item.attachedDtf.image, isDtf: true });
+                    cart.push({ id: Date.now() + 1, name: dtfCartName, price: parseFloat(item.attachedDtf.price), priceId: item.attachedDtf.priceId, size: null, color: null, quantity: 1, image: item.attachedDtf.image, isDtf: true, productId: item.attachedDtf.id, categoryId: (window.productCategoryId && window.productCategoryId[item.attachedDtf.id]) || null });
                 }
             }
 
@@ -7691,31 +7691,133 @@ Thank you for supporting my small business and understanding the handmade nature
             }
         }
 
-        // --- CART ADDONS (pre-checkout upsell popup) ---
-        // Simple (no size/color) items filed under the 'cart-addons' category in admin.html,
-        // shown once per checkout attempt right before the real Stripe redirect -- unless the
-        // cart already has one (see shouldShowCartAddonsPopup) or there's nothing to show.
+        // --- SMART CART ADDONS (pre-checkout upsell popup) ---
+        // Any category flagged addon_eligible in its admin config (e.g. Keychains) is a candidate
+        // pool. Rather than showing every addon-eligible product to every shopper, this matches
+        // the *theme* of what's actually in the cart (e.g. a "Ghost Print" DTF design) against
+        // candidate product names, so a themed "Ghost Keychain" gets recommended but an unrelated
+        // "Pumpkin Keychain" doesn't. Recomputed fresh on every checkout click since the cart
+        // (and thus the relevant theme) can change between attempts.
         function getAddonStock(product) {
             if (!product.metadata || product.metadata.stock === undefined) return null;
             const val = parseInt(product.metadata.stock, 10);
             return isNaN(val) ? null : val;
         }
         function getAddonCartQuantity(priceId) {
-            const existing = cart.find(item => item.priceId === priceId && item.categoryId === 'cart-addons');
+            const existing = cart.find(item => item.priceId === priceId);
             return existing ? existing.quantity : 0;
         }
+
+        // Generic descriptor words stripped before matching -- without this, "Ghost Print -
+        // Adult DTF" and a totally unrelated "Pumpkin Pocket Print" would both reduce to
+        // overlapping tokens just because they're both prints. What's left after stripping is
+        // the actual theme (e.g. "ghost"), which is what should drive the recommendation.
+        const ADDON_STOPWORDS = new Set([
+            'the', 'a', 'an', 'and', 'or', 'of', 'for', 'with', 'in', 'on', 'to',
+            'print', 'design', 'tee', 'shirt', 'tshirt', 'hoodie', 'sweatshirt', 'crewneck', 'crop', 'cropped',
+            'adult', 'kid', 'youth', 'toddler', 'baby',
+            'men', 'mens', 'women', 'womens', 'unisex',
+            'dtf', 'transfer', 'pocket', 'full', 'front', 'back', 'chest', 'sleeve',
+            'keychain', 'sticker', 'pin', 'magnet',
+            'small', 'large', 'medium', 'mini', 'set', 'pack', 'bundle',
+            'new', 'sale', 'limited', 'edition', 'exclusive',
+        ]);
+        const ADDON_MAX_RESULTS = 4;
+
+        // Crude stemmer -- just enough to fold "keychains"/"prints"/"ghosts" onto the singular
+        // forms already in ADDON_STOPWORDS / used elsewhere, not a real linguistic stemmer.
+        function addonStem(word) {
+            return word.replace(/'s$/, '').replace(/ies$/, 'y').replace(/(?<=[a-z]{3,})s$/, '');
+        }
+        function normalizeToTokens(str) {
+            if (!str) return [];
+            return str
+                .toLowerCase()
+                .replace(/\[attached print\]/g, ' ')
+                .replace(/\(w\/[^)]*\)/g, ' ')
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .split(/\s+/)
+                .map(addonStem)
+                .filter(w => w.length > 2 && !ADDON_STOPWORDS.has(w));
+        }
+        // Admins can set extra_metadata.match_keywords (a string array) on a product to override
+        // auto-detection entirely -- useful when a name is ambiguous or the theme word isn't the
+        // most prominent word in the name.
+        function getMatchTokens(productId) {
+            const meta = (window.productInventory && window.productInventory[productId]) || {};
+            if (Array.isArray(meta.match_keywords) && meta.match_keywords.length) {
+                return meta.match_keywords.map(w => String(w).toLowerCase().trim()).filter(Boolean);
+            }
+            const name = (window.productMeta && window.productMeta[productId] && window.productMeta[productId].name) || '';
+            return normalizeToTokens(name);
+        }
+        function getAddonEligibleCategoryIds() {
+            const byId = window.categoriesById || {};
+            const ids = new Set();
+            Object.keys(byId).forEach(id => { if (byId[id] && byId[id].config && byId[id].config.addon_eligible === true) ids.add(id); });
+            return ids;
+        }
+
+        function computeCartAddonMatches() {
+            const eligibleCatIds = getAddonEligibleCategoryIds();
+            if (eligibleCatIds.size === 0) return [];
+            const allProducts = window.allProducts || [];
+            const cartPriceIds = new Set(cart.map(i => i.priceId).filter(Boolean));
+
+            // One theme-token source per distinct product already in the cart (covers both a
+            // standalone DTF purchase and one attached to a garment via the visualizer).
+            const seenSourceIds = new Set();
+            const sources = [];
+            cart.forEach(item => {
+                const pid = item.productId;
+                if (!pid || seenSourceIds.has(pid)) return;
+                seenSourceIds.add(pid);
+                const categoryId = item.categoryId || (window.productCategoryId ? window.productCategoryId[pid] : null);
+                const tokens = getMatchTokens(pid);
+                if (tokens.length) sources.push({ categoryId, tokens: new Set(tokens) });
+            });
+            if (!sources.length) return [];
+
+            const scored = new Map();
+            allProducts.forEach(candidate => {
+                const candCatId = candidate.metadata && candidate.metadata.category;
+                if (!candCatId || !eligibleCatIds.has(candCatId)) return;
+                if (!candidate.priceId || cartPriceIds.has(candidate.priceId)) return;
+                const stock = getAddonStock(candidate);
+                if (stock !== null && stock <= 0) return;
+
+                const candTokens = new Set(getMatchTokens(candidate.id));
+                if (!candTokens.size) return;
+
+                let best = 0;
+                sources.forEach(src => {
+                    if (src.categoryId === candCatId) return; // never recommend the same category as the item that triggered the match
+                    let overlap = 0;
+                    candTokens.forEach(t => { if (src.tokens.has(t)) overlap++; });
+                    if (overlap > best) best = overlap;
+                });
+                if (best > 0) scored.set(candidate.id, { product: candidate, score: best });
+            });
+
+            return Array.from(scored.values())
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    const orderA = (a.product.metadata && parseInt(a.product.metadata.sort_order, 10)) || 99;
+                    const orderB = (b.product.metadata && parseInt(b.product.metadata.sort_order, 10)) || 99;
+                    return orderA - orderB;
+                })
+                .slice(0, ADDON_MAX_RESULTS)
+                .map(x => x.product);
+        }
+
         function shouldShowCartAddonsPopup() {
-            const addons = window.cartAddonProducts || [];
-            if (addons.length === 0) return false;
-            const hasAvailableAddon = addons.some(p => { const s = getAddonStock(p); return s === null || s > 0; });
-            if (!hasAvailableAddon) return false;
-            const cartAlreadyHasAddon = cart.some(item => item.categoryId === 'cart-addons');
-            return !cartAlreadyHasAddon;
+            return computeCartAddonMatches().length > 0;
         }
 
         function renderCartAddonsModalBody() {
             const wrap = document.getElementById('cartAddonsModalBody');
-            const addons = window.cartAddonProducts || [];
+            const addons = computeCartAddonMatches();
+            window.cartAddonProducts = addons; // reused by addAddonToCart below
             wrap.innerHTML = addons.map(p => {
                 const stock = getAddonStock(p);
                 const inCart = getAddonCartQuantity(p.priceId);
@@ -7753,14 +7855,14 @@ Thank you for supporting my small business and understanding the handmade nature
                 return;
             }
 
-            const existing = cart.find(item => item.priceId === product.priceId && item.categoryId === 'cart-addons');
+            const existing = cart.find(item => item.priceId === product.priceId);
             if (existing) {
                 existing.quantity += 1;
             } else {
                 cart.push({
                     id: Date.now(), name: product.name, price: parseFloat(product.price), priceId: product.priceId,
                     size: null, color: null, quantity: 1, image: (product.images && product.images[0]) || '',
-                    isDtf: false, categoryId: 'cart-addons',
+                    isDtf: false, categoryId: product.metadata && product.metadata.category, productId: product.id,
                 });
             }
             if (btnEl) flyToCart(btnEl, (product.images && product.images[0]) || '');
@@ -8751,17 +8853,6 @@ Thank you for supporting my small business and understanding the handmade nature
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ sessionId: canceledSessionId })
                     }).catch(err => console.error('Cancel-session call failed silently:', err));
-                }
-
-                // Cart Addons are a one-time "wait, one more thing?" nudge tied to that specific
-                // checkout attempt -- if it's abandoned, drop them rather than leaving them stuck
-                // in the cart forever. Also matters for shouldShowCartAddonsPopup(), which skips
-                // the popup entirely whenever the cart already has an addon in it -- without this,
-                // one cancelled checkout would silently suppress the popup on every future attempt.
-                // Everything else in the cart (real garments/designs) is intentionally left alone.
-                if (cart.some(item => item.categoryId === 'cart-addons')) {
-                    cart = cart.filter(item => item.categoryId !== 'cart-addons');
-                    saveCart();
                 }
 
                 window.history.replaceState(null, '', window.location.pathname);

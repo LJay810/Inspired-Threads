@@ -248,7 +248,6 @@
         <button class="admin-nav-btn" data-tab="products" onclick="switchTab('products')">Products</button>
         <button class="admin-nav-btn" data-tab="restock" onclick="switchTab('restock')">Restock</button>
         <button class="admin-nav-btn" data-tab="promocodes" onclick="switchTab('promocodes')">Promo Codes</button>
-        <button class="admin-nav-btn" data-tab="cartaddons" onclick="switchTab('cartaddons')">Cart Addons</button>
         <button class="admin-nav-btn" data-tab="live" onclick="switchTab('live')">Live Status</button>
         <button class="admin-nav-btn" data-tab="supportchat" onclick="switchTab('supportchat')">Support Chat</button>
         <div class="admin-nav-divider"></div>
@@ -356,22 +355,6 @@
             </div>
         </section>
 
-        <!-- ===================== CART ADDONS TAB ===================== -->
-        <section class="admin-tab-panel" id="tab-cartaddons">
-            <div class="settings-field-hint" style="margin-bottom:14px;">
-                Small extra items shown in a popup right before checkout ("Wait! Your cart wants 1 more cute thing"). Just an image, price, and stock -- no sizes, colors, or DTF designs. Never shown in the regular shop grid.
-            </div>
-            <div class="admin-toolbar">
-                <button class="admin-btn" onclick="openAddonModal()">+ Add Cart Addon</button>
-            </div>
-            <div class="admin-table-scroll">
-                <table class="admin-table">
-                    <thead><tr><th></th><th>Name</th><th>Price</th><th>Stock</th><th>Published</th><th></th></tr></thead>
-                    <tbody id="cartAddonsTableBody"><tr><td colspan="6" class="empty-state">Loading...</td></tr></tbody>
-                </table>
-            </div>
-        </section>
-
         <!-- ===================== LIVE STATUS TAB ===================== -->
         <section class="admin-tab-panel" id="tab-live">
             <div class="admin-modal" style="max-width: 640px; margin: 0; padding: 24px;">
@@ -448,6 +431,10 @@
 
             <div class="admin-field"><label>Size chart image URL (optional)</label><input type="text" id="cat_size_chart_url" placeholder="Upload below or paste a URL"><input type="file" accept="image/*" onchange="uploadCategorySizeChart(event)"></div>
             <div class="admin-field"><label><input type="checkbox" id="cat_active" checked style="width:auto;"> Active</label></div>
+            <div class="admin-field">
+                <label><input type="checkbox" id="cat_addon_eligible" style="width:auto;"> Recommend in checkout popup (addon-eligible)</label>
+                <div class="settings-field-hint">Products in this category can be smart-matched by theme (name/keyword overlap) and shown in the pre-checkout "one more thing?" popup, based on what's already in the shopper's cart.</div>
+            </div>
 
             <div class="admin-modal-actions">
                 <button type="button" class="admin-btn secondary" onclick="closeCategoryModal()">Cancel</button>
@@ -478,6 +465,11 @@
                 </div>
             </div>
             <div class="admin-field"><label>Sort order (lower numbers show first in the shop; leave blank to show last)</label><input type="number" id="prod_sort_order" placeholder="e.g. 5"></div>
+            <div class="admin-field">
+                <label>Match keywords (optional, comma-separated -- e.g. "ghost, boo")</label>
+                <input type="text" id="prod_match_keywords" placeholder="Leave blank to auto-detect theme words from the name">
+                <div class="settings-field-hint">Used by the smart cart-addon popup to match this product against what's in a shopper's cart. Leave blank to auto-detect from the product name (e.g. "Ghost Keychain" auto-matches "Ghost Print"); set this to override when the name is ambiguous or you want tighter control.</div>
+            </div>
             <div class="admin-field"><label><input type="checkbox" id="prod_published" checked style="width:auto;"> Published</label></div>
             <div class="admin-field">
                 <label style="color:#ffd700;"><input type="checkbox" id="prod_golden_ticket" style="width:auto;"> 🎫 Golden Ticket -- first buyer gets it 50% OFF</label>
@@ -586,30 +578,6 @@
     </div>
 </div>
 
-<!-- ===================== CART ADDON MODAL ===================== -->
-<div class="admin-modal-overlay" id="addonModalOverlay">
-    <div class="admin-modal">
-        <h2 id="addonModalTitle">Add Cart Addon</h2>
-        <div id="addonModalError"></div>
-        <form id="addonForm" onsubmit="saveAddon(event)">
-            <input type="hidden" id="addon_id">
-            <div class="admin-field"><label>Name</label><input type="text" id="addon_name" required></div>
-            <div class="admin-field"><label>Price (USD)</label><input type="number" id="addon_price" step="0.01" min="0.01" required></div>
-            <div class="admin-field"><label>Stock (leave blank for unlimited)</label><input type="number" id="addon_stock" min="0"></div>
-            <div class="admin-field"><label><input type="checkbox" id="addon_published" checked style="width:auto;"> Published</label></div>
-            <div class="admin-field">
-                <label>Image</label>
-                <input type="file" accept="image/*" onchange="uploadAddonImage(event)">
-                <div class="image-strip" id="addon_images_strip"></div>
-            </div>
-            <div class="admin-modal-actions">
-                <button type="button" class="admin-btn secondary" onclick="closeAddonModal()">Cancel</button>
-                <button type="submit" class="admin-btn">Save Addon</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 <script src="shared/admin-auth.js"></script>
 <script>
 let session = null;
@@ -651,7 +619,6 @@ function switchTab(tab) {
     if (tab === 'products') loadProducts();
     if (tab === 'restock') loadRestockTab();
     if (tab === 'promocodes') loadPromoCodes();
-    if (tab === 'cartaddons') loadCartAddons();
     if (tab === 'live') loadLiveStatus();
     if (tab === 'supportchat') loadSupportChat();
 }
@@ -677,7 +644,7 @@ async function adminApi(endpoint, body) {
 // every tracked key across the whole catalog at once, which a large shop could push past that,
 // so this chunks into safely-under-the-cap batches and merges the results back into one flat map.
 // Return shape is unchanged (a plain { redisKey: qty } map) so every existing caller (loadProducts,
-// loadCartAddons) keeps working exactly as before; a chunk that fails just contributes nothing to
+// loadRestockTab) keeps working exactly as before; a chunk that fails just contributes nothing to
 // the merged map instead of losing the whole batch. `fetchLiveStock.hadError` is set fresh on
 // every call so an interested caller (loadRestockTab) can show a "may be stale" hint -- optional,
 // so callers that don't check it are unaffected.
@@ -839,6 +806,7 @@ function openCategoryModal(id) {
         document.getElementById('cat_sort_order').value = (c.sort_order != null && c.sort_order !== 99) ? c.sort_order : '';
         document.getElementById('cat_size_chart_url').value = c.size_chart_image_url || '';
         document.getElementById('cat_active').checked = c.active;
+        document.getElementById('cat_addon_eligible').checked = !!(c.config && c.config.addon_eligible);
         selectLayoutType(c.card_layout_type);
         renderLayoutConfigFields(c.card_layout_type, c.config || {});
     } else {
@@ -862,8 +830,11 @@ async function uploadCategorySizeChart(evt) {
 }
 
 function buildCategoryConfigFromForm() {
+    const addonEligible = document.getElementById('cat_addon_eligible').checked;
+    const base = addonEligible ? { addon_eligible: true } : {};
     if (selectedLayoutType === 'variant-apparel' || selectedLayoutType === 'design-attach') {
         const config = {
+            ...base,
             dtf_default_placement: {
                 top: document.getElementById('cfg_dtf_top').value || null,
                 left: document.getElementById('cfg_dtf_left').value || null,
@@ -883,9 +854,9 @@ function buildCategoryConfigFromForm() {
         return config;
     }
     if (selectedLayoutType === 'gallery') {
-        return { max_thumbnails: parseInt(document.getElementById('cfg_max_thumbnails').value, 10) || 4 };
+        return { ...base, max_thumbnails: parseInt(document.getElementById('cfg_max_thumbnails').value, 10) || 4 };
     }
-    return {};
+    return base;
 }
 
 async function saveCategory(evt) {
@@ -1182,7 +1153,11 @@ function openProductModal(id) {
         // form untouched (e.g. just to fix a typo in the name) would silently overwrite Redis back
         // to the stale number and undo whatever's actually reserved/sold since the last manual edit.
         document.getElementById('prod_stock').value = getProductLiveStock(p) ?? '';
-        document.getElementById('prod_extra_metadata').value = p.extra_metadata && Object.keys(p.extra_metadata).length ? JSON.stringify(p.extra_metadata, null, 2) : '';
+        // match_keywords gets its own dedicated field below, so it's excluded here to avoid the
+        // same value being editable in two places at once.
+        const { match_keywords: _mk, ...advancedMeta } = p.extra_metadata || {};
+        document.getElementById('prod_extra_metadata').value = Object.keys(advancedMeta).length ? JSON.stringify(advancedMeta, null, 2) : '';
+        document.getElementById('prod_match_keywords').value = (p.extra_metadata && Array.isArray(p.extra_metadata.match_keywords)) ? p.extra_metadata.match_keywords.join(', ') : '';
         if (p.dtf_placement) {
             document.getElementById('prod_dtf_top').value = p.dtf_placement.top || '';
             document.getElementById('prod_dtf_left').value = p.dtf_placement.left || '';
@@ -1249,6 +1224,11 @@ async function saveProduct(evt) {
         }
     } else {
         payload.extra_metadata = {};
+    }
+
+    const matchKeywordsRaw = document.getElementById('prod_match_keywords').value.trim();
+    if (matchKeywordsRaw) {
+        payload.extra_metadata.match_keywords = matchKeywordsRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
     }
 
     if (category.card_layout_type === 'variant-apparel' || category.card_layout_type === 'design-attach') {
@@ -1494,152 +1474,6 @@ async function adminRestockSet(index, rowId) {
     }
 }
 
-// ===================== CART ADDONS =====================
-// Simple image + price + stock products, filed under a dedicated 'cart-addons' category
-// (card_layout_type 'simple') so they never appear in the regular shop grid/filter bar --
-// index.html excludes that category id explicitly when building the shop. They're read
-// directly from cart.js's already-fetched /api/products response for the pre-checkout popup.
-
-const CART_ADDONS_CATEGORY_ID = 'cart-addons';
-let cartAddonsCache = [];
-let cartAddonsLiveStock = {}; // redisKey -> live qty, refreshed each loadCartAddons() -- see fetchLiveStock
-
-// null (unlimited) has nothing in Redis to check -- everything else falls back to the cold
-// Supabase mirror only if Redis hasn't been asked yet (fetchLiveStock failed/not run).
-function getAddonLiveStock(p) {
-    if (p.stock === null) return null;
-    const live = cartAddonsLiveStock[`stock_${p.id}_stock`];
-    return (live === undefined || live === null) ? p.stock : live;
-}
-let currentAddonImages = [];
-
-async function ensureCartAddonsCategory() {
-    if (categories.find(c => c.id === CART_ADDONS_CATEGORY_ID)) return;
-    await adminApi('/api/admin-categories', {
-        action: 'create',
-        id: CART_ADDONS_CATEGORY_ID,
-        label: 'Cart Addons',
-        parent_id: null,
-        filter_group: null,
-        card_layout_type: 'simple',
-        config: {},
-    });
-    await loadCategories();
-}
-
-async function loadCartAddons() {
-    try {
-        await ensureCartAddonsCategory();
-        const { products } = await adminApi('/api/admin-products', { action: 'list', category_id: CART_ADDONS_CATEGORY_ID });
-        cartAddonsCache = products;
-        const keys = cartAddonsCache.filter(p => p.stock !== null).map(p => `stock_${p.id}_stock`);
-        cartAddonsLiveStock = await fetchLiveStock(keys);
-        renderCartAddonsTable();
-    } catch (err) {
-        document.getElementById('cartAddonsTableBody').innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(err.message)}</td></tr>`;
-    }
-}
-
-function renderCartAddonsTable() {
-    const body = document.getElementById('cartAddonsTableBody');
-    if (cartAddonsCache.length === 0) { body.innerHTML = '<tr><td colspan="6" class="empty-state">No cart addons yet.</td></tr>'; return; }
-    body.innerHTML = cartAddonsCache.map(p => {
-        const publishedCell = p.published ? 'Yes' : '<span class="badge error">No -- Archived</span>';
-        const archiveOrRestoreBtn = p.published
-            ? `<button class="admin-btn small danger" onclick='deleteAddon(${JSON.stringify(p.id)})'>Archive</button>`
-            : `<button class="admin-btn small" onclick='restoreAddon(${JSON.stringify(p.id)})'>Restore</button>`;
-        return `
-        <tr>
-            <td data-label=""><img class="admin-thumb" src="${p.images && p.images[0] || ''}" loading="lazy" onerror="this.style.opacity=0"></td>
-            <td data-label="Name">${escapeHtml(p.name)}</td>
-            <td data-label="Price">$${(p.price_cents / 100).toFixed(2)}</td>
-            <td data-label="Stock">${p.stock === null ? 'Unlimited' : getAddonLiveStock(p)}</td>
-            <td data-label="Published">${publishedCell}</td>
-            <td data-label="">
-                <button class="admin-btn small secondary" onclick='openAddonModal(${JSON.stringify(p.id)})'>Edit</button>
-                ${archiveOrRestoreBtn}
-            </td>
-        </tr>`;
-    }).join('');
-}
-
-function openAddonModal(id) {
-    document.getElementById('addonModalError').innerHTML = '';
-    document.getElementById('addonForm').reset();
-    document.getElementById('addon_id').value = '';
-    currentAddonImages = [];
-    if (id) {
-        const p = cartAddonsCache.find(x => x.id === id);
-        document.getElementById('addonModalTitle').textContent = 'Edit Cart Addon';
-        document.getElementById('addon_id').value = p.id;
-        document.getElementById('addon_name').value = p.name;
-        document.getElementById('addon_price').value = (p.price_cents / 100).toFixed(2);
-        // Prefilled from LIVE Redis stock, not the cold Supabase mirror -- otherwise saving this
-        // form untouched (e.g. just to fix a typo in the name) would silently overwrite Redis back
-        // to the stale number and undo whatever's actually reserved/sold since the last manual edit.
-        document.getElementById('addon_stock').value = getAddonLiveStock(p) ?? '';
-        document.getElementById('addon_published').checked = p.published;
-        currentAddonImages = (p.images || []).slice();
-    } else {
-        document.getElementById('addonModalTitle').textContent = 'Add Cart Addon';
-    }
-    renderAddonImageStrip();
-    document.getElementById('addonModalOverlay').classList.add('open');
-}
-function closeAddonModal() { document.getElementById('addonModalOverlay').classList.remove('open'); }
-
-function renderAddonImageStrip() {
-    const strip = document.getElementById('addon_images_strip');
-    strip.innerHTML = currentAddonImages.map((url, i) => `
-        <div class="img-slot"><img src="${url}" loading="lazy"><button type="button" onclick="removeAddonImage(${i})">✕</button></div>
-    `).join('');
-}
-function removeAddonImage(i) { currentAddonImages.splice(i, 1); renderAddonImageStrip(); }
-
-async function uploadAddonImage(evt) {
-    const file = evt.target.files[0];
-    if (!file) return;
-    try {
-        const url = await uploadToStorage(file);
-        currentAddonImages.push(url);
-        renderAddonImageStrip();
-    } catch (err) {
-        document.getElementById('addonModalError').innerHTML = `<div class="admin-error-banner">Image upload failed: ${escapeHtml(err.message)}</div>`;
-    }
-    evt.target.value = '';
-}
-
-async function saveAddon(evt) {
-    evt.preventDefault();
-    const id = document.getElementById('addon_id').value;
-    const payload = {
-        name: document.getElementById('addon_name').value,
-        category_id: CART_ADDONS_CATEGORY_ID,
-        price_dollars: document.getElementById('addon_price').value,
-        images: currentAddonImages,
-        published: document.getElementById('addon_published').checked,
-        stock: document.getElementById('addon_stock').value === '' ? null : parseInt(document.getElementById('addon_stock').value, 10),
-    };
-    try {
-        if (id) {
-            await adminApi('/api/admin-products', { action: 'update', id, ...payload });
-        } else {
-            await adminApi('/api/admin-products', { action: 'create', ...payload });
-        }
-        closeAddonModal();
-        await loadCartAddons();
-    } catch (err) {
-        document.getElementById('addonModalError').innerHTML = `<div class="admin-error-banner">${escapeHtml(err.message)}</div>`;
-    }
-}
-
-async function deleteAddon(id) {
-    if (!confirm('Archive this cart addon? It will stop appearing in the checkout popup.')) return;
-    try { await adminApi('/api/admin-products', { action: 'delete', id }); await loadCartAddons(); } catch (err) { alert(err.message); }
-}
-async function restoreAddon(id) {
-    try { await adminApi('/api/admin-products', { action: 'update', id, published: true }); await loadCartAddons(); } catch (err) { alert(err.message); }
-}
 
 // ===================== BULK ADD DTF =====================
 
