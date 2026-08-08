@@ -1022,6 +1022,11 @@
         }
         .support-chat-bubble:hover { transform: scale(1.08); box-shadow: 0 10px 30px rgba(255,0,127,0.55); }
         .support-chat-bubble.open { transform: scale(0.9); }
+        /* Both the bubble and its panel sit at z-index 4400, above the cart/wishlist drawers
+           (z-index 2000) -- without this they'd float on top of an open drawer instead of
+           getting out of its way. Toggled by updateBodyScrollLock(), the same chokepoint every
+           drawer open/close already routes through. */
+        body.drawer-open .support-chat-bubble, body.drawer-open .support-chat-panel { display: none; }
         .support-chat-unread-badge {
             position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; border-radius: 9px; padding: 0 4px;
             background: #ff3b5c; border: 2px solid var(--bg-main); color: #fff; font-family: var(--font-mono); font-size: 0.62rem; font-weight: 800;
@@ -7214,6 +7219,7 @@ Thank you for supporting my small business and understanding the handmade nature
             const isMobile = window.matchMedia('(max-width: 900px)').matches;
             const anyDrawerOpen = document.getElementById('cartDrawer').classList.contains('open')
                 || document.getElementById('wishlistDrawer').classList.contains('open');
+            document.body.classList.toggle('drawer-open', anyDrawerOpen);
             if (isMobile && anyDrawerOpen) {
                 if (document.body.style.position !== 'fixed') {
                     const scrollY = window.scrollY || window.pageYOffset || 0;
