@@ -7732,6 +7732,11 @@ Thank you for supporting my small business and understanding the handmade nature
         function normalizeToTokens(str) {
             if (!str) return [];
             return str
+                // Split camelCase/PascalCase runs (e.g. "JackKeyChain") into separate words
+                // *before* lowercasing wipes out the capitalization that makes the boundary
+                // visible -- otherwise a name typed without spaces never tokenizes the same way
+                // as one typed with them ("Jack Key Chain" vs "JackKeyChain").
+                .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
                 .toLowerCase()
                 .replace(/\[attached print\]/g, ' ')
                 .replace(/\(w\/[^)]*\)/g, ' ')
